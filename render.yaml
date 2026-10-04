@@ -1,0 +1,36 @@
+services:
+  - type: web
+    name: vault
+    env: node
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGO_URI
+        sync: false
+      - key: MONGO_DB
+        value: vault
+      - key: JWT_SECRET
+        generateValue: true
+      - key: SESSION_TTL
+        value: 7d
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: SETUP_TOKEN
+        sync: false
+      - key: MINIO_ENDPOINT
+        sync: false
+      - key: MINIO_ACCESS_KEY
+        sync: false
+      - key: MINIO_SECRET_KEY
+        sync: false
+      - key: MINIO_BUCKET
+        sync: false
+      - key: MINIO_PRIVATE_BUCKET
+        sync: false
+      - key: MINIO_REGION
+        value: us-east-1

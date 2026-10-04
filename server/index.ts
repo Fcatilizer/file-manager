@@ -13,6 +13,7 @@ import { createS3Router } from './s3.ts'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const isProd = process.env.NODE_ENV === 'production'
 const PORT = Number(process.env.PORT || 3000)
+const HOST = process.env.HOST || '0.0.0.0'
 
 async function start(): Promise<void> {
   await connectDB()
@@ -20,7 +21,13 @@ async function start(): Promise<void> {
 
   const app = express()
   app.disable('x-powered-by')
+  app.set('trust proxy', 1)
   app.use(cookieParser())
+
+  // ─── Public health check (for the hosting platform) ──────
+  app.get('/healthz', (_req: Request, res: Response) => {
+    res.json({ status: 'ok', uptime: process.uptime() })
+  })
 
   // ─── Auth (public) ───────────────────────────────────────
   app.use('/api/auth', express.json(), authRouter)
@@ -65,9 +72,17 @@ async function start(): Promise<void> {
     app.use(vite.middlewares)
   }
 
-  server.listen(PORT, () => {
-    console.log(`[vault] ${isProd ? 'production' : 'dev'} server → http://localhost:${PORT}`)
+  server.listen(PORT, HOST, () => {
+    console.log(`[vault] ${isProd ? 'production' : 'dev'} server → http://${HOST}:${PORT}`)
   })
+
+  const shutdown = (signal: string) => {
+    console.log(`[vault] ${signal} received, shutting down…`)
+    server.close(() => process.exit(0))
+    setTimeout(() => process.exit(1), 10_000).unref()
+  }
+  process.on('SIGTERM', () => shutdown('SIGTERM'))
+  process.on('SIGINT', () => shutdown('SIGINT'))
 }
 
 start().catch((err) => {
