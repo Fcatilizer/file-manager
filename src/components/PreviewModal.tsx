@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Icon } from './Icon'
+import Modal from './Modal'
 import DocxPreview from './DocxPreview'
 import SheetPreview from './SheetPreview'
 import { rawUrl, fetchTextContent, type FileItem } from '../lib/api'
@@ -148,24 +149,14 @@ export default function PreviewModal({
     })
   }, [])
 
-  // ─── Keyboard navigation ────────────────────────────────
+  // ─── Keyboard navigation (Escape handled by Modal) ──────
   const handleKey = useCallback(
     (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-      else if (e.key === 'ArrowLeft' && hasPrev) onPrev()
+      if (e.key === 'ArrowLeft' && hasPrev) onPrev()
       else if (e.key === 'ArrowRight' && hasNext) onNext()
     },
-    [onClose, onPrev, onNext, hasPrev, hasNext],
+    [onPrev, onNext, hasPrev, hasNext],
   )
-
-  useEffect(() => {
-    window.addEventListener('keydown', handleKey)
-    document.body.style.overflow = 'hidden'
-    return () => {
-      window.removeEventListener('keydown', handleKey)
-      document.body.style.overflow = ''
-    }
-  }, [handleKey])
 
   // ─── Body ───────────────────────────────────────────────
   const renderBody = () => {
@@ -464,9 +455,41 @@ export default function PreviewModal({
   }
 
   return (
-    <div className="preview-overlay" onClick={onClose} role="dialog" aria-modal="true">
-      <div className="preview" onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
+    <Modal
+      onClose={onClose}
+      className="preview"
+      overlayClassName="modal-overlay--fullscreen"
+      onKeyDown={handleKey}
+      overlayChildren={
+        <>
+          {hasPrev && (
+            <button
+              className="preview__nav preview__nav--prev"
+              title="Previous (←)"
+              onClick={(e) => {
+                e.stopPropagation()
+                onPrev()
+              }}
+            >
+              <Icon name="chevronLeft" size={22} />
+            </button>
+          )}
+          {hasNext && (
+            <button
+              className="preview__nav preview__nav--next"
+              title="Next (→)"
+              onClick={(e) => {
+                e.stopPropagation()
+                onNext()
+              }}
+            >
+              <Icon name="chevronRight" size={22} />
+            </button>
+          )}
+        </>
+      }
+    >
+      {/* Header */}
         <div className="preview__header">
           <div className="preview__meta">
             <span
@@ -518,33 +541,6 @@ export default function PreviewModal({
 
         {/* Body */}
         <div className="preview__body">{renderBody()}</div>
-      </div>
-
-      {/* Prev / Next */}
-      {hasPrev && (
-        <button
-          className="preview__nav preview__nav--prev"
-          title="Previous (←)"
-          onClick={(e) => {
-            e.stopPropagation()
-            onPrev()
-          }}
-        >
-          <Icon name="chevronLeft" size={22} />
-        </button>
-      )}
-      {hasNext && (
-        <button
-          className="preview__nav preview__nav--next"
-          title="Next (→)"
-          onClick={(e) => {
-            e.stopPropagation()
-            onNext()
-          }}
-        >
-          <Icon name="chevronRight" size={22} />
-        </button>
-      )}
-    </div>
+    </Modal>
   )
 }

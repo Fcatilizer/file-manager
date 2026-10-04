@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { Icon } from './Icon'
+import Modal from './Modal'
 import {
   createUser,
   deleteUser,
@@ -47,18 +48,6 @@ export default function UsersModal({ currentUser, onClose, onToast }: Props) {
     load()
   }, [load])
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', onKey)
-    document.body.style.overflow = 'hidden'
-    return () => {
-      window.removeEventListener('keydown', onKey)
-      document.body.style.overflow = ''
-    }
-  }, [onClose])
-
   const handleAdd = async (e: FormEvent) => {
     e.preventDefault()
     if (submitting) return
@@ -99,19 +88,18 @@ export default function UsersModal({ currentUser, onClose, onToast }: Props) {
   const adminCount = users.filter((u) => u.role === 'admin').length
 
   return (
-    <div className="users-overlay" onClick={onClose} role="dialog" aria-modal="true">
-      <div className="users-modal" onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
-        <div className="users-modal__header">
-          <div className="users-modal__title">
-            <Icon name="users" size={16} />
-            <span>Users</span>
-            {!loading && <span className="users-modal__count">{users.length}</span>}
-          </div>
-          <button className="btn btn--icon" title="Close (Esc)" onClick={onClose}>
-            <Icon name="close" size={16} />
-          </button>
+    <Modal onClose={onClose} className="users-modal" overlayClassName="modal-overlay--fullscreen">
+      {/* Header */}
+      <div className="users-modal__header">
+        <div className="users-modal__title">
+          <Icon name="users" size={16} />
+          <span>Users</span>
+          {!loading && <span className="users-modal__count">{users.length}</span>}
         </div>
+        <button className="btn btn--icon" title="Close (Esc)" onClick={onClose}>
+          <Icon name="close" size={16} />
+        </button>
+      </div>
 
         {/* Add user */}
         <form className="users-add" onSubmit={handleAdd}>
@@ -202,7 +190,6 @@ export default function UsersModal({ currentUser, onClose, onToast }: Props) {
             })
           )}
         </div>
-      </div>
-    </div>
+    </Modal>
   )
 }

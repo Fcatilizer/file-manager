@@ -598,9 +598,9 @@ body {
   }
 }
 
-/* ─── Preview Modal ───────────────────────────────────── */
+/* ─── Modal primitives ────────────────────────────────── */
 
-.preview-overlay {
+.modal-overlay {
   position: fixed;
   inset: 0;
   background: var(--drop-bg);
@@ -614,17 +614,20 @@ body {
   animation: fadeIn 140ms ease;
 }
 
-.preview {
+.modal {
   display: flex;
   flex-direction: column;
-  width: min(1100px, 94vw);
-  height: min(86vh, 920px);
   background: var(--bg-2);
   border: 1px solid var(--border-light);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   overflow: hidden;
   animation: previewIn 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.preview {
+  width: min(1100px, 94vw);
+  height: min(86vh, 920px);
 }
 
 @keyframes previewIn {
@@ -979,7 +982,7 @@ body {
 }
 
 @media (max-width: 640px) {
-  .preview-overlay {
+  .modal-overlay--fullscreen {
     padding: 0;
   }
 
@@ -1248,31 +1251,9 @@ body {
 
 /* ─── Users Modal ─────────────────────────────────────── */
 
-.users-overlay {
-  position: fixed;
-  inset: 0;
-  background: var(--drop-bg);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 200;
-  padding: 24px;
-  animation: fadeIn 140ms ease;
-}
-
 .users-modal {
-  display: flex;
-  flex-direction: column;
   width: min(580px, 94vw);
   max-height: min(80vh, 720px);
-  background: var(--bg-2);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  overflow: hidden;
-  animation: previewIn 180ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .users-modal__header {
@@ -1439,7 +1420,7 @@ body {
 }
 
 @media (max-width: 640px) {
-  .users-overlay {
+  .modal-overlay--fullscreen {
     padding: 0;
   }
 
@@ -2004,4 +1985,92 @@ body {
     padding: 28px 20px;
     border-radius: 0;
   }
+}
+
+/* ─── Dialog (reusable modal variant) ─────────────────── */
+
+.dialog {
+  width: min(420px, 94vw);
+}
+
+.dialog__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 18px 0;
+}
+
+.dialog__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.dialog__icon--danger {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.dialog__title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+.dialog__body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px 18px 4px;
+}
+
+.dialog__label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-2);
+}
+
+.dialog__message {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-2);
+}
+
+.dialog__error {
+  font-size: 12px;
+  color: var(--danger);
+  margin-top: 2px;
+}
+
+.dialog__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 18px;
+}
+
+/* ─── Danger button ───────────────────────────────────── */
+
+.btn--danger {
+  background: var(--danger);
+  color: #fff;
+}
+
+.btn--danger:hover {
+  background: var(--danger);
+  filter: brightness(1.1);
+  box-shadow: 0 0 16px rgba(244, 63, 94, 0.25);
+}
+
+.btn--danger:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  filter: none;
+  box-shadow: none;
 }

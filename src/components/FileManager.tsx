@@ -14,6 +14,8 @@ import { getFileTypeInfo, getCategoryInfo, CATEGORY_ORDER, type FileCategory } f
 import { Icon } from './Icon'
 import PreviewModal from './PreviewModal'
 import UsersModal from './UsersModal'
+import TextInputDialog from './TextInputDialog'
+import ConfirmDialog from './ConfirmDialog'
 
 /* ─── Helpers ─────────────────────────────────────────── */
 
@@ -64,6 +66,8 @@ export default function FileManager({ user, theme, onToggleTheme, onLogout }: Pr
   const [showUsers, setShowUsers] = useState(false)
   const [query, setQuery] = useState('')
   const [activeCategory, setActiveCategory] = useState<FileCategory | null>(null)
+  const [showNewFolder, setShowNewFolder] = useState(false)
+  const [pendingDelete, setPendingDelete] = useState<{ key: string; name: string } | null>(null)
 
   // ─── Toast ──────────────────────────────────────────────
 
@@ -136,19 +140,21 @@ export default function FileManager({ user, theme, onToggleTheme, onLogout }: Pr
 
   // ─── Delete ─────────────────────────────────────────────
 
-  const handleDelete = useCallback(
-    async (key: string, name: string) => {
-      if (!confirm(`Delete "${name}"?`)) return
-      try {
-        await deleteFile(activeBucket, key)
-        showToast('Deleted')
-        loadFiles()
-      } catch {
-        showToast('Failed to delete', 'error')
-      }
-    },
-    [activeBucket, showToast, loadFiles],
-  )
+  const handleDelete = useCallback((key: string, name: string) => {
+    setPendingDelete({ key, name })
+  }, [])
+
+  const confirmDelete = useCallback(async () => {
+    if (!pendingDelete) return
+    try {
+      await deleteFile(activeBucket, pendingDelete.key)
+      showToast('Deleted')
+      setPendingDelete(null)
+      loadFiles()
+    } catch (err) {
+      throw new Error(err instanceof Error ? err.message : 'Failed to delete')
+    }
+  }, [activeBucket, pendingDelete, showToast, loadFiles])
 
   // ─── Download ───────────────────────────────────────────
 
@@ -171,17 +177,19 @@ export default function FileManager({ user, theme, onToggleTheme, onLogout }: Pr
 
   // ─── Create folder ─────────────────────────────────────
 
-  const handleCreateFolder = useCallback(async () => {
-    const name = prompt('New folder name:')
-    if (!name?.trim()) return
-    try {
-      await createFolder(activeBucket, prefix + name.trim())
-      showToast('Folder created')
-      loadFiles()
-    } catch {
-      showToast('Failed to create folder', 'error')
-    }
-  }, [activeBucket, prefix, showToast, loadFiles])
+  const createNewFolder = useCallback(
+    async (name: string) => {
+      try {
+        await createFolder(activeBucket, prefix + name)
+        showToast('Folder created')
+        setShowNewFolder(false)
+        loadFiles()
+      } catch (err) {
+        throw new Error(err instanceof Error ? err.message : 'Failed to create folder')
+      }
+    },
+    [activeBucket, prefix, showToast, loadFiles],
+  )
 
   // ─── Navigation ─────────────────────────────────────────
 
@@ -360,7 +368,7 @@ export default function FileManager({ user, theme, onToggleTheme, onLogout }: Pr
           ))}
         </nav>
         <div className="toolbar__actions">
-          <button className="btn btn--ghost" onClick={handleCreateFolder}>
+          <button className="btn btn--ghost" onClick={() => setShowNewFolder(true)}>
             <Icon name="folderPlus" size={14} /> New Folder
           </button>
           <label className="btn btn--primary">
@@ -557,6 +565,37 @@ export default function FileManager({ user, theme, onToggleTheme, onLogout }: Pr
           onPrev={() => stepPreview(-1)}
           onNext={() => stepPreview(1)}
           onDownload={handleDownload}
+        />
+      )}
+
+      {/* New folder dialog */}
+      {showNewFolder && (
+        <TextInputDialog
+          title="New folder"
+          label="Folder name"
+          placeholder="Untitled folder"
+          confirmLabel="Create folder"
+          icon="folderPlus"
+          validate={(v) => {
+            if (!v) return 'Enter a folder name'
+            if (/[/\\]/.test(v)) return 'Folder names cannot contain slashes'
+            return null
+          }}
+          onConfirm={createNewFolder}
+          onClose={() => setShowNewFolder(false)}
+        />
+      )}
+
+      {/* Delete confirmation */}
+      {pendingDelete && (
+        <ConfirmDialog
+          title="Delete item"
+          message={`Are you sure you want to delete “${pendingDelete.name}”? This action cannot be undone.`}
+          confirmLabel="Delete"
+          danger
+          icon="trash"
+          onConfirm={confirmDelete}
+          onClose={() => setPendingDelete(null)}
         />
       )}
 
