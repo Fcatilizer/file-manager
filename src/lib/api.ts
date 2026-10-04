@@ -12,12 +12,55 @@ export interface BucketsResponse {
   privateBucket: string
 }
 
+export interface SessionUser {
+  email: string
+}
+
+/** Fired when any protected call comes back unauthorized (session expired). */
+export const UNAUTHORIZED_EVENT = 'vault:unauthorized'
+
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(url, init)
-  const data = await res.json()
+  const res = await fetch(url, { credentials: 'include', ...init })
+
+  if (res.status === 401 && !url.startsWith('/api/auth')) {
+    window.dispatchEvent(new Event(UNAUTHORIZED_EVENT))
+  }
+
+  const data = await res.json().catch(() => ({}))
   if (!res.ok) throw new Error(data.error || `Request failed: ${res.status}`)
   return data as T
 }
+
+/* ─── Auth ──────────────────────────────────────────────── */
+
+export async function login(email: string, password: string): Promise<SessionUser> {
+  const res = await fetch('/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ email, password }),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data.error || 'Login failed')
+  return data.user as SessionUser
+}
+
+export async function logout(): Promise<void> {
+  await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' })
+}
+
+export async function getSession(): Promise<SessionUser | null> {
+  try {
+    const res = await fetch('/api/auth/me', { credentials: 'include' })
+    if (!res.ok) return null
+    const data = await res.json()
+    return (data.user as SessionUser) ?? null
+  } catch {
+    return null
+  }
+}
+
+/* ─── Files ─────────────────────────────────────────────── */
 
 export async function fetchBuckets(): Promise<BucketsResponse> {
   return request('/api/buckets')
@@ -59,7 +102,8 @@ export function rawUrl(bucket: string, key: string): string {
 }
 
 export async function fetchTextContent(bucket: string, key: string): Promise<string> {
-  const res = await fetch(rawUrl(bucket, key))
+  const res = await fetch(rawUrl(bucket, key), { credentials: 'include' })
+  if (res.status === 401) window.dispatchEvent(new Event(UNAUTHORIZED_EVENT))
   if (!res.ok) throw new Error(`Failed to load file: ${res.status}`)
   return res.text()
 }
