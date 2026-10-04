@@ -9,7 +9,7 @@ import {
   ensureBucket,
   type FileItem,
 } from './lib/api'
-import { isPreviewable } from './lib/filetype'
+import { getFileTypeInfo } from './lib/fileIcons'
 import { Icon } from './components/Icon'
 import PreviewModal from './components/PreviewModal'
 
@@ -35,15 +35,7 @@ function formatDate(iso: string): string {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
-function iconForFile(name: string, isFolder: boolean): string {
-  if (isFolder) return 'folder'
-  const ext = name.split('.').pop()?.toLowerCase() || ''
-  if (['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp', 'bmp', 'ico', 'avif'].includes(ext)) return 'image'
-  if (['mp4', 'mov', 'avi', 'mkv', 'webm'].includes(ext)) return 'video'
-  if (['mp3', 'wav', 'flac', 'ogg', 'aac', 'm4a'].includes(ext)) return 'music'
-  if (['zip', 'tar', 'gz', 'rar', '7z', 'bz2'].includes(ext)) return 'archive'
-  return 'file'
-}
+
 
 /* ─── App ─────────────────────────────────────────────── */
 
@@ -367,28 +359,31 @@ export default function App() {
                 <div className="empty__subtitle">Drop files here or click Upload</div>
               </div>
             ) : (
-              files.map((f) => (
-                <div
-                  key={f.key}
-                  className={`file-row${f.isFolder ? ' file-row--folder' : ' file-row--clickable'}`}
-                  onClick={() => (f.isFolder ? setPrefix(f.key) : openPreview(f))}
-                >
-                  <span className="file-row__icon">
-                    <Icon name={iconForFile(f.name, f.isFolder)} size={17} />
-                  </span>
-                  <span className="file-row__name">{f.name}</span>
-                  <span className="file-row__size">{formatSize(f.size)}</span>
-                  <span className="file-row__date">{formatDate(f.lastModified)}</span>
-                  <div className="file-row__actions">
-                    {!f.isFolder && isPreviewable(f.name) && (
-                      <button
-                        className="btn btn--icon"
-                        title="Preview"
-                        onClick={(e) => { e.stopPropagation(); openPreview(f) }}
-                      >
-                        <Icon name="eye" size={14} />
-                      </button>
-                    )}
+              files.map((f) => {
+                const fileInfo = getFileTypeInfo(f.name, f.isFolder)
+                const iconColor = theme === 'dark' ? fileInfo.colorDark : fileInfo.colorLight
+                return (
+                  <div
+                    key={f.key}
+                    className={`file-row${f.isFolder ? ' file-row--folder' : ' file-row--clickable'}`}
+                    onClick={() => (f.isFolder ? setPrefix(f.key) : openPreview(f))}
+                  >
+                    <span className="file-row__icon" style={{ color: iconColor }}>
+                      <Icon name={fileInfo.iconName} size={17} color={iconColor} />
+                    </span>
+                    <span className="file-row__name">{f.name}</span>
+                    <span className="file-row__size">{formatSize(f.size)}</span>
+                    <span className="file-row__date">{formatDate(f.lastModified)}</span>
+                    <div className="file-row__actions">
+                      {!f.isFolder && (
+                        <button
+                          className="btn btn--icon"
+                          title="Preview"
+                          onClick={(e) => { e.stopPropagation(); openPreview(f) }}
+                        >
+                          <Icon name="eye" size={14} />
+                        </button>
+                      )}
                     {!f.isFolder && (
                       <button
                         className="btn btn--icon"
@@ -407,7 +402,8 @@ export default function App() {
                     </button>
                   </div>
                 </div>
-              ))
+              )
+            })
             )}
           </>
         )}
@@ -440,6 +436,7 @@ export default function App() {
           key={activePreview.key}
           file={activePreview}
           bucket={activeBucket}
+          theme={theme}
           hasPrev={previewIndex! > 0}
           hasNext={previewIndex! < previewable.length - 1}
           onClose={closePreview}

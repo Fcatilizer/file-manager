@@ -276,6 +276,12 @@ body {
   white-space: nowrap;
 }
 
+.btn--sm {
+  padding: 4px 10px;
+  font-size: 11px;
+  gap: 4px;
+}
+
 .btn--primary {
   background: var(--accent);
   color: #fff;
@@ -683,6 +689,17 @@ body {
   margin-top: 2px;
 }
 
+.preview__badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border: 1px solid transparent;
+}
+
 .preview__ext {
   padding: 1px 6px;
   border-radius: 4px;
@@ -791,6 +808,26 @@ body {
   flex: 1;
   overflow: auto;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.preview__code-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  flex-shrink: 0;
+}
+
+.preview__code-stats {
+  font-size: 11px;
+  color: var(--text-3);
 }
 
 .preview__code {
@@ -802,6 +839,75 @@ body {
   color: var(--text-2);
   white-space: pre;
   tab-size: 2;
+  flex: 1;
+}
+
+/* Rich Preview Card (Word, Excel, PowerPoint, Archives) */
+.preview__rich-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  text-align: center;
+  max-width: 520px;
+  margin: 0 auto;
+  gap: 16px;
+  animation: fadeIn 180ms ease;
+}
+
+.preview__rich-icon {
+  width: 96px;
+  height: 96px;
+  border-radius: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  margin-bottom: 4px;
+  box-shadow: var(--shadow);
+}
+
+.preview__rich-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-1);
+  word-break: break-word;
+  line-height: 1.4;
+  max-width: 460px;
+}
+
+.preview__rich-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-3);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.preview__rich-badge {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+
+.preview__rich-desc {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-2);
+  max-width: 420px;
+}
+
+.preview__rich-btn {
+  margin-top: 8px;
+  padding: 9px 20px;
+  font-size: 13px;
+  font-weight: 500;
 }
 
 /* Empty / unsupported */
