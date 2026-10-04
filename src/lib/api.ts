@@ -148,8 +148,20 @@ export async function fetchBuckets(): Promise<BucketsResponse> {
   return request('/api/buckets')
 }
 
-export async function ensureBucket(): Promise<void> {
-  await request('/api/ensure-bucket', { method: 'POST' })
+export async function createBucket(name: string): Promise<void> {
+  await request('/api/buckets', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name }),
+  })
+}
+
+export async function deleteBucket(name: string, confirmName: string): Promise<void> {
+  await request(`/api/buckets/${encodeURIComponent(name)}`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ confirmName }),
+  })
 }
 
 export async function fetchFiles(bucket: string, prefix: string): Promise<FileItem[]> {

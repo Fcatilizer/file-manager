@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, Fragment, type DragEvent } from 'react'
+import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef, Fragment, type DragEvent } from 'react'
 import {
   fetchBuckets,
   fetchFiles,
@@ -6,12 +6,15 @@ import {
   deleteFile,
   downloadFile,
   createFolder,
-  ensureBucket,
+  createBucket,
+  deleteBucket,
   type FileItem,
   type SessionUser,
 } from '../lib/api'
 import { getFileTypeInfo, getCategoryInfo, CATEGORY_ORDER, type FileCategory } from '../lib/fileIcons'
 import { Icon } from './Icon'
+import BucketDropdown from './BucketDropdown'
+import { chooseBucket, validateBucketName } from '../lib/buckets'
 import PreviewModal from './PreviewModal'
 import UsersModal from './UsersModal'
 import ChangePasswordModal from './ChangePasswordModal'
@@ -56,6 +59,13 @@ type Props = {
 export default function FileManager({ user, theme, onToggleTheme, onLogout }: Props) {
   const [buckets, setBuckets] = useState<string[]>([])
   const [activeBucket, setActiveBucket] = useState('')
+  const [bucketsLoading, setBucketsLoading] = useState(true)
+  const [bucketError, setBucketError] = useState('')
+  const [showNewBucket, setShowNewBucket] = useState(false)
+  const [pendingBucketDelete, setPendingBucketDelete] = useState<string | null>(null)
+  const preferredBuckets = useRef({ privateBucket: '', defaultBucket: '' })
+  const fileRequest = useRef<symbol | null>(null)
+  const bucketRequest = useRef<symbol | null>(null)
   const [prefix, setPrefix] = useState('')
   const [files, setFiles] = useState<FileItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -78,45 +88,118 @@ export default function FileManager({ user, theme, onToggleTheme, onLogout }: Pr
     setTimeout(() => setToast(null), 2500)
   }, [])
 
-  // ─── Init ───────────────────────────────────────────────
+  // ─── Buckets ────────────────────────────────────────────
+
+  const selectBucket = useCallback((name: string) => {
+    if (name === activeBucket && !prefix) return
+    fileRequest.current = null
+    setFiles([])
+    setLoading(!!name)
+    setActiveBucket(name)
+    setPrefix('')
+    setQuery('')
+    setActiveCategory(null)
+    setPreviewIndex(null)
+    setPendingDelete(null)
+  }, [activeBucket, prefix])
+
+  const refreshBuckets = useCallback(async () => {
+    const requestId = Symbol()
+    bucketRequest.current = requestId
+    setBucketsLoading(true)
+    setBucketError('')
+    try {
+      const data = await fetchBuckets()
+      if (requestId !== bucketRequest.current) return
+      preferredBuckets.current = data
+      setBuckets(data.buckets)
+      setActiveBucket((current) => chooseBucket(data.buckets, current, data.privateBucket, data.defaultBucket))
+    } catch (err) {
+      if (requestId !== bucketRequest.current) return
+      const message = err instanceof Error ? err.message : 'Failed to connect to storage'
+      setBucketError(message)
+      showToast(message, 'error')
+    } finally {
+      if (requestId === bucketRequest.current) {
+        setBucketsLoading(false)
+      }
+    }
+  }, [showToast])
 
   useEffect(() => {
-    ;(async () => {
-      try {
-        await ensureBucket()
-        const data = await fetchBuckets()
-        setBuckets(data.buckets)
-        setActiveBucket(data.privateBucket)
-      } catch {
-        showToast('Failed to connect to storage', 'error')
-        setLoading(false)
-      }
-    })()
-  }, [showToast])
+    void refreshBuckets()
+    return () => { bucketRequest.current = null }
+  }, [refreshBuckets])
+
+  const createNewBucket = async (name: string) => {
+    await createBucket(name)
+    setBuckets((current) => [...new Set([...current, name])].sort())
+    setBucketError('')
+    selectBucket(name)
+    setShowNewBucket(false)
+    showToast(`Created bucket “${name}”`)
+  }
+
+  const confirmBucketDelete = async (confirmation: string) => {
+    if (!pendingBucketDelete) return
+    await deleteBucket(pendingBucketDelete, confirmation)
+    const remaining = buckets.filter((name) => name !== pendingBucketDelete)
+    setBuckets(remaining)
+    if (activeBucket === pendingBucketDelete) {
+      const { privateBucket, defaultBucket } = preferredBuckets.current
+      selectBucket(chooseBucket(remaining, '', privateBucket, defaultBucket))
+    }
+    setPendingBucketDelete(null)
+    showToast(`Deleted bucket “${pendingBucketDelete}”`)
+  }
 
   // ─── Load files ─────────────────────────────────────────
 
+  // Ignore an old request (including an upload's refresh) after navigation.
+  const currentLocation = useRef({ activeBucket, prefix })
+  useLayoutEffect(() => {
+    currentLocation.current = { activeBucket, prefix }
+  }, [activeBucket, prefix])
   const loadFiles = useCallback(async () => {
-    if (!activeBucket) return
+    const isCurrentLocation = () => currentLocation.current.activeBucket === activeBucket && currentLocation.current.prefix === prefix
+    if (!isCurrentLocation()) return
+    const requestId = Symbol()
+    fileRequest.current = requestId
+    if (!activeBucket) {
+      setFiles([])
+      setLoading(false)
+      return
+    }
     setLoading(true)
     try {
       const items = await fetchFiles(activeBucket, prefix)
-      setFiles(items)
-    } catch {
-      showToast('Failed to load files', 'error')
+      if (requestId === fileRequest.current && isCurrentLocation()) setFiles(items)
+    } catch (err) {
+      if (requestId === fileRequest.current && isCurrentLocation()) {
+        setFiles([])
+        showToast(err instanceof Error ? err.message : 'Failed to load files', 'error')
+      }
+    } finally {
+      if (requestId === fileRequest.current && isCurrentLocation()) setLoading(false)
     }
-    setLoading(false)
   }, [activeBucket, prefix, showToast])
 
   useEffect(() => {
-    loadFiles()
+    setFiles([])
+    void loadFiles()
+    return () => { fileRequest.current = null }
   }, [loadFiles])
+
+  // A refresh may select a fallback after a bucket was removed elsewhere.
+  useEffect(() => {
+    setPrefix('')
+  }, [activeBucket])
 
   // ─── Upload ─────────────────────────────────────────────
 
   const handleUpload = useCallback(
     async (fileList: FileList) => {
-      if (!fileList.length) return
+      if (!fileList.length || !activeBucket || uploading) return
       setUploading(true)
       setUploadProgress({ done: 0, total: fileList.length })
 
@@ -137,7 +220,7 @@ export default function FileManager({ user, theme, onToggleTheme, onLogout }: Pr
         loadFiles()
       }
     },
-    [activeBucket, prefix, showToast, loadFiles],
+    [activeBucket, prefix, uploading, showToast, loadFiles],
   )
 
   // ─── Delete ─────────────────────────────────────────────
@@ -282,7 +365,7 @@ export default function FileManager({ user, theme, onToggleTheme, onLogout }: Pr
 
   const onDragEnter = (e: DragEvent) => {
     e.preventDefault()
-    setDragActive(true)
+    if (activeBucket && !uploading) setDragActive(true)
   }
 
   const onDragOver = (e: DragEvent) => e.preventDefault()
@@ -308,21 +391,16 @@ export default function FileManager({ user, theme, onToggleTheme, onLogout }: Pr
           <span>◆</span> Vault
         </h1>
         <div className="header__controls">
-          {buckets.length > 0 && (
-            <select
-              className="bucket-select"
-              value={activeBucket}
-              onChange={(e) => {
-                setActiveBucket(e.target.value)
-                setPrefix('')
-              }}
-              title="Select Bucket"
-            >
-              {buckets.map((b) => (
-                <option key={b} value={b}>{b}</option>
-              ))}
-            </select>
-          )}
+          <BucketDropdown
+            buckets={buckets}
+            activeBucket={activeBucket}
+            canManage={user.role === 'admin'}
+            disabled={bucketsLoading || uploading}
+            onSelect={selectBucket}
+            onCreate={() => setShowNewBucket(true)}
+            onDelete={setPendingBucketDelete}
+            onRefresh={() => void refreshBuckets()}
+          />
           <button
             className="theme-toggle"
             onClick={onToggleTheme}
@@ -378,13 +456,14 @@ export default function FileManager({ user, theme, onToggleTheme, onLogout }: Pr
           ))}
         </nav>
         <div className="toolbar__actions">
-          <button className="btn btn--ghost" onClick={() => setShowNewFolder(true)}>
+          <button className="btn btn--ghost" disabled={!activeBucket} onClick={() => setShowNewFolder(true)}>
             <Icon name="folderPlus" size={14} /> New Folder
           </button>
-          <label className="btn btn--primary">
+          <label className={`btn btn--primary${!activeBucket || uploading ? ' btn--disabled' : ''}`}>
             <Icon name="upload" size={14} /> Upload
             <input
               type="file"
+              disabled={!activeBucket || uploading}
               multiple
               className="upload-input"
               onChange={(e) => {
@@ -452,10 +531,21 @@ export default function FileManager({ user, theme, onToggleTheme, onLogout }: Pr
 
       {/* File List */}
       <div className="file-list">
-        {loading ? (
+        {bucketsLoading || loading ? (
           <div className="loading">
             <div className="spinner" />
             Loading…
+          </div>
+        ) : !activeBucket ? (
+          <div className="empty">
+            <div className="empty__icon"><Icon name="database" size={36} /></div>
+            <div className="empty__title">{bucketError ? 'Storage unavailable' : 'No buckets yet'}</div>
+            <div className="empty__subtitle">{bucketError || (user.role === 'admin' ? 'Create a bucket to start storing your files.' : 'Ask an admin to create a bucket to get started.')}</div>
+            {bucketError ? (
+              <button className="btn btn--ghost empty__action" onClick={() => void refreshBuckets()}>Retry connection</button>
+            ) : user.role === 'admin' && (
+              <button className="btn btn--primary empty__action" onClick={() => setShowNewBucket(true)}><Icon name="plus" size={14} /> Create bucket</button>
+            )}
           </div>
         ) : files.length === 0 && !prefix ? (
           <div className="empty">
@@ -575,6 +665,35 @@ export default function FileManager({ user, theme, onToggleTheme, onLogout }: Pr
           onPrev={() => stepPreview(-1)}
           onNext={() => stepPreview(1)}
           onDownload={handleDownload}
+        />
+      )}
+
+      {showNewBucket && (
+        <TextInputDialog
+          title="Create bucket"
+          label="Bucket name"
+          placeholder="family-photos"
+          description="Use 3–63 lowercase letters, numbers, dots or hyphens. This bucket will be available to everyone in this vault."
+          confirmLabel="Create bucket"
+          icon="plus"
+          validate={(name) => validateBucketName(name) || (buckets.includes(name) ? 'A bucket with this name already exists' : null)}
+          onConfirm={createNewBucket}
+          onClose={() => setShowNewBucket(false)}
+        />
+      )}
+
+      {pendingBucketDelete !== null && (
+        <TextInputDialog
+          title="Delete bucket"
+          description={`Delete “${pendingBucketDelete}”? Only an empty bucket can be deleted. Files, folders and any older versions must be removed first. This cannot be undone.`}
+          label="Type the bucket name to confirm"
+          placeholder={pendingBucketDelete}
+          confirmLabel="Delete bucket"
+          icon="trash"
+          danger
+          validate={(name) => name === pendingBucketDelete ? null : 'Enter the exact bucket name to confirm'}
+          onConfirm={confirmBucketDelete}
+          onClose={() => setPendingBucketDelete(null)}
         />
       )}
 

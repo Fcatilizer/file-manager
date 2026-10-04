@@ -359,6 +359,7 @@ import {
   S3Client,
   ListBucketsCommand,
   CreateBucketCommand,
+  DeleteBucketCommand,
   ListObjectsV2Command,
   PutObjectCommand,
   DeleteObjectCommand,
@@ -367,6 +368,42 @@ import {
   HeadBucketCommand
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+
+// src/lib/buckets.ts
+function validateBucketName(name) {
+  if (typeof name !== "string" || !name) return "Enter a bucket name";
+  if (name.length < 3 || name.length > 63) return "Use between 3 and 63 characters";
+  if (!/^[a-z0-9][a-z0-9.-]*[a-z0-9]$/.test(name)) {
+    return "Use lowercase letters, numbers, dots or hyphens; start and end with a letter or number";
+  }
+  if (name.includes("..") || name.includes(".-") || name.includes("-.")) {
+    return "Dots must separate letters or numbers";
+  }
+  if (/^\d+\.\d+\.\d+\.\d+$/.test(name)) return "Bucket names cannot be IP addresses";
+  if (/^(xn--|sthree-|amzn-s3-demo-)/.test(name) || /(-s3alias|--ol-s3|\.mrap|--x-s3|--table-s3)$/.test(name)) {
+    return "This bucket name uses a reserved prefix or suffix";
+  }
+  return null;
+}
+
+// server/s3.ts
+function bucketError(res, err) {
+  const error = err;
+  const status = error?.$metadata?.httpStatusCode;
+  if (error?.name === "BucketNotEmpty") {
+    res.status(409).json({ error: "This bucket is not empty. Remove all files, folders, versions and delete markers before deleting it." });
+  } else if (error?.name === "BucketAlreadyExists" || error?.name === "BucketAlreadyOwnedByYou") {
+    res.status(409).json({ error: "A bucket with this name already exists. Choose another name." });
+  } else if (error?.name === "NoSuchBucket" || status === 404) {
+    res.status(404).json({ error: "This bucket no longer exists. Refresh the bucket list." });
+  } else if (error?.name === "AccessDenied" || status === 403) {
+    res.status(403).json({ error: "The storage credentials do not allow this bucket operation." });
+  } else if (error?.name === "InvalidBucketName") {
+    res.status(400).json({ error: "Storage rejected this bucket name. Choose another name." });
+  } else {
+    throw err;
+  }
+}
 var wrap = (fn) => (req, res, next) => {
   Promise.resolve(fn(req, res)).catch(next);
 };
@@ -396,9 +433,32 @@ function createS3Router() {
       privateBucket
     });
   }));
-  router.post("/buckets", express3.json(), wrap(async (req, res) => {
-    await s3.send(new CreateBucketCommand({ Bucket: req.body?.name }));
-    res.json({ success: true });
+  router.post("/buckets", requireAdmin, express3.json(), wrap(async (req, res) => {
+    const name = req.body?.name;
+    const error = validateBucketName(name);
+    if (error) {
+      res.status(400).json({ error });
+      return;
+    }
+    try {
+      await s3.send(new CreateBucketCommand({ Bucket: name }));
+      res.status(201).json({ success: true, bucket: name });
+    } catch (err) {
+      bucketError(res, err);
+    }
+  }));
+  router.delete("/buckets/:name", requireAdmin, express3.json(), wrap(async (req, res) => {
+    const name = String(req.params.name);
+    if (!name || req.body?.confirmName !== name) {
+      res.status(400).json({ error: "Type the exact bucket name to confirm deletion" });
+      return;
+    }
+    try {
+      await s3.send(new DeleteBucketCommand({ Bucket: name }));
+      res.json({ success: true });
+    } catch (err) {
+      bucketError(res, err);
+    }
   }));
   router.get("/files", wrap(async (req, res) => {
     const bucket = req.query.bucket || privateBucket;
@@ -566,10 +626,12 @@ function createS3Router() {
     );
     res.json({ success: true });
   }));
-  router.post("/ensure-bucket", wrap(async (_req, res) => {
+  router.post("/ensure-bucket", requireAdmin, wrap(async (_req, res) => {
     try {
       await s3.send(new HeadBucketCommand({ Bucket: privateBucket }));
-    } catch {
+    } catch (err) {
+      const error = err;
+      if (error?.name !== "NotFound" && error?.name !== "NoSuchBucket" && error?.$metadata?.httpStatusCode !== 404) throw err;
       await s3.send(new CreateBucketCommand({ Bucket: privateBucket }));
       console.log(`[vault] created bucket: ${privateBucket}`);
     }

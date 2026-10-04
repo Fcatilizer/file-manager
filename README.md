@@ -21,6 +21,42 @@ cp .env.example .env   # then fill in the values
 npm run dev            # http://localhost:3000
 ```
 
+## Bucket management
+
+Open the bucket dropdown in the header to switch buckets or refresh the list.
+Admins also get **Create bucket** and a trash button beside each bucket.
+Creation validates S3-compatible names. Deletion requires typing the exact name
+and succeeds only for an empty bucket; it never deletes files recursively. Older
+object versions and delete markers must also be removed using your storage tools.
+
+After creation, Vault selects the new bucket. Deleting the selected bucket switches
+to another available bucket; deleting the last one shows a create-bucket screen.
+The configured private/default buckets are selection preferences. Opening Vault
+no longer automatically creates or recreates the private bucket.
+
+These are shared vault buckets: all signed-in users retain file access to buckets
+available to the server credentials. The admin role controls bucket creation and
+deletion, not per-user file privacy. New buckets are not given a public-read policy.
+The server's storage credentials need bucket create/delete permissions in addition
+to the existing list/object permissions.
+
+For direct browser uploads from Vercel, allow your deployed frontend origin in
+RustFS's `RUSTFS_CORS_ALLOWED_ORIGINS` and restart RustFS when changing that server
+setting ([RustFS CORS documentation](https://docs.rustfs.com/en/administration/cors)).
+Bucket creation does not change CORS or access policies. If direct uploads fail,
+the existing proxy fallback is subject to Vercel's
+[4.5 MB request limit](https://vercel.com/docs/functions/limitations).
+
+## Checks
+
+```bash
+npm test          # bucket API authorization, validation, errors and selection tests
+npm run build     # TypeScript, frontend and Vercel function bundle
+npm run lint
+```
+
+The tests mock S3 and do not read `.env`, connect to MongoDB or mutate real storage.
+
 ## Environment variables
 
 | Variable | Required | Notes |
@@ -60,7 +96,7 @@ Vault can be deployed on **Vercel** (Serverless) or on any **Node / Docker conta
 
 ### Deploying to Vercel
 
-Vault includes native Vercel configuration (`vercel.json` and `api/index.ts` serverless function adapter):
+Vault includes native Vercel configuration (`vercel.json` and the generated `api/index.js` serverless function adapter):
 
 1. Push your repository to GitHub / GitLab.
 2. In the [Vercel Dashboard](https://vercel.com), click **Add New** → **Project** and import this repository.
@@ -76,7 +112,7 @@ Vault includes native Vercel configuration (`vercel.json` and `api/index.ts` ser
 
 > **How Vercel Serverless is optimized in Vault:**
 > - **Direct-to-S3 Uploads:** Files upload directly to S3 via presigned PUT URLs, bypassing Vercel's 4.5 MB serverless payload limit.
-> - **Media Streaming (307 Redirects):** Audio and video streams redirect directly to S3 presigned URLs, bypassing Vercel's 10-second lambda timeout limit.
+> - **Media Streaming (307 Redirects):** Audio and video streams redirect directly to S3 presigned URLs, avoiding proxying media through the function.
 > - **MongoDB Connection Pooling:** Reuses pooled MongoClient connections across serverless lambda freezes and warm starts.
 
 ---

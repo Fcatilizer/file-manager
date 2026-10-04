@@ -9,6 +9,8 @@ type Props = {
   initialValue?: string
   confirmLabel?: string
   icon?: string
+  description?: string
+  danger?: boolean
   validate?: (value: string) => string | null
   onConfirm: (value: string) => void | Promise<void>
   onClose: () => void
@@ -22,6 +24,8 @@ export default function TextInputDialog({
   initialValue = '',
   confirmLabel = 'Confirm',
   icon = 'check',
+  description,
+  danger = false,
   validate,
   onConfirm,
   onClose,
@@ -33,8 +37,10 @@ export default function TextInputDialog({
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
+    const previousFocus = document.activeElement as HTMLElement | null
     inputRef.current?.focus()
     inputRef.current?.select()
+    return () => { previousFocus?.focus() }
   }, [])
 
   const handleSubmit = async (e: FormEvent) => {
@@ -62,14 +68,27 @@ export default function TextInputDialog({
   }
 
   return (
-    <Modal onClose={onClose} className="dialog">
-      <form onSubmit={handleSubmit}>
+    <Modal onClose={onClose} className="dialog" closeOnBackdrop={!submitting} closeOnEscape={!submitting}>
+      <form onSubmit={handleSubmit} onKeyDown={(event) => {
+        if (event.key !== 'Tab') return
+        const controls = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('input:not(:disabled), button:not(:disabled)'))
+        const first = controls[0]
+        const last = controls.at(-1)
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault()
+          last?.focus()
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault()
+          first?.focus()
+        }
+      }}>
         <div className="dialog__header">
-          <span className="dialog__icon"><Icon name={icon} size={16} /></span>
+          <span className={`dialog__icon${danger ? ' dialog__icon--danger' : ''}`}><Icon name={icon} size={16} /></span>
           <span className="dialog__title">{title}</span>
         </div>
 
         <div className="dialog__body">
+          {description && <p className="dialog__message" id={`${inputId}-description`}>{description}</p>}
           {label && (
             <label className="dialog__label" htmlFor={inputId}>
               {label}
@@ -81,19 +100,24 @@ export default function TextInputDialog({
             className="auth__input"
             value={value}
             placeholder={placeholder}
+            disabled={submitting}
+            autoComplete="off"
+            spellCheck={false}
+            aria-describedby={description ? `${inputId}-description` : undefined}
+            aria-invalid={!!error}
             onChange={(e) => {
               setValue(e.target.value)
               if (error) setError(null)
             }}
           />
-          {error && <div className="dialog__error">{error}</div>}
+          {error && <div className="dialog__error" role="alert">{error}</div>}
         </div>
 
         <div className="dialog__footer">
-          <button type="button" className="btn btn--ghost" onClick={onClose}>
+          <button type="button" className="btn btn--ghost" onClick={onClose} disabled={submitting}>
             Cancel
           </button>
-          <button type="submit" className="btn btn--primary" disabled={submitting}>
+          <button type="submit" className={`btn ${danger ? 'btn--danger' : 'btn--primary'}`} disabled={submitting}>
             {submitting ? <span className="spinner spinner--sm" /> : <Icon name={icon} size={14} />}
             {confirmLabel}
           </button>

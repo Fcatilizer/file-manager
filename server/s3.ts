@@ -4,6 +4,7 @@ import {
   S3Client,
   ListBucketsCommand,
   CreateBucketCommand,
+  DeleteBucketCommand,
   ListObjectsV2Command,
   PutObjectCommand,
   DeleteObjectCommand,
@@ -12,6 +13,26 @@ import {
   HeadBucketCommand,
 } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
+import { requireAdmin } from './auth.ts'
+import { validateBucketName } from '../src/lib/buckets.ts'
+
+function bucketError(res: Response, err: unknown): void {
+  const error = err as { name?: string; $metadata?: { httpStatusCode?: number } }
+  const status = error?.$metadata?.httpStatusCode
+  if (error?.name === 'BucketNotEmpty') {
+    res.status(409).json({ error: 'This bucket is not empty. Remove all files, folders, versions and delete markers before deleting it.' })
+  } else if (error?.name === 'BucketAlreadyExists' || error?.name === 'BucketAlreadyOwnedByYou') {
+    res.status(409).json({ error: 'A bucket with this name already exists. Choose another name.' })
+  } else if (error?.name === 'NoSuchBucket' || status === 404) {
+    res.status(404).json({ error: 'This bucket no longer exists. Refresh the bucket list.' })
+  } else if (error?.name === 'AccessDenied' || status === 403) {
+    res.status(403).json({ error: 'The storage credentials do not allow this bucket operation.' })
+  } else if (error?.name === 'InvalidBucketName') {
+    res.status(400).json({ error: 'Storage rejected this bucket name. Choose another name.' })
+  } else {
+    throw err
+  }
+}
 
 type Handler = (req: Request, res: Response) => Promise<void> | void
 
@@ -61,9 +82,35 @@ export function createS3Router(): Router {
   }))
 
   // ─── Create Bucket ─────────────────────────────────────
-  router.post('/buckets', express.json(), wrap(async (req, res) => {
-    await s3.send(new CreateBucketCommand({ Bucket: req.body?.name }))
-    res.json({ success: true })
+  router.post('/buckets', requireAdmin, express.json(), wrap(async (req, res) => {
+    const name: unknown = req.body?.name
+    const error = validateBucketName(name)
+    if (error) {
+      res.status(400).json({ error })
+      return
+    }
+    try {
+      await s3.send(new CreateBucketCommand({ Bucket: name as string }))
+      res.status(201).json({ success: true, bucket: name })
+    } catch (err) {
+      bucketError(res, err)
+    }
+  }))
+
+  // DeleteBucket is atomic and refuses non-empty buckets, including versions.
+  // Never recursively delete objects as part of bucket management.
+  router.delete('/buckets/:name', requireAdmin, express.json(), wrap(async (req, res) => {
+    const name = String(req.params.name)
+    if (!name || req.body?.confirmName !== name) {
+      res.status(400).json({ error: 'Type the exact bucket name to confirm deletion' })
+      return
+    }
+    try {
+      await s3.send(new DeleteBucketCommand({ Bucket: name }))
+      res.json({ success: true })
+    } catch (err) {
+      bucketError(res, err)
+    }
   }))
 
   // ─── List Files ────────────────────────────────────────
@@ -271,10 +318,12 @@ export function createS3Router(): Router {
   }))
 
   // ─── Ensure Private Bucket Exists ──────────────────────
-  router.post('/ensure-bucket', wrap(async (_req, res) => {
+  router.post('/ensure-bucket', requireAdmin, wrap(async (_req, res) => {
     try {
       await s3.send(new HeadBucketCommand({ Bucket: privateBucket }))
-    } catch {
+    } catch (err) {
+      const error = err as { name?: string; $metadata?: { httpStatusCode?: number } }
+      if (error?.name !== 'NotFound' && error?.name !== 'NoSuchBucket' && error?.$metadata?.httpStatusCode !== 404) throw err
       await s3.send(new CreateBucketCommand({ Bucket: privateBucket }))
       console.log(`[vault] created bucket: ${privateBucket}`)
     }
