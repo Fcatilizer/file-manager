@@ -12,11 +12,21 @@ export interface BucketsResponse {
   privateBucket: string
 }
 
+export type UserRole = 'admin' | 'user'
+
 export interface SessionUser {
+  id: string
   email: string
+  role: UserRole
+  createdAt: string
 }
 
-/** Fired when any protected call comes back unauthorized (session expired). */
+export interface AuthStatus {
+  needsSetup: boolean
+  setupTokenRequired: boolean
+}
+
+/** Fired when any protected call comes back unauthorized (session expired / user removed). */
 export const UNAUTHORIZED_EVENT = 'vault:unauthorized'
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
@@ -32,6 +42,32 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
 }
 
 /* ─── Auth ──────────────────────────────────────────────── */
+
+export async function getAuthStatus(): Promise<AuthStatus> {
+  try {
+    const res = await fetch('/api/auth/status', { credentials: 'include' })
+    if (!res.ok) return { needsSetup: false, setupTokenRequired: false }
+    return (await res.json()) as AuthStatus
+  } catch {
+    return { needsSetup: false, setupTokenRequired: false }
+  }
+}
+
+export async function setupAdmin(
+  email: string,
+  password: string,
+  token?: string,
+): Promise<SessionUser> {
+  const res = await fetch('/api/auth/setup', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ email, password, token }),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data.error || 'Setup failed')
+  return data.user as SessionUser
+}
 
 export async function login(email: string, password: string): Promise<SessionUser> {
   const res = await fetch('/api/auth/login', {
@@ -58,6 +94,30 @@ export async function getSession(): Promise<SessionUser | null> {
   } catch {
     return null
   }
+}
+
+/* ─── Users (admin only) ────────────────────────────────── */
+
+export async function listUsers(): Promise<SessionUser[]> {
+  const data = await request<{ users: SessionUser[] }>('/api/users')
+  return data.users
+}
+
+export async function createUser(
+  email: string,
+  password: string,
+  role: UserRole,
+): Promise<SessionUser> {
+  const data = await request<{ user: SessionUser }>('/api/users', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password, role }),
+  })
+  return data.user
+}
+
+export async function deleteUser(id: string): Promise<void> {
+  await request(`/api/users/${id}`, { method: 'DELETE' })
 }
 
 /* ─── Files ─────────────────────────────────────────────── */

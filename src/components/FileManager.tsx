@@ -13,6 +13,7 @@ import {
 import { getFileTypeInfo } from '../lib/fileIcons'
 import { Icon } from './Icon'
 import PreviewModal from './PreviewModal'
+import UsersModal from './UsersModal'
 
 /* ─── Helpers ─────────────────────────────────────────── */
 
@@ -60,6 +61,7 @@ export default function FileManager({ user, theme, onToggleTheme, onLogout }: Pr
   const [dragActive, setDragActive] = useState(false)
   const [toast, setToast] = useState<ToastData | null>(null)
   const [previewIndex, setPreviewIndex] = useState<number | null>(null)
+  const [showUsers, setShowUsers] = useState(false)
 
   // ─── Toast ──────────────────────────────────────────────
 
@@ -276,6 +278,16 @@ export default function FileManager({ user, theme, onToggleTheme, onLogout }: Pr
           >
             <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={15} />
           </button>
+          {user.role === 'admin' && (
+            <button
+              className="theme-toggle"
+              onClick={() => setShowUsers(true)}
+              title="Manage users"
+              aria-label="Manage users"
+            >
+              <Icon name="users" size={15} />
+            </button>
+          )}
           <div className="user-chip" title={user.email}>
             <span className="user-chip__avatar" aria-hidden="true">
               {user.email.charAt(0).toUpperCase()}
@@ -437,6 +449,15 @@ export default function FileManager({ user, theme, onToggleTheme, onLogout }: Pr
           onPrev={() => stepPreview(-1)}
           onNext={() => stepPreview(1)}
           onDownload={handleDownload}
+        />
+      )}
+
+      {/* Users Modal (admin only) */}
+      {showUsers && (
+        <UsersModal
+          currentUser={user}
+          onClose={() => setShowUsers(false)}
+          onToast={showToast}
         />
       )}
     </div>

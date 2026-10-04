@@ -145,6 +145,21 @@ const PATHS: Record<string, string[]> = {
     'M15 3h6v6',
     'M10 14L21 3',
   ],
+
+  // Users / Accounts
+  users: [
+    'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2',
+    'M9 11a4 4 0 100-8 4 4 0 000 8z',
+    'M23 21v-2a4 4 0 00-3-3.87',
+    'M16 3.13a4 4 0 010 7.75',
+  ],
+  userPlus: [
+    'M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2',
+    'M8.5 11a4 4 0 100-8 4 4 0 000 8z',
+    'M20 8v6',
+    'M23 11h-6',
+  ],
+  shield: ['M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'],
 }
 
 export function Icon({

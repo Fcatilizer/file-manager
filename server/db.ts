@@ -1,16 +1,28 @@
-import { MongoClient } from 'mongodb'
-import type { Collection, Db, ObjectId } from 'mongodb'
+import { MongoClient, ObjectId } from 'mongodb'
+import type { Collection, Db } from 'mongodb'
 import bcrypt from 'bcryptjs'
+
+export type UserRole = 'admin' | 'user'
 
 export interface UserDoc {
   _id: ObjectId
   email: string
   passwordHash: string
+  role: UserRole
   createdAt: Date
+}
+
+export interface PublicUser {
+  id: string
+  email: string
+  role: UserRole
+  createdAt: string
 }
 
 let db: Db
 let users: Collection<UserDoc>
+
+const BCRYPT_ROUNDS = 12
 
 export async function connectDB(): Promise<void> {
   const uri = process.env.MONGO_URI
@@ -25,6 +37,9 @@ export async function connectDB(): Promise<void> {
   users = db.collection<UserDoc>('users')
   await users.createIndex({ email: 1 }, { unique: true })
 
+  // Migrate any pre-roles records (all of which were seeded admins).
+  await users.updateMany({ role: { $exists: false } }, { $set: { role: 'admin' } })
+
   console.log(`[vault] connected to MongoDB (db: ${db.databaseName})`)
 }
 
@@ -33,27 +48,73 @@ export function getUsers(): Collection<UserDoc> {
   return users
 }
 
+export function toPublicUser(user: UserDoc): PublicUser {
+  return {
+    id: String(user._id),
+    email: user.email,
+    role: user.role,
+    createdAt: user.createdAt.toISOString(),
+  }
+}
+
+export async function countUsers(): Promise<number> {
+  return getUsers().estimatedDocumentCount()
+}
+
+export async function findUserByEmail(email: string): Promise<UserDoc | null> {
+  return getUsers().findOne({ email: email.toLowerCase().trim() })
+}
+
+export async function getUserById(id: string): Promise<UserDoc | null> {
+  if (!ObjectId.isValid(id)) return null
+  return getUsers().findOne({ _id: new ObjectId(id) })
+}
+
+export async function createUser(
+  email: string,
+  password: string,
+  role: UserRole = 'user',
+): Promise<UserDoc> {
+  const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS)
+  const doc: Omit<UserDoc, '_id'> = {
+    email: email.toLowerCase().trim(),
+    passwordHash,
+    role,
+    createdAt: new Date(),
+  }
+
+  try {
+    const result = await getUsers().insertOne(doc as UserDoc)
+    return { ...doc, _id: result.insertedId } as UserDoc
+  } catch (err) {
+    if (err && typeof err === 'object' && 'code' in err && (err as { code: number }).code === 11000) {
+      throw new Error('A user with that email already exists')
+    }
+    throw err
+  }
+}
+
+export async function deleteUser(id: string): Promise<boolean> {
+  if (!ObjectId.isValid(id)) return false
+  const result = await getUsers().deleteOne({ _id: new ObjectId(id) })
+  return result.deletedCount === 1
+}
+
 export async function seedAdmin(): Promise<void> {
   const email = process.env.ADMIN_EMAIL?.toLowerCase().trim()
   const password = process.env.ADMIN_PASSWORD
 
   if (!email || !password) {
-    console.warn('[vault] ADMIN_EMAIL / ADMIN_PASSWORD not set — skipping admin seed')
+    console.warn('[vault] ADMIN_EMAIL / ADMIN_PASSWORD not set — first-run setup will be available')
     return
   }
 
-  const existing = await getUsers().findOne({ email })
+  const existing = await findUserByEmail(email)
   if (existing) {
     console.log(`[vault] admin user already exists: ${email}`)
     return
   }
 
-  const passwordHash = await bcrypt.hash(password, 12)
-  await getUsers().insertOne({
-    email,
-    passwordHash,
-    createdAt: new Date(),
-  } as Omit<UserDoc, '_id'> as UserDoc)
-
+  await createUser(email, password, 'admin')
   console.log(`[vault] seeded admin user: ${email}`)
 }

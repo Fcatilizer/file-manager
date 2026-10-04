@@ -6,7 +6,8 @@ import express from 'express'
 import type { Request, Response, NextFunction } from 'express'
 import cookieParser from 'cookie-parser'
 import { connectDB, seedAdmin } from './db.ts'
-import { authRouter, requireAuth } from './auth.ts'
+import { authRouter, requireAuth, requireAdmin } from './auth.ts'
+import { usersRouter } from './users.ts'
 import { createS3Router } from './s3.ts'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -23,6 +24,9 @@ async function start(): Promise<void> {
 
   // ─── Auth (public) ───────────────────────────────────────
   app.use('/api/auth', express.json(), authRouter)
+
+  // ─── User management (admin only) ────────────────────────
+  app.use('/api/users', requireAuth, requireAdmin, express.json(), usersRouter)
 
   // ─── Protected file API ──────────────────────────────────
   app.use('/api', requireAuth, createS3Router())
