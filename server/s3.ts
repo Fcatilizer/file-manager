@@ -128,7 +128,31 @@ export function createS3Router(): Router {
     res.json({ items: [...folders, ...files], prefix })
   }))
 
-  // ─── Upload File ───────────────────────────────────────
+  // ─── Direct Upload URL (Presigned PutObject) ───────────
+  router.get('/upload-url', wrap(async (req, res) => {
+    const bucket = (req.query.bucket as string) || privateBucket
+    const key = (req.query.key as string) || ''
+    const contentType = (req.query.contentType as string) || 'application/octet-stream'
+
+    if (!key) {
+      res.status(400).json({ error: 'Query parameter "key" is required' })
+      return
+    }
+
+    const uploadUrl = await getSignedUrl(
+      s3,
+      new PutObjectCommand({
+        Bucket: bucket,
+        Key: key,
+        ContentType: contentType,
+      }),
+      { expiresIn: 900 },
+    )
+
+    res.json({ uploadUrl, bucket, key })
+  }))
+
+  // ─── Upload File (Server Proxy) ────────────────────────
   router.put(
     '/upload',
     express.raw({ type: '*/*', limit: '5gb' }),
@@ -182,6 +206,23 @@ export function createS3Router(): Router {
   router.get('/raw', wrap(async (req, res) => {
     const bucket = (req.query.bucket as string) || privateBucket
     const key = (req.query.key as string) || ''
+    const redirect = req.query.redirect === 'true'
+
+    // Serverless (Vercel) timeout protection: redirect large media files
+    // directly to presigned S3 URLs so browser native players stream smoothly
+    const isMedia = /\.(mp4|webm|mov|mkv|mp3|wav|ogg|m4a|flac|aac)$/i.test(key)
+    const shouldRedirect = redirect || (Boolean(process.env.VERCEL) && isMedia)
+
+    if (shouldRedirect) {
+      const signedUrl = await getSignedUrl(
+        s3,
+        new GetObjectCommand({ Bucket: bucket, Key: key }),
+        { expiresIn: 3600 },
+      )
+      res.redirect(307, signedUrl)
+      return
+    }
+
     const rangeHeader = req.headers.range
 
     const object = await s3.send(

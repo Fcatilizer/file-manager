@@ -10,7 +10,7 @@ MongoDB authentication, and in-browser previews (images, video, audio, PDF, text
 - **Backend:** Express (serves the API and the built frontend), MongoDB, S3 SDK
 - **Auth:** JWT in an HttpOnly cookie, admin/user roles, first-run setup
 
-The backend is a **long-running Node server** (`server/index.ts`). In development it
+The backend can run as a **Serverless Function on Vercel** or as a **long-running Node server** (`server/index.ts`). In development it
 runs Vite in middleware mode; in production it serves `dist/` and the `/api/*` routes.
 
 ## Local development
@@ -44,7 +44,7 @@ Generate a secret:
 node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 ```
 
-## Production
+## Production (Node / Docker)
 
 ```bash
 npm run build   # tsc -b && vite build  -> dist/
@@ -56,20 +56,44 @@ Health check: `GET /healthz`.
 
 ## Deployment
 
-> **Vercel will not work for this app.** Vercel serves the Vite build as static
-> files and does not run the Express server, so every `/api/*` request (auth,
-> MongoDB, RustFS) 404s — you'll see "Failed to connect to storage". Adding a
-> `.env` on Vercel has no effect because there is no server runtime reading it.
-> This backend must run on a host that supports a long-running Node process.
+Vault can be deployed on **Vercel** (Serverless) or on any **Node / Docker container host** (Render, Railway, Fly.io, etc.).
 
-Deploy the **whole app** (frontend + API) to a Node host:
+### Deploying to Vercel
+
+Vault includes native Vercel configuration (`vercel.json` and `api/index.ts` serverless function adapter):
+
+1. Push your repository to GitHub / GitLab.
+2. In the [Vercel Dashboard](https://vercel.com), click **Add New** → **Project** and import this repository.
+3. Configure the **Environment Variables** in the Vercel project settings:
+   - `MONGO_URI` (e.g. MongoDB Atlas connection string)
+   - `MONGO_DB` (e.g. `vault`)
+   - `JWT_SECRET` (generate using `node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"`)
+   - `MINIO_ENDPOINT` (e.g. `https://dev-fs-api.a3group.co.in/` or your RustFS / S3 endpoint)
+   - `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY`
+   - `MINIO_BUCKET` / `MINIO_PRIVATE_BUCKET`
+   - `ADMIN_EMAIL` / `ADMIN_PASSWORD` (optional: if omitted, setup wizard runs at `/setup`)
+4. Click **Deploy**.
+
+> **How Vercel Serverless is optimized in Vault:**
+> - **Direct-to-S3 Uploads:** Files upload directly to S3 via presigned PUT URLs, bypassing Vercel's 4.5 MB serverless payload limit.
+> - **Media Streaming (307 Redirects):** Audio and video streams redirect directly to S3 presigned URLs, bypassing Vercel's 10-second lambda timeout limit.
+> - **MongoDB Connection Pooling:** Reuses pooled MongoClient connections across serverless lambda freezes and warm starts.
+
+---
+
+### Deploying to Node / Container Hosts
+
+Deploy the whole app (frontend + long-running API) as a persistent service:
 
 - **Render** — a `render.yaml` blueprint is included. Or create a Web Service:
-  Build `npm ci && npm run build`, Start `npm start`, health check `/healthz`.
-- **Railway / Heroku-style** — a `Procfile` (`web: npm start`) is included.
-- **Fly.io / Docker** — a multi-stage `Dockerfile` is included.
+  - Build: `npm ci && npm run build`
+  - Start: `npm start`
+  - Health check: `/healthz`
+- **Railway / Heroku** — a `Procfile` (`web: npm start`) is included.
+- **Docker / Fly.io / Coolify** — a production multi-stage `Dockerfile` is included:
+  ```bash
+  docker build -t vault-file-manager .
+  docker run -p 3000:3000 --env-file .env vault-file-manager
+  ```
 
-Set all required environment variables in the host's dashboard. The app serves
-HTTPS-terminated traffic behind the platform proxy; the session cookie is
-`Secure` in production, so the site must be served over HTTPS (all the hosts
-above provide this automatically).
+Set all required environment variables in the host's dashboard. In production (`NODE_ENV=production`), session cookies are marked `Secure`, so the site must be served over HTTPS (all hosts above provide this automatically).

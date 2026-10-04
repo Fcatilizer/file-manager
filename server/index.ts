@@ -4,11 +4,8 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import express from 'express'
 import type { Request, Response, NextFunction } from 'express'
-import cookieParser from 'cookie-parser'
+import { app } from './app.ts'
 import { connectDB, seedAdmin } from './db.ts'
-import { authRouter, requireAuth, requireAdmin } from './auth.ts'
-import { usersRouter } from './users.ts'
-import { createS3Router } from './s3.ts'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const isProd = process.env.NODE_ENV === 'production'
@@ -18,37 +15,6 @@ const HOST = process.env.HOST || '0.0.0.0'
 async function start(): Promise<void> {
   await connectDB()
   await seedAdmin()
-
-  const app = express()
-  app.disable('x-powered-by')
-  app.set('trust proxy', 1)
-  app.use(cookieParser())
-
-  // ─── Public health check (for the hosting platform) ──────
-  app.get('/healthz', (_req: Request, res: Response) => {
-    res.json({ status: 'ok', uptime: process.uptime() })
-  })
-
-  // ─── Auth (public) ───────────────────────────────────────
-  app.use('/api/auth', express.json(), authRouter)
-
-  // ─── User management (admin only) ────────────────────────
-  app.use('/api/users', requireAuth, requireAdmin, express.json(), usersRouter)
-
-  // ─── Protected file API ──────────────────────────────────
-  app.use('/api', requireAuth, createS3Router())
-  app.use('/api', (_req: Request, res: Response) => {
-    res.status(404).json({ error: 'Not found' })
-  })
-
-  // ─── JSON error handler for the API ──────────────────────
-  app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
-    if (!req.path.startsWith('/api')) return next(err)
-    const message = err instanceof Error ? err.message : 'Internal server error'
-    console.error('[vault]', req.method, req.originalUrl, '→', message)
-    if (res.headersSent) return next(err)
-    res.status(500).json({ error: message })
-  })
 
   const server = http.createServer(app)
 

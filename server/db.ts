@@ -19,28 +19,55 @@ export interface PublicUser {
   createdAt: string
 }
 
+declare global {
+  // eslint-disable-next-line no-var
+  var _mongoClientPromise: Promise<MongoClient> | undefined
+}
+
 let db: Db
 let users: Collection<UserDoc>
+let initialized = false
 
 const BCRYPT_ROUNDS = 12
 
-export async function connectDB(): Promise<void> {
-  const uri = process.env.MONGO_URI
-  if (!uri) {
-    throw new Error('MONGO_URI is not set. Add it to your .env file.')
+export async function connectDB(): Promise<Db> {
+  if (initialized && db && users) {
+    return db
   }
 
-  const client = new MongoClient(uri, { serverSelectionTimeoutMS: 10_000 })
-  await client.connect()
+  const uri = process.env.MONGO_URI
+  if (!uri) {
+    throw new Error('MONGO_URI is not set. Add it to your .env file or hosting environment variables.')
+  }
 
+  if (!globalThis._mongoClientPromise) {
+    const client = new MongoClient(uri, {
+      serverSelectionTimeoutMS: 10_000,
+      maxPoolSize: 10,
+    })
+    globalThis._mongoClientPromise = client.connect().catch((err) => {
+      globalThis._mongoClientPromise = undefined
+      throw err
+    })
+  }
+
+  const client = await globalThis._mongoClientPromise
   db = client.db(process.env.MONGO_DB || 'vault')
   users = db.collection<UserDoc>('users')
-  await users.createIndex({ email: 1 }, { unique: true })
 
-  // Migrate any pre-roles records (all of which were seeded admins).
-  await users.updateMany({ role: { $exists: false } }, { $set: { role: 'admin' } })
+  if (!initialized) {
+    try {
+      await users.createIndex({ email: 1 }, { unique: true })
+      // Migrate any pre-roles records (all of which were seeded admins).
+      await users.updateMany({ role: { $exists: false } }, { $set: { role: 'admin' } })
+    } catch {
+      // Ignore if index already exists or migration was run
+    }
+    initialized = true
+    console.log(`[vault] connected to MongoDB (db: ${db.databaseName})`)
+  }
 
-  console.log(`[vault] connected to MongoDB (db: ${db.databaseName})`)
+  return db
 }
 
 export function getUsers(): Collection<UserDoc> {
@@ -100,21 +127,25 @@ export async function deleteUser(id: string): Promise<boolean> {
   return result.deletedCount === 1
 }
 
+let adminChecked = false
 export async function seedAdmin(): Promise<void> {
+  if (adminChecked) return
   const email = process.env.ADMIN_EMAIL?.toLowerCase().trim()
   const password = process.env.ADMIN_PASSWORD
 
   if (!email || !password) {
     console.warn('[vault] ADMIN_EMAIL / ADMIN_PASSWORD not set — first-run setup will be available')
+    adminChecked = true
     return
   }
 
   const existing = await findUserByEmail(email)
   if (existing) {
-    console.log(`[vault] admin user already exists: ${email}`)
+    adminChecked = true
     return
   }
 
   await createUser(email, password, 'admin')
+  adminChecked = true
   console.log(`[vault] seeded admin user: ${email}`)
 }
