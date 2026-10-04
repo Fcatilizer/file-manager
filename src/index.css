@@ -393,9 +393,10 @@ body {
 .file-row__date {
   color: var(--text-3);
   font-size: 12px;
-  width: 72px;
+  min-width: 76px;
   text-align: right;
   flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .file-row__actions {

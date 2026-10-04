@@ -5,6 +5,7 @@ import {
   ListObjectsV2Command,
   PutObjectCommand,
   DeleteObjectCommand,
+  DeleteObjectsCommand,
   GetObjectCommand,
   HeadBucketCommand,
 } from '@aws-sdk/client-s3'
@@ -102,16 +103,57 @@ export function s3ApiPlugin(): Plugin {
               }),
             )
 
-            const folders = (result.CommonPrefixes || []).map((p) => ({
-              key: p.Prefix!,
-              name: p.Prefix!.slice(prefix.length).replace(/\/$/, ''),
-              isFolder: true,
-              size: 0,
-              lastModified: '',
-            }))
+            const folders = await Promise.all(
+              (result.CommonPrefixes || []).map(async (p) => {
+                const folderPrefix = p.Prefix!
+                let size = 0
+                let lastModified = ''
+
+                try {
+                  const folderObjects = await s3.send(
+                    new ListObjectsV2Command({
+                      Bucket: bucket,
+                      Prefix: folderPrefix,
+                    }),
+                  )
+
+                  const items = folderObjects.Contents || []
+                  let latestTime = 0
+                  for (const item of items) {
+                    if (item.Key !== folderPrefix) {
+                      size += item.Size || 0
+                    }
+                    if (item.LastModified) {
+                      const t = item.LastModified.getTime()
+                      if (t > latestTime) {
+                        latestTime = t
+                        lastModified = item.LastModified.toISOString()
+                      }
+                    }
+                  }
+
+                  if (!lastModified) {
+                    const placeholder = items.find((i) => i.Key === folderPrefix)
+                    if (placeholder?.LastModified) {
+                      lastModified = placeholder.LastModified.toISOString()
+                    }
+                  }
+                } catch {
+                  // Fallback if listing sub-items fails
+                }
+
+                return {
+                  key: folderPrefix,
+                  name: folderPrefix.slice(prefix.length).replace(/\/$/, ''),
+                  isFolder: true,
+                  size,
+                  lastModified,
+                }
+              }),
+            )
 
             const files = (result.Contents || [])
-              .filter((obj) => obj.Key !== prefix)
+              .filter((obj) => obj.Key !== prefix && !obj.Key?.endsWith('/'))
               .map((obj) => ({
                 key: obj.Key!,
                 name: obj.Key!.slice(prefix.length),
@@ -149,7 +191,24 @@ export function s3ApiPlugin(): Plugin {
             const bucket = url.searchParams.get('bucket') || privateBucket
             const key = url.searchParams.get('key') || ''
 
-            await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }))
+            if (key.endsWith('/')) {
+              const list = await s3.send(
+                new ListObjectsV2Command({ Bucket: bucket, Prefix: key }),
+              )
+              if (list.Contents && list.Contents.length > 0) {
+                await s3.send(
+                  new DeleteObjectsCommand({
+                    Bucket: bucket,
+                    Delete: {
+                      Objects: list.Contents.map((o) => ({ Key: o.Key! })),
+                    },
+                  }),
+                )
+              }
+            } else {
+              await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }))
+            }
+
             sendJson(res, { success: true })
             return
           }

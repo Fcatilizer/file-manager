@@ -78,8 +78,8 @@ function Icon({ name, size = 18 }: { name: string; size?: number }) {
 
 /* ─── Helpers ─────────────────────────────────────────── */
 
-function formatSize(bytes: number): string {
-  if (bytes === 0) return '—'
+function formatSize(bytes?: number): string {
+  if (!bytes || bytes <= 0) return '0 B'
   const k = 1024
   const units = ['B', 'KB', 'MB', 'GB']
   const i = Math.floor(Math.log(bytes) / Math.log(k))
@@ -405,7 +405,7 @@ export default function App() {
                     <Icon name={iconForFile(f.name, f.isFolder)} size={17} />
                   </span>
                   <span className="file-row__name">{f.name}</span>
-                  <span className="file-row__size">{f.isFolder ? '—' : formatSize(f.size)}</span>
+                  <span className="file-row__size">{formatSize(f.size)}</span>
                   <span className="file-row__date">{formatDate(f.lastModified)}</span>
                   <div className="file-row__actions">
                     {!f.isFolder && (
