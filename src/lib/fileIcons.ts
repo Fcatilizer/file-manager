@@ -155,3 +155,46 @@ export function getFileTypeInfo(name: string, isFolder: boolean): FileTypeInfo {
     colorDark: '#94a3b8',
   }
 }
+
+/* ─── Category metadata (for filter chips) ────────────── */
+
+export interface CategoryInfo {
+  label: string
+  iconName: string
+  colorLight: string
+  colorDark: string
+}
+
+export const CATEGORY_META: Record<FileCategory, CategoryInfo> = {
+  folder: { label: 'Folders', iconName: 'folder', colorLight: '#4f46e5', colorDark: '#818cf8' },
+  doc: { label: 'Documents', iconName: 'fileDoc', colorLight: '#2563eb', colorDark: '#60a5fa' },
+  pdf: { label: 'PDF', iconName: 'filePdf', colorLight: '#dc2626', colorDark: '#f87171' },
+  sheet: { label: 'Sheets', iconName: 'fileSheet', colorLight: '#059669', colorDark: '#34d399' },
+  slide: { label: 'Slides', iconName: 'fileSlide', colorLight: '#ea580c', colorDark: '#fb923c' },
+  code: { label: 'Code', iconName: 'fileCode', colorLight: '#0891b2', colorDark: '#38bdf8' },
+  text: { label: 'Text', iconName: 'fileText', colorLight: '#475569', colorDark: '#94a3b8' },
+  image: { label: 'Images', iconName: 'fileImage', colorLight: '#7c3aed', colorDark: '#a78bfa' },
+  video: { label: 'Video', iconName: 'fileVideo', colorLight: '#e11d48', colorDark: '#fb7185' },
+  audio: { label: 'Audio', iconName: 'fileAudio', colorLight: '#d97706', colorDark: '#fbbf24' },
+  archive: { label: 'Archives', iconName: 'fileArchive', colorLight: '#b45309', colorDark: '#f59e0b' },
+  other: { label: 'Other', iconName: 'file', colorLight: '#64748b', colorDark: '#94a3b8' },
+}
+
+export const CATEGORY_ORDER: FileCategory[] = [
+  'folder',
+  'doc',
+  'pdf',
+  'sheet',
+  'slide',
+  'code',
+  'text',
+  'image',
+  'video',
+  'audio',
+  'archive',
+  'other',
+]
+
+export function getCategoryInfo(category: FileCategory): CategoryInfo {
+  return CATEGORY_META[category]
+}

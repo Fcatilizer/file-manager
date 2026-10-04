@@ -1451,3 +1451,557 @@ body {
     border: none;
   }
 }
+
+/* ─── .env preview ────────────────────────────────────── */
+
+.preview__env {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.preview__env-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-2);
+  flex-shrink: 0;
+}
+
+.preview__env-stats {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+.preview__env-secret-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.preview__env-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.preview__env-list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 8px 0;
+}
+
+.env-line {
+  display: flex;
+  align-items: center;
+  padding: 3px 16px;
+  font-family: 'SFMono-Regular', ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace;
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+.env-line--blank {
+  height: 8px;
+  padding: 0;
+}
+
+.env-line--comment {
+  color: var(--text-3);
+  font-style: italic;
+  white-space: pre-wrap;
+}
+
+.env-line--raw {
+  color: var(--text-2);
+  white-space: pre-wrap;
+}
+
+.env-line--pair {
+  gap: 0;
+  transition: background var(--transition);
+}
+
+.env-line--pair:hover {
+  background: var(--bg-hover);
+}
+
+.env-key {
+  flex-shrink: 0;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.env-eq {
+  flex-shrink: 0;
+  margin: 0 6px;
+  color: var(--text-3);
+}
+
+.env-value {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-1);
+  word-break: break-all;
+  white-space: pre-wrap;
+}
+
+.env-value--masked {
+  color: var(--text-3);
+  letter-spacing: 2px;
+}
+
+.env-lock {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+  color: var(--text-3);
+  flex-shrink: 0;
+}
+
+.env-lock--open {
+  color: var(--success);
+}
+
+.env-copy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 6px;
+  padding: 3px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-3);
+  cursor: pointer;
+  opacity: 0;
+  transition: all var(--transition);
+  flex-shrink: 0;
+}
+
+.env-line--pair:hover .env-copy,
+.env-copy:focus-visible {
+  opacity: 1;
+}
+
+.env-copy:hover {
+  background: var(--bg-3);
+  color: var(--text-1);
+}
+
+@media (max-width: 640px) {
+  .preview__env-toolbar {
+    flex-wrap: wrap;
+  }
+}
+
+/* ─── Search & Filter ─────────────────────────────────── */
+
+.search-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 10px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-3);
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.search-box:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.search-box__input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: none;
+  background: transparent;
+  outline: none;
+  color: var(--text-1);
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.search-box__input::placeholder {
+  color: var(--text-3);
+}
+
+.search-box__clear {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--bg-3);
+  color: var(--text-3);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all var(--transition);
+}
+
+.search-box__clear:hover {
+  background: var(--border-light);
+  color: var(--text-1);
+}
+
+.filter-chips {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.filter-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-2);
+  color: var(--text-2);
+  font-family: inherit;
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all var(--transition);
+}
+
+.chip:hover {
+  background: var(--bg-3);
+  color: var(--text-1);
+  border-color: var(--border-light);
+}
+
+.chip--active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.chip--active:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.chip__count {
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--bg-3);
+  color: var(--text-3);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.chip--active .chip__count {
+  background: var(--accent);
+  color: #fff;
+}
+
+.empty__action {
+  margin-top: 14px;
+}
+
+@media (max-width: 640px) {
+  .search-filter {
+    gap: 8px;
+  }
+}
+
+/* ─── Word (.docx) preview ────────────────────────────── */
+
+.docx-scroll {
+  flex: 1;
+  overflow: auto;
+  min-width: 0;
+  min-height: 0;
+  padding: 24px;
+  background: var(--bg-3);
+}
+
+.docx-page {
+  max-width: 820px;
+  min-height: 100%;
+  margin: 0 auto;
+  padding: 56px 64px;
+  background: #ffffff;
+  border-radius: 4px;
+  box-shadow: 0 2px 18px rgba(0, 0, 0, 0.22);
+}
+
+.docx-body {
+  font-family: 'Calibri', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 15px;
+  line-height: 1.65;
+  color: #1f2328;
+  word-wrap: break-word;
+}
+
+.docx-body h1,
+.docx-body h2,
+.docx-body h3,
+.docx-body h4,
+.docx-body h5,
+.docx-body h6 {
+  margin: 1.3em 0 0.55em;
+  line-height: 1.25;
+  font-weight: 600;
+  color: #111827;
+}
+
+.docx-body h1 { font-size: 1.9em; }
+.docx-body h2 { font-size: 1.5em; }
+.docx-body h3 { font-size: 1.25em; }
+.docx-body h4 { font-size: 1.1em; }
+
+.docx-body p {
+  margin: 0 0 0.9em;
+}
+
+.docx-body ul,
+.docx-body ol {
+  margin: 0 0 0.9em;
+  padding-left: 1.7em;
+}
+
+.docx-body li {
+  margin: 0.2em 0;
+}
+
+.docx-body table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1em 0;
+  font-size: 0.95em;
+}
+
+.docx-body th,
+.docx-body td {
+  border: 1px solid #d0d5dd;
+  padding: 6px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.docx-body th {
+  background: #f2f4f7;
+  font-weight: 600;
+}
+
+.docx-body img {
+  max-width: 100%;
+  height: auto;
+}
+
+.docx-body a {
+  color: #2563eb;
+  text-decoration: underline;
+}
+
+.docx-body blockquote {
+  margin: 1em 0;
+  padding-left: 1em;
+  border-left: 3px solid #d0d5dd;
+  color: #475467;
+}
+
+.docx-body code {
+  font-family: 'SFMono-Regular', ui-monospace, Menlo, Consolas, monospace;
+  font-size: 0.9em;
+  background: #f2f4f7;
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+/* ─── Excel (.xlsx) preview ───────────────────────────── */
+
+.xlsx {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: var(--bg-2);
+}
+
+.xlsx-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 6px 8px 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-1);
+  flex-shrink: 0;
+}
+
+.xlsx-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.xlsx-tab {
+  padding: 6px 12px;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+  background: transparent;
+  color: var(--text-2);
+  font-family: inherit;
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.xlsx-tab:hover {
+  background: var(--bg-3);
+  color: var(--text-1);
+}
+
+.xlsx-tab--active {
+  background: var(--bg-2);
+  border-color: var(--border);
+  color: var(--text-1);
+}
+
+.xlsx-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.xlsx-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  font-family: 'SFMono-Regular', ui-monospace, Menlo, Consolas, monospace;
+  font-size: 12.5px;
+}
+
+.xlsx-table th,
+.xlsx-table td {
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  padding: 4px 10px;
+  white-space: nowrap;
+  max-width: 380px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.xlsx-table td {
+  min-width: 64px;
+  color: var(--text-1);
+}
+
+.xlsx-colhead,
+.xlsx-rowhead {
+  background: var(--bg-3);
+  color: var(--text-3);
+  font-weight: 500;
+  font-size: 11px;
+  text-align: center;
+}
+
+.xlsx-colhead {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.xlsx-rowhead {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+}
+
+.xlsx-corner {
+  position: sticky;
+  top: 0;
+  left: 0;
+  z-index: 3;
+  background: var(--bg-3);
+}
+
+.xlsx-num {
+  text-align: right;
+}
+
+.xlsx-table tbody tr:hover td {
+  background: var(--bg-hover);
+}
+
+.xlsx-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 6px 12px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-2);
+  color: var(--text-3);
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.xlsx-foot__warn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ─── Rich card title (office fallbacks) ──────────────── */
+
+.preview__rich-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-2);
+  margin-bottom: 6px;
+}
+
+@media (max-width: 640px) {
+  .docx-scroll {
+    padding: 0;
+  }
+
+  .docx-page {
+    padding: 28px 20px;
+    border-radius: 0;
+  }
+}

@@ -10,7 +10,7 @@ import {
   type FileItem,
   type SessionUser,
 } from '../lib/api'
-import { getFileTypeInfo } from '../lib/fileIcons'
+import { getFileTypeInfo, getCategoryInfo, CATEGORY_ORDER, type FileCategory } from '../lib/fileIcons'
 import { Icon } from './Icon'
 import PreviewModal from './PreviewModal'
 import UsersModal from './UsersModal'
@@ -62,6 +62,8 @@ export default function FileManager({ user, theme, onToggleTheme, onLogout }: Pr
   const [toast, setToast] = useState<ToastData | null>(null)
   const [previewIndex, setPreviewIndex] = useState<number | null>(null)
   const [showUsers, setShowUsers] = useState(false)
+  const [query, setQuery] = useState('')
+  const [activeCategory, setActiveCategory] = useState<FileCategory | null>(null)
 
   // ─── Toast ──────────────────────────────────────────────
 
@@ -191,9 +193,44 @@ export default function FileManager({ user, theme, onToggleTheme, onLogout }: Pr
     setPrefix(parts.length ? parts.join('/') + '/' : '')
   }
 
+  // ─── Search & Filter ────────────────────────────────────
+
+  const categoryCounts = useMemo(() => {
+    const counts = new Map<FileCategory, number>()
+    for (const f of files) {
+      const { category } = getFileTypeInfo(f.name, f.isFolder)
+      counts.set(category, (counts.get(category) ?? 0) + 1)
+    }
+    return counts
+  }, [files])
+
+  const presentCategories = useMemo(
+    () => CATEGORY_ORDER.filter((c) => categoryCounts.has(c)),
+    [categoryCounts],
+  )
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    return files.filter((f) => {
+      if (activeCategory) {
+        const { category } = getFileTypeInfo(f.name, f.isFolder)
+        if (category !== activeCategory) return false
+      }
+      if (q && !f.name.toLowerCase().includes(q)) return false
+      return true
+    })
+  }, [files, query, activeCategory])
+
+  const isFiltering = query.trim().length > 0 || activeCategory !== null
+
+  const clearFilters = useCallback(() => {
+    setQuery('')
+    setActiveCategory(null)
+  }, [])
+
   // ─── Preview ────────────────────────────────────────────
 
-  const previewable = useMemo(() => files.filter((f) => !f.isFolder), [files])
+  const previewable = useMemo(() => filtered.filter((f) => !f.isFolder), [filtered])
 
   const openPreview = useCallback(
     (file: FileItem) => {
@@ -217,10 +254,16 @@ export default function FileManager({ user, theme, onToggleTheme, onLogout }: Pr
     [previewable.length],
   )
 
-  // Close preview when navigating folders / changing bucket
+  // Reset filters when navigating folders / changing bucket
+  useEffect(() => {
+    setQuery('')
+    setActiveCategory(null)
+  }, [prefix, activeBucket])
+
+  // Close preview when navigating or when the visible set changes
   useEffect(() => {
     setPreviewIndex(null)
-  }, [prefix, activeBucket])
+  }, [prefix, activeBucket, query, activeCategory])
 
   const activePreview =
     previewIndex !== null ? previewable[previewIndex] ?? null : null
@@ -335,6 +378,60 @@ export default function FileManager({ user, theme, onToggleTheme, onLogout }: Pr
         </div>
       </div>
 
+      {/* Search & Filter */}
+      {files.length > 0 && (
+        <div className="search-filter">
+          <div className="search-box">
+            <Icon name="search" size={15} />
+            <input
+              className="search-box__input"
+              type="text"
+              placeholder="Search files…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              aria-label="Search files"
+            />
+            {query && (
+              <button
+                className="search-box__clear"
+                onClick={() => setQuery('')}
+                title="Clear search"
+                aria-label="Clear search"
+              >
+                <Icon name="close" size={12} />
+              </button>
+            )}
+          </div>
+
+          <div className="filter-chips">
+            <button
+              className={`chip${activeCategory === null ? ' chip--active' : ''}`}
+              onClick={() => setActiveCategory(null)}
+            >
+              All
+              <span className="chip__count">{files.length}</span>
+            </button>
+            {presentCategories.map((cat) => {
+              const meta = getCategoryInfo(cat)
+              const color = theme === 'dark' ? meta.colorDark : meta.colorLight
+              const active = activeCategory === cat
+              return (
+                <button
+                  key={cat}
+                  className={`chip${active ? ' chip--active' : ''}`}
+                  onClick={() => setActiveCategory(active ? null : cat)}
+                  title={`Show only ${meta.label.toLowerCase()}`}
+                >
+                  <Icon name={meta.iconName} size={13} color={active ? 'currentColor' : color} />
+                  {meta.label}
+                  <span className="chip__count">{categoryCounts.get(cat)}</span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       {/* File List */}
       <div className="file-list">
         {loading ? (
@@ -364,8 +461,19 @@ export default function FileManager({ user, theme, onToggleTheme, onLogout }: Pr
                 <div className="empty__title">Empty folder</div>
                 <div className="empty__subtitle">Drop files here or click Upload</div>
               </div>
+            ) : filtered.length === 0 ? (
+              <div className="empty">
+                <div className="empty__icon"><Icon name="search" size={30} /></div>
+                <div className="empty__title">No matches</div>
+                <div className="empty__subtitle">Try a different search or filter</div>
+                {isFiltering && (
+                  <button className="btn btn--ghost empty__action" onClick={clearFilters}>
+                    Clear filters
+                  </button>
+                )}
+              </div>
             ) : (
-              files.map((f) => {
+              filtered.map((f) => {
                 const fileInfo = getFileTypeInfo(f.name, f.isFolder)
                 const iconColor = theme === 'dark' ? fileInfo.colorDark : fileInfo.colorLight
                 return (

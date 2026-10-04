@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Icon } from './Icon'
+import DocxPreview from './DocxPreview'
+import SheetPreview from './SheetPreview'
 import { rawUrl, fetchTextContent, type FileItem } from '../lib/api'
 import { fileKind, extOf } from '../lib/filetype'
 import { getFileTypeInfo } from '../lib/fileIcons'
@@ -24,6 +26,45 @@ function formatDate(iso?: string): string {
   const hrs = Math.floor(mins / 60)
   if (hrs < 24) return `${hrs}h ago`
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+/* ─── .env parsing ─────────────────────────────────────── */
+
+type EnvEntry =
+  | { type: 'blank'; raw: string }
+  | { type: 'comment'; raw: string }
+  | { type: 'raw'; raw: string }
+  | { type: 'pair'; raw: string; key: string; value: string; sensitive: boolean }
+
+// Keys that likely hold secrets — masked until the user chooses to reveal.
+const SENSITIVE_KEY_RE =
+  /(^|_)(SECRET|PASSWORD|PASSWD|PASS|TOKEN|API_?KEY|PRIVATE|CREDENTIAL|AUTH|SALT|CERT|DSN|CONNECTION|CONN|URI|URL|ACCESS_?KEY|KEY)(_|$)/i
+
+function stripQuotes(value: string): string {
+  if (value.length >= 2) {
+    const first = value[0]
+    const last = value[value.length - 1]
+    if ((first === '"' && last === '"') || (first === "'" && last === "'")) {
+      return value.slice(1, -1)
+    }
+  }
+  return value
+}
+
+function parseEnv(text: string): EnvEntry[] {
+  return text.split(/\r?\n/).map((line): EnvEntry => {
+    const trimmed = line.trim()
+    if (!trimmed) return { type: 'blank', raw: line }
+    if (trimmed.startsWith('#')) return { type: 'comment', raw: trimmed }
+
+    const body = trimmed.startsWith('export ') ? trimmed.slice(7).trim() : trimmed
+    const eq = body.indexOf('=')
+    if (eq === -1) return { type: 'raw', raw: trimmed }
+
+    const key = body.slice(0, eq).trim()
+    const value = stripQuotes(body.slice(eq + 1).trim())
+    return { type: 'pair', raw: trimmed, key, value, sensitive: SENSITIVE_KEY_RE.test(key) }
+  })
 }
 
 type Props = {
@@ -53,16 +94,19 @@ export default function PreviewModal({
   const fileInfo = getFileTypeInfo(file.name, false)
   const activeColor = theme === 'dark' ? fileInfo.colorDark : fileInfo.colorLight
   const src = rawUrl(bucket, file.key)
-  const tooLarge = kind === 'text' && file.size > MAX_TEXT_BYTES
+  const tooLarge = (kind === 'text' || kind === 'env') && file.size > MAX_TEXT_BYTES
 
   const [text, setText] = useState<string | null>(null)
   const [textError, setTextError] = useState<string | null>(null)
   const [mediaLoading, setMediaLoading] = useState(true)
   const [copied, setCopied] = useState(false)
+  const [revealed, setRevealed] = useState(false)
+  const [copiedAll, setCopiedAll] = useState(false)
+  const [copiedKey, setCopiedKey] = useState<number | null>(null)
 
   // ─── Load text content ──────────────────────────────────
   useEffect(() => {
-    if (kind !== 'text' || tooLarge) return
+    if ((kind !== 'text' && kind !== 'env') || tooLarge) return
     let cancelled = false
 
     fetchTextContent(bucket, file.key)
@@ -78,6 +122,8 @@ export default function PreviewModal({
     }
   }, [kind, bucket, file.key, tooLarge])
 
+  const envEntries = useMemo(() => (text ? parseEnv(text) : []), [text])
+
   // ─── Copy text ──────────────────────────────────────────
   const handleCopy = useCallback(() => {
     if (text === null) return
@@ -86,6 +132,21 @@ export default function PreviewModal({
       setTimeout(() => setCopied(false), 2000)
     })
   }, [text])
+
+  const copyEnvAll = useCallback(() => {
+    if (text === null) return
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedAll(true)
+      setTimeout(() => setCopiedAll(false), 1500)
+    })
+  }, [text])
+
+  const copyEnvValue = useCallback((value: string, idx: number) => {
+    navigator.clipboard.writeText(value).then(() => {
+      setCopiedKey(idx)
+      setTimeout(() => setCopiedKey(null), 1500)
+    })
+  }, [])
 
   // ─── Keyboard navigation ────────────────────────────────
   const handleKey = useCallback(
@@ -158,6 +219,128 @@ export default function PreviewModal({
       case 'pdf':
         return <iframe className="preview__frame" src={src} title={file.name} />
 
+      case 'env': {
+        if (tooLarge || textError) {
+          return (
+            <div className="preview__empty">
+              <div
+                className="preview__empty-icon"
+                style={{
+                  color: activeColor,
+                  backgroundColor: `${activeColor}15`,
+                  borderColor: `${activeColor}30`,
+                }}
+              >
+                <Icon name={fileInfo.iconName} size={40} color={activeColor} />
+              </div>
+              <div className="preview__empty-title">
+                {tooLarge ? 'File is too large to preview inline' : 'Could not preview file'}
+              </div>
+              <div className="preview__empty-text">
+                {tooLarge
+                  ? `File size is ${formatSize(file.size)}, exceeding the 1 MB inline preview limit.`
+                  : textError}
+              </div>
+              <button className="btn btn--primary" onClick={() => onDownload(file.key, file.name)}>
+                <Icon name="download" size={14} /> Download File
+              </button>
+            </div>
+          )
+        }
+
+        if (text === null) {
+          return (
+            <div className="preview__loader">
+              <div className="spinner" />
+            </div>
+          )
+        }
+
+        const varCount = envEntries.filter((e) => e.type === 'pair').length
+        const sensitiveCount = envEntries.filter(
+          (e) => e.type === 'pair' && e.sensitive,
+        ).length
+
+        return (
+          <div className="preview__env">
+            <div className="preview__env-toolbar">
+              <span className="preview__env-stats">
+                {varCount} variable{varCount === 1 ? '' : 's'}
+                {sensitiveCount > 0 && (
+                  <span className="preview__env-secret-count">
+                    <Icon name="lock" size={11} /> {sensitiveCount} secret
+                    {sensitiveCount === 1 ? '' : 's'}
+                  </span>
+                )}
+              </span>
+              <div className="preview__env-actions">
+                <button
+                  className="btn btn--ghost btn--sm"
+                  onClick={() => setRevealed((v) => !v)}
+                  disabled={sensitiveCount === 0}
+                  title={revealed ? 'Mask sensitive values' : 'Reveal sensitive values'}
+                >
+                  <Icon name={revealed ? 'eyeOff' : 'eye'} size={13} />
+                  {revealed ? 'Hide secrets' : 'Reveal secrets'}
+                </button>
+                <button className="btn btn--ghost btn--sm" onClick={copyEnvAll}>
+                  <Icon name={copiedAll ? 'check' : 'copy'} size={13} />
+                  {copiedAll ? 'Copied' : 'Copy all'}
+                </button>
+              </div>
+            </div>
+
+            <div className="preview__env-list">
+              {envEntries.map((entry, i) => {
+                if (entry.type === 'blank') {
+                  return <div key={i} className="env-line env-line--blank" />
+                }
+                if (entry.type === 'comment') {
+                  return (
+                    <div key={i} className="env-line env-line--comment">
+                      {entry.raw}
+                    </div>
+                  )
+                }
+                if (entry.type === 'raw') {
+                  return (
+                    <div key={i} className="env-line env-line--raw">
+                      {entry.raw}
+                    </div>
+                  )
+                }
+
+                const masked = entry.sensitive && !revealed
+                return (
+                  <div key={i} className="env-line env-line--pair">
+                    <span className="env-key">{entry.key}</span>
+                    <span className="env-eq">=</span>
+                    <span className={`env-value${masked ? ' env-value--masked' : ''}`}>
+                      {masked ? '••••••••••' : entry.value}
+                    </span>
+                    {entry.sensitive && (
+                      <span
+                        className={`env-lock${masked ? '' : ' env-lock--open'}`}
+                        title={masked ? 'Sensitive value hidden' : 'Sensitive value revealed'}
+                      >
+                        <Icon name={masked ? 'lock' : 'shield'} size={11} />
+                      </span>
+                    )}
+                    <button
+                      className="env-copy"
+                      title="Copy value"
+                      onClick={() => copyEnvValue(entry.value, i)}
+                    >
+                      <Icon name={copiedKey === i ? 'check' : 'copy'} size={12} />
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )
+      }
+
       case 'text':
         return (
           <div className="preview__code-wrap">
@@ -208,8 +391,28 @@ export default function PreviewModal({
           </div>
         )
 
+      case 'word':
+        return (
+          <DocxPreview
+            file={file}
+            bucket={bucket}
+            activeColor={activeColor}
+            onDownload={onDownload}
+          />
+        )
+
+      case 'excel':
+        return (
+          <SheetPreview
+            file={file}
+            bucket={bucket}
+            activeColor={activeColor}
+            onDownload={onDownload}
+          />
+        )
+
       default:
-        // Rich card for Office docs (.docx, .xlsx, .pptx, etc.), archives, binaries
+        // Rich card for other Office docs (.pptx), archives, binaries
         return (
           <div className="preview__rich-card">
             <div
