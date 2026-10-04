@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "tsx watch server/index.ts",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && esbuild server/vercel.ts --bundle --platform=node --format=esm --packages=external --outfile=api/index.js",
     "start": "NODE_ENV=production tsx server/index.ts",
     "lint": "oxlint"
   },
@@ -36,6 +36,7 @@
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^6.1.1",
+    "esbuild": "^0.28.2",
     "oxlint": "^1.81.0",
     "typescript": "~6.0.2",
     "vite": "^8.3.0"
