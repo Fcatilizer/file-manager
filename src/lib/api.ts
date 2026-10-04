@@ -96,6 +96,17 @@ export async function getSession(): Promise<SessionUser | null> {
   }
 }
 
+export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  const res = await fetch('/api/auth/password', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ currentPassword, newPassword }),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data.error || 'Failed to update password')
+}
+
 /* ─── Users (admin only) ────────────────────────────────── */
 
 export async function listUsers(): Promise<SessionUser[]> {
@@ -118,6 +129,17 @@ export async function createUser(
 
 export async function deleteUser(id: string): Promise<void> {
   await request(`/api/users/${id}`, { method: 'DELETE' })
+}
+
+export async function adminResetPassword(id: string, newPassword: string): Promise<void> {
+  const res = await fetch(`/api/users/${id}/password`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ newPassword }),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data.error || 'Failed to update user password')
 }
 
 /* ─── Files ─────────────────────────────────────────────── */

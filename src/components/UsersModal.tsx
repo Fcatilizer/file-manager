@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { Icon } from './Icon'
 import Modal from './Modal'
+import ChangePasswordModal from './ChangePasswordModal'
 import {
   createUser,
   deleteUser,
@@ -25,6 +26,7 @@ export default function UsersModal({ currentUser, onClose, onToast }: Props) {
   const [users, setUsers] = useState<SessionUser[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [passwordTarget, setPasswordTarget] = useState<SessionUser | null>(null)
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -88,7 +90,8 @@ export default function UsersModal({ currentUser, onClose, onToast }: Props) {
   const adminCount = users.filter((u) => u.role === 'admin').length
 
   return (
-    <Modal onClose={onClose} className="users-modal" overlayClassName="modal-overlay--fullscreen">
+    <>
+      <Modal onClose={onClose} className="users-modal" overlayClassName="modal-overlay--fullscreen">
       {/* Header */}
       <div className="users-modal__header">
         <div className="users-modal__title">
@@ -167,29 +170,50 @@ export default function UsersModal({ currentUser, onClose, onToast }: Props) {
                     {u.role === 'admin' && <Icon name="shield" size={11} />}
                     {u.role}
                   </span>
-                  <button
-                    className="btn btn--icon danger"
-                    title={
-                      isSelf
-                        ? 'You cannot delete your own account'
-                        : isLastAdmin
-                          ? 'Cannot delete the last admin'
-                          : 'Remove user'
-                    }
-                    disabled={deleteDisabled}
-                    onClick={() => handleDelete(u)}
-                  >
-                    {busyId === u.id ? (
-                      <span className="spinner spinner--sm" />
-                    ) : (
-                      <Icon name="trash" size={14} />
-                    )}
-                  </button>
+                  <div className="user-row__actions">
+                    <button
+                      className="btn btn--icon"
+                      title={isSelf ? 'Change your password' : `Reset password for ${u.email}`}
+                      onClick={() => setPasswordTarget(u)}
+                      type="button"
+                    >
+                      <Icon name="key" size={14} />
+                    </button>
+                    <button
+                      className="btn btn--icon danger"
+                      title={
+                        isSelf
+                          ? 'You cannot delete your own account'
+                          : isLastAdmin
+                            ? 'Cannot delete the last admin'
+                            : 'Remove user'
+                      }
+                      disabled={deleteDisabled}
+                      onClick={() => handleDelete(u)}
+                      type="button"
+                    >
+                      {busyId === u.id ? (
+                        <span className="spinner spinner--sm" />
+                      ) : (
+                        <Icon name="trash" size={14} />
+                      )}
+                    </button>
+                  </div>
                 </div>
               )
             })
           )}
         </div>
-    </Modal>
+      </Modal>
+
+      {passwordTarget && (
+        <ChangePasswordModal
+          currentUser={currentUser}
+          targetUser={passwordTarget}
+          onClose={() => setPasswordTarget(null)}
+          onToast={onToast}
+        />
+      )}
+    </>
   )
 }

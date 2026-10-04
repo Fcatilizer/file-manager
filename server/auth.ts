@@ -9,6 +9,7 @@ import {
   findUserByEmail,
   getUserById,
   toPublicUser,
+  updateUserPassword,
   type UserRole,
 } from './db.ts'
 
@@ -179,4 +180,41 @@ authRouter.get('/me', async (req: Request, res: Response) => {
   }
   const full = await getUserById(user.id)
   res.json({ user: full ? toPublicUser(full) : null })
+})
+
+// ─── Update Own Password ─────────────────────────────────
+authRouter.post('/password', requireAuth, async (req: Request, res: Response) => {
+  const user = (req as AuthedRequest).user
+  if (!user) {
+    res.status(401).json({ error: 'Unauthorized' })
+    return
+  }
+
+  const currentPassword = typeof req.body?.currentPassword === 'string' ? req.body.currentPassword : ''
+  const newPassword = typeof req.body?.newPassword === 'string' ? req.body.newPassword : ''
+
+  if (!currentPassword || !newPassword) {
+    res.status(400).json({ error: 'Current password and new password are required' })
+    return
+  }
+
+  if (newPassword.length < 8) {
+    res.status(400).json({ error: 'New password must be at least 8 characters' })
+    return
+  }
+
+  const full = await getUserById(user.id)
+  if (!full) {
+    res.status(404).json({ error: 'User not found' })
+    return
+  }
+
+  const valid = await bcrypt.compare(currentPassword, full.passwordHash)
+  if (!valid) {
+    res.status(400).json({ error: 'Current password is incorrect' })
+    return
+  }
+
+  await updateUserPassword(user.id, newPassword)
+  res.json({ success: true, message: 'Password updated successfully' })
 })

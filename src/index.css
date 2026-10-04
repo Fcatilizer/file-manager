@@ -1230,6 +1230,26 @@ body {
   transform: rotate(180deg);
 }
 
+.user-chip__action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-3);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.user-chip__action:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
 /* ─── Preview audio subtitle ──────────────────────────── */
 
 .preview__audio-sub {
@@ -1407,6 +1427,13 @@ body {
 .role-badge--user {
   background: var(--bg-3);
   color: var(--text-3);
+}
+
+.user-row__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
 .btn--icon:disabled {
@@ -2073,4 +2100,128 @@ body {
   cursor: not-allowed;
   filter: none;
   box-shadow: none;
+}
+
+/* ─── Password Modal ──────────────────────────────────── */
+
+.password-modal {
+  width: 100%;
+  max-width: 440px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: previewIn 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.password-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.password-modal__title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.password-modal__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  background: var(--accent-soft);
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.password-modal__title h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+.password-modal__sub {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--text-3);
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.password-modal__form {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.password-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.password-input-wrap .auth__input {
+  width: 100%;
+  padding-right: 38px;
+}
+
+.password-toggle-btn {
+  position: absolute;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  background: transparent;
+  color: var(--text-3);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.password-toggle-btn:hover {
+  color: var(--text-1);
+  background: var(--bg-3);
+}
+
+.password-match-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  margin-top: -6px;
+}
+
+.password-match-hint.match {
+  color: #10b981;
+}
+
+.password-match-hint.mismatch {
+  color: var(--danger);
+}
+
+.password-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 6px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
 }

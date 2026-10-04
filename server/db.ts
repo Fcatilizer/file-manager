@@ -133,6 +133,16 @@ export async function deleteUser(id: string): Promise<boolean> {
   return result.deletedCount === 1
 }
 
+export async function updateUserPassword(id: string, newPassword: string): Promise<boolean> {
+  if (!ObjectId.isValid(id)) return false
+  const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS)
+  const result = await getUsers().updateOne(
+    { _id: new ObjectId(id) },
+    { $set: { passwordHash } },
+  )
+  return result.matchedCount === 1
+}
+
 let adminChecked = false
 export async function seedAdmin(): Promise<void> {
   if (adminChecked) return

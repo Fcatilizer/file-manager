@@ -92,6 +92,15 @@ async function deleteUser(id) {
   const result = await getUsers().deleteOne({ _id: new ObjectId(id) });
   return result.deletedCount === 1;
 }
+async function updateUserPassword(id, newPassword) {
+  if (!ObjectId.isValid(id)) return false;
+  const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+  const result = await getUsers().updateOne(
+    { _id: new ObjectId(id) },
+    { $set: { passwordHash } }
+  );
+  return result.matchedCount === 1;
+}
 var adminChecked = false;
 async function seedAdmin() {
   if (adminChecked) return;
@@ -245,6 +254,35 @@ authRouter.get("/me", async (req, res) => {
   const full = await getUserById(user.id);
   res.json({ user: full ? toPublicUser(full) : null });
 });
+authRouter.post("/password", requireAuth, async (req, res) => {
+  const user = req.user;
+  if (!user) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  const currentPassword = typeof req.body?.currentPassword === "string" ? req.body.currentPassword : "";
+  const newPassword = typeof req.body?.newPassword === "string" ? req.body.newPassword : "";
+  if (!currentPassword || !newPassword) {
+    res.status(400).json({ error: "Current password and new password are required" });
+    return;
+  }
+  if (newPassword.length < 8) {
+    res.status(400).json({ error: "New password must be at least 8 characters" });
+    return;
+  }
+  const full = await getUserById(user.id);
+  if (!full) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+  const valid = await bcrypt2.compare(currentPassword, full.passwordHash);
+  if (!valid) {
+    res.status(400).json({ error: "Current password is incorrect" });
+    return;
+  }
+  await updateUserPassword(user.id, newPassword);
+  res.json({ success: true, message: "Password updated successfully" });
+});
 
 // server/users.ts
 import express2 from "express";
@@ -298,6 +336,21 @@ usersRouter.delete("/:id", async (req, res) => {
   }
   await deleteUser(id);
   res.json({ success: true });
+});
+usersRouter.patch("/:id/password", async (req, res) => {
+  const id = String(req.params.id);
+  const password = typeof req.body?.password === "string" ? req.body.password : "";
+  if (password.length < 8) {
+    res.status(400).json({ error: "Password must be at least 8 characters" });
+    return;
+  }
+  const target = await getUserById(id);
+  if (!target) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+  await updateUserPassword(id, password);
+  res.json({ success: true, message: "Password updated successfully" });
 });
 
 // server/s3.ts

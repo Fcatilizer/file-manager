@@ -6,6 +6,7 @@ import {
   getUsers,
   getUserById,
   toPublicUser,
+  updateUserPassword,
   type UserRole,
 } from './db.ts'
 import type { AuthedRequest } from './auth.ts'
@@ -74,4 +75,24 @@ usersRouter.delete('/:id', async (req: Request, res: Response) => {
 
   await deleteUser(id)
   res.json({ success: true })
+})
+
+// ─── Admin update user password ──────────────────────────
+usersRouter.patch('/:id/password', async (req: Request, res: Response) => {
+  const id = String(req.params.id)
+  const password = typeof req.body?.password === 'string' ? req.body.password : ''
+
+  if (password.length < 8) {
+    res.status(400).json({ error: 'Password must be at least 8 characters' })
+    return
+  }
+
+  const target = await getUserById(id)
+  if (!target) {
+    res.status(404).json({ error: 'User not found' })
+    return
+  }
+
+  await updateUserPassword(id, password)
+  res.json({ success: true, message: 'Password updated successfully' })
 })

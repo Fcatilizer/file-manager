@@ -14,6 +14,7 @@ import { getFileTypeInfo, getCategoryInfo, CATEGORY_ORDER, type FileCategory } f
 import { Icon } from './Icon'
 import PreviewModal from './PreviewModal'
 import UsersModal from './UsersModal'
+import ChangePasswordModal from './ChangePasswordModal'
 import TextInputDialog from './TextInputDialog'
 import ConfirmDialog from './ConfirmDialog'
 
@@ -64,6 +65,7 @@ export default function FileManager({ user, theme, onToggleTheme, onLogout }: Pr
   const [toast, setToast] = useState<ToastData | null>(null)
   const [previewIndex, setPreviewIndex] = useState<number | null>(null)
   const [showUsers, setShowUsers] = useState(false)
+  const [showChangePassword, setShowChangePassword] = useState(false)
   const [query, setQuery] = useState('')
   const [activeCategory, setActiveCategory] = useState<FileCategory | null>(null)
   const [showNewFolder, setShowNewFolder] = useState(false)
@@ -344,6 +346,14 @@ export default function FileManager({ user, theme, onToggleTheme, onLogout }: Pr
               {user.email.charAt(0).toUpperCase()}
             </span>
             <span className="user-chip__email">{user.email}</span>
+            <button
+              className="user-chip__action"
+              onClick={() => setShowChangePassword(true)}
+              title="Change password"
+              aria-label="Change password"
+            >
+              <Icon name="key" size={13} />
+            </button>
             <button className="user-chip__logout" onClick={onLogout} title="Sign out" aria-label="Sign out">
               <Icon name="back" size={14} />
             </button>
@@ -604,6 +614,15 @@ export default function FileManager({ user, theme, onToggleTheme, onLogout }: Pr
         <UsersModal
           currentUser={user}
           onClose={() => setShowUsers(false)}
+          onToast={showToast}
+        />
+      )}
+
+      {/* Change Password Modal */}
+      {showChangePassword && (
+        <ChangePasswordModal
+          currentUser={user}
+          onClose={() => setShowChangePassword(false)}
           onToast={showToast}
         />
       )}
