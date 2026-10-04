@@ -24,6 +24,12 @@ async function connectDB() {
     });
     globalThis._mongoClientPromise = client2.connect().catch((err) => {
       globalThis._mongoClientPromise = void 0;
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("SSL alert") || msg.includes("tlsv1 alert internal error") || msg.includes("alert number 80")) {
+        throw new Error(
+          "MongoDB connection rejected by Atlas (SSL alert 80). Please allow access from anywhere (0.0.0.0/0) in MongoDB Atlas \u2192 Network Access, as Vercel serverless functions use dynamic IP addresses."
+        );
+      }
       throw err;
     });
   }
