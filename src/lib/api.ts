@@ -53,6 +53,17 @@ export async function downloadFile(bucket: string, key: string): Promise<string>
   return data.url
 }
 
+export function rawUrl(bucket: string, key: string): string {
+  const params = new URLSearchParams({ bucket, key })
+  return `/api/raw?${params}`
+}
+
+export async function fetchTextContent(bucket: string, key: string): Promise<string> {
+  const res = await fetch(rawUrl(bucket, key))
+  if (!res.ok) throw new Error(`Failed to load file: ${res.status}`)
+  return res.text()
+}
+
 export async function createFolder(bucket: string, path: string): Promise<void> {
   await request('/api/folders', {
     method: 'POST',

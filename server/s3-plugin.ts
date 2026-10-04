@@ -228,6 +228,53 @@ export function s3ApiPlugin(): Plugin {
             return
           }
 
+          // ─── Raw Stream (inline preview) ───────────────
+          if (route === 'raw' && method === 'GET') {
+            const bucket = url.searchParams.get('bucket') || privateBucket
+            const key = url.searchParams.get('key') || ''
+            const rangeHeader = req.headers.range
+
+            const getObject = new GetObjectCommand({
+              Bucket: bucket,
+              Key: key,
+              ...(rangeHeader ? { Range: rangeHeader } : {}),
+            })
+
+            const object = await s3.send(getObject)
+            const filename = key.split('/').pop() || 'file'
+            const isPartial = rangeHeader && object.ContentRange
+
+            const headers: Record<string, string> = {
+              'Content-Type': object.ContentType || 'application/octet-stream',
+              'Accept-Ranges': 'bytes',
+              'Content-Disposition': `inline; filename="${encodeURIComponent(filename)}"`,
+              'Cache-Control': 'private, max-age=3600',
+            }
+            if (object.ContentLength !== undefined) {
+              headers['Content-Length'] = String(object.ContentLength)
+            }
+            if (isPartial) {
+              headers['Content-Range'] = object.ContentRange!
+            }
+
+            res.writeHead(isPartial ? 206 : 200, headers)
+
+            const body = object.Body as unknown as NodeJS.ReadableStream
+            if (!body) {
+              res.end()
+              return
+            }
+
+            const stream = body as { pipe: (dest: unknown) => unknown; on?: (ev: string, cb: () => void) => void }
+            // Abort the S3 stream if the client disconnects (e.g. video seeking)
+            res.on('close', () => {
+              const destroyable = body as { destroy?: () => void }
+              destroyable.destroy?.()
+            })
+            stream.pipe(res)
+            return
+          }
+
           // ─── Create Folder ─────────────────────────────
           if (route === 'folders' && method === 'POST') {
             const body = JSON.parse((await readBody(req)).toString())

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, Fragment, type DragEvent } from 'react'
+import { useState, useEffect, useCallback, useMemo, Fragment, type DragEvent } from 'react'
 import {
   fetchBuckets,
   fetchFiles,
@@ -9,72 +9,9 @@ import {
   ensureBucket,
   type FileItem,
 } from './lib/api'
-
-/* ─── Inline SVG Icons ────────────────────────────────── */
-
-const PATHS: Record<string, string[]> = {
-  folder: ['M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z'],
-  file: ['M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z', 'M14 2v6h6'],
-  image: [
-    'M19 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2z',
-    'M8.5 10a1.5 1.5 0 100-3 1.5 1.5 0 000 3z',
-    'M21 15l-5-5L5 21',
-  ],
-  video: [
-    'M23 7l-7 5 7 5V7z',
-    'M14 3H5a2 2 0 00-2 2v14a2 2 0 002 2h9a2 2 0 002-2V5a2 2 0 00-2-2z',
-  ],
-  music: [
-    'M9 18V5l12-2v13',
-    'M9 18a3 3 0 11-6 0 3 3 0 016 0z',
-    'M21 16a3 3 0 11-6 0 3 3 0 016 0z',
-  ],
-  archive: [
-    'M21 8v13H3V8',
-    'M1 3h22v5H1z',
-    'M10 12h4',
-  ],
-  upload: ['M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4', 'M17 8l-5-5-5 5', 'M12 3v12'],
-  download: ['M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4', 'M7 10l5 5 5-5', 'M12 15V3'],
-  trash: [
-    'M3 6h18',
-    'M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6',
-    'M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2',
-  ],
-  folderPlus: [
-    'M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z',
-    'M12 11v6',
-    'M9 14h6',
-  ],
-  back: ['M9 14L4 9l5-5', 'M20 20v-7a4 4 0 00-4-4H4'],
-  sun: [
-    'M12 7a5 5 0 100 10 5 5 0 000-10z',
-    'M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42',
-  ],
-  moon: [
-    'M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z',
-  ],
-}
-
-function Icon({ name, size = 18 }: { name: string; size?: number }) {
-  const d = PATHS[name] || PATHS.file
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      {d.map((p, i) => (
-        <path key={i} d={p} />
-      ))}
-    </svg>
-  )
-}
+import { isPreviewable } from './lib/filetype'
+import { Icon } from './components/Icon'
+import PreviewModal from './components/PreviewModal'
 
 /* ─── Helpers ─────────────────────────────────────────── */
 
@@ -122,6 +59,7 @@ export default function App() {
   const [uploadProgress, setUploadProgress] = useState({ done: 0, total: 0 })
   const [dragActive, setDragActive] = useState(false)
   const [toast, setToast] = useState<ToastData | null>(null)
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null)
 
   // ─── Theme ──────────────────────────────────────────────
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
@@ -274,6 +212,40 @@ export default function App() {
     setPrefix(parts.length ? parts.join('/') + '/' : '')
   }
 
+  // ─── Preview ────────────────────────────────────────────
+
+  const previewable = useMemo(() => files.filter((f) => !f.isFolder), [files])
+
+  const openPreview = useCallback(
+    (file: FileItem) => {
+      const idx = previewable.findIndex((f) => f.key === file.key)
+      if (idx >= 0) setPreviewIndex(idx)
+    },
+    [previewable],
+  )
+
+  const closePreview = useCallback(() => setPreviewIndex(null), [])
+
+  const stepPreview = useCallback(
+    (delta: number) => {
+      setPreviewIndex((prev) => {
+        if (prev === null) return prev
+        const next = prev + delta
+        if (next < 0 || next >= previewable.length) return prev
+        return next
+      })
+    },
+    [previewable.length],
+  )
+
+  // Close preview when navigating folders / changing bucket
+  useEffect(() => {
+    setPreviewIndex(null)
+  }, [prefix, activeBucket])
+
+  const activePreview =
+    previewIndex !== null ? previewable[previewIndex] ?? null : null
+
   // ─── Drag & Drop ───────────────────────────────────────
 
   const onDragEnter = (e: DragEvent) => {
@@ -398,8 +370,8 @@ export default function App() {
               files.map((f) => (
                 <div
                   key={f.key}
-                  className={`file-row${f.isFolder ? ' file-row--folder' : ''}`}
-                  onClick={() => f.isFolder && setPrefix(f.key)}
+                  className={`file-row${f.isFolder ? ' file-row--folder' : ' file-row--clickable'}`}
+                  onClick={() => (f.isFolder ? setPrefix(f.key) : openPreview(f))}
                 >
                   <span className="file-row__icon">
                     <Icon name={iconForFile(f.name, f.isFolder)} size={17} />
@@ -408,6 +380,15 @@ export default function App() {
                   <span className="file-row__size">{formatSize(f.size)}</span>
                   <span className="file-row__date">{formatDate(f.lastModified)}</span>
                   <div className="file-row__actions">
+                    {!f.isFolder && isPreviewable(f.name) && (
+                      <button
+                        className="btn btn--icon"
+                        title="Preview"
+                        onClick={(e) => { e.stopPropagation(); openPreview(f) }}
+                      >
+                        <Icon name="eye" size={14} />
+                      </button>
+                    )}
                     {!f.isFolder && (
                       <button
                         className="btn btn--icon"
@@ -452,6 +433,21 @@ export default function App() {
 
       {/* Toast */}
       {toast && <div className={`toast toast--${toast.type}`}>{toast.message}</div>}
+
+      {/* Preview Modal */}
+      {activePreview && (
+        <PreviewModal
+          key={activePreview.key}
+          file={activePreview}
+          bucket={activeBucket}
+          hasPrev={previewIndex! > 0}
+          hasNext={previewIndex! < previewable.length - 1}
+          onClose={closePreview}
+          onPrev={() => stepPreview(-1)}
+          onNext={() => stepPreview(1)}
+          onDownload={handleDownload}
+        />
+      )}
     </div>
   )
 }
