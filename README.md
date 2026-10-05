@@ -237,7 +237,12 @@ creation and last-opened timestamps are not available from object storage.
 
 Public shares show a Vault-styled unavailable page for expired/revoked links and
 missing items, plus not-found and server-error pages. File rows include preview
-and download controls. Public previews support raster images, PDF, common
-audio/video formats, and escaped text (first 256 KB); other types offer download.
+and download controls. Public previews reuse the same React `PreviewModal`, `DocxPreview`, and
+`SheetPreview` as the signed-in vault: Mammoth + DOMPurify for DOCX, SheetJS for
+spreadsheets, and the existing media, PDF, text, and masked `.env` views. A
+`PreviewSource` adapter loads bytes through the authorized share token instead
+of the account API. Text previews retain the 1 MB limit and office previews the
+20 MB limit; unsupported formats offer the same download fallback. Existing
+public links enter `/share` with the token in the URL fragment. The shared browser stays mounted while the existing Vault preview modal opens and closes through local state; folder browsing also uses client-side navigation. Legacy `/shared-preview` links open the same browser with the preview overlaid.
 Media preview URLs expire within 60 seconds, bounded by the share expiry.
 Already-loaded previews and active streams cannot be recalled after revocation.

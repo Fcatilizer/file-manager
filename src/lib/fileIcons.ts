@@ -1,3 +1,4 @@
+import { isEnvFile } from './filetype.ts'
 export type FileCategory =
   | 'folder'
   | 'doc'
@@ -141,6 +142,8 @@ export function getFileTypeInfo(name: string, isFolder: boolean): FileTypeInfo {
       colorDark: '#818cf8',
     }
   }
+
+  if (isEnvFile(name)) return EXT_MAP.env
 
   const ext = name.split('.').pop()?.toLowerCase() || ''
   if (ext && EXT_MAP[ext]) {

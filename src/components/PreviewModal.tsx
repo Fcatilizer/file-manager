@@ -1,3 +1,4 @@
+import type { PreviewSource } from '../lib/previewSource'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Icon } from './Icon'
 import Modal, { ModalCloseButton } from './Modal'
@@ -69,6 +70,7 @@ function parseEnv(text: string): EnvEntry[] {
 }
 
 type Props = {
+  source?: PreviewSource
   file: FileItem
   bucket: string
   theme: 'light' | 'dark'
@@ -82,6 +84,7 @@ type Props = {
 
 export default function PreviewModal({
   file,
+  source,
   bucket,
   theme,
   hasPrev,
@@ -94,7 +97,7 @@ export default function PreviewModal({
   const kind = fileKind(file.name)
   const fileInfo = getFileTypeInfo(file.name, false)
   const activeColor = theme === 'dark' ? fileInfo.colorDark : fileInfo.colorLight
-  const src = rawUrl(bucket, file.key)
+  const src = source ? source.rawUrl(file.key) : rawUrl(bucket, file.key)
   const tooLarge = (kind === 'text' || kind === 'env') && file.size > MAX_TEXT_BYTES
 
   const [text, setText] = useState<string | null>(null)
@@ -110,7 +113,7 @@ export default function PreviewModal({
     if ((kind !== 'text' && kind !== 'env') || tooLarge) return
     let cancelled = false
 
-    fetchTextContent(bucket, file.key)
+    ;(source ? source.text(file.key) : fetchTextContent(bucket, file.key))
       .then((content) => {
         if (!cancelled) setText(content)
       })
@@ -121,7 +124,7 @@ export default function PreviewModal({
     return () => {
       cancelled = true
     }
-  }, [kind, bucket, file.key, tooLarge])
+  }, [kind, bucket, file.key, tooLarge, source])
 
   const envEntries = useMemo(() => (text ? parseEnv(text) : []), [text])
 
@@ -385,6 +388,7 @@ export default function PreviewModal({
       case 'word':
         return (
           <DocxPreview
+            source={source}
             file={file}
             bucket={bucket}
             activeColor={activeColor}
@@ -395,6 +399,7 @@ export default function PreviewModal({
       case 'excel':
         return (
           <SheetPreview
+            source={source}
             file={file}
             bucket={bucket}
             activeColor={activeColor}

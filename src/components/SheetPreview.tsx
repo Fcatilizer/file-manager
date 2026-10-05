@@ -1,3 +1,4 @@
+import type { PreviewSource } from '../lib/previewSource'
 import { useEffect, useState } from 'react'
 import { Icon } from './Icon'
 import { fetchFileBuffer, type FileItem } from '../lib/api'
@@ -10,6 +11,7 @@ const MAX_COLS = 200
 type Sheet = { name: string; rows: string[][]; truncated: boolean }
 
 type Props = {
+  source?: PreviewSource
   file: FileItem
   bucket: string
   activeColor: string
@@ -27,7 +29,7 @@ function colName(index: number): string {
   return label
 }
 
-export default function SheetPreview({ file, bucket, activeColor, onDownload }: Props) {
+export default function SheetPreview({ file, bucket, source, activeColor, onDownload }: Props) {
   const [sheets, setSheets] = useState<Sheet[]>([])
   const [active, setActive] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -44,7 +46,7 @@ export default function SheetPreview({ file, bucket, activeColor, onDownload }: 
     let cancelled = false
     ;(async () => {
       try {
-        const buffer = await fetchFileBuffer(bucket, file.key)
+        const buffer = await (source ? source.buffer(file.key) : fetchFileBuffer(bucket, file.key))
         const XLSX = await import('xlsx')
         const workbook = XLSX.read(buffer, { type: 'array', cellDates: true })
 
@@ -86,7 +88,7 @@ export default function SheetPreview({ file, bucket, activeColor, onDownload }: 
     return () => {
       cancelled = true
     }
-  }, [bucket, file.key, file.size])
+  }, [bucket, file.key, file.size, source])
 
   const fallback = (title: string, text: string) => (
     <div className="preview__rich-card">

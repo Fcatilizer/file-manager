@@ -1,11 +1,11 @@
-import { renderPublicPreview } from './public-preview.ts'
+import { publicPreviewData } from './public-preview-data.ts'
 import { encryptShareToken, recoverShareToken } from './share-token.ts'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import express, { type Request, type Response, type NextFunction } from 'express'
 import { S3Client, HeadObjectCommand, ListObjectsV2Command, GetObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { getDatabase, getUserById } from './db.ts'
-import { renderPublicSharePage, renderPublicError, type SharedEntry } from './public-share-page.ts'
+import { renderPublicError, type SharedEntry } from './public-share-page.ts'
 import { BucketProtection, BucketAccessError, bucketUser } from './bucket-protection.ts'
 import { PRIVATE_BUCKET_PREFIX } from '../src/lib/bucketProtection.ts'
 
@@ -102,9 +102,8 @@ export function createShareRouters(s3: S3Client, protection = new BucketProtecti
     // not: public access was explicitly granted independently of the login grant.
     const owner = await protection.store.find(share.bucket)
     if ((share.privateOwner && (!owner || owner.state !== 'active' || owner.ownerId !== share.privateOwner)) || (!share.privateOwner && (owner || share.bucket.startsWith(PRIVATE_BUCKET_PREFIX)))) throw new BucketAccessError(404, 'Share unavailable or expired')
-    const requested = req.query.key === undefined ? share.key : req.query.key
+    let requested = req.query.key === undefined ? share.key : req.query.key
     if (typeof requested !== 'string' || !safeKey(requested) || (share.folder ? !requested.startsWith(share.key) : requested !== share.key)) throw new BucketAccessError(404, 'Item not shared')
-    const base = `/api/public/${token}`
     if (req.query.download === '1') {
       if (requested.endsWith('/')) throw new BucketAccessError(400, 'Choose a file to download')
       const ttl = share.expiresAt ? Math.min(60, Math.floor((share.expiresAt.getTime() - Date.now()) / 1000)) : 60
@@ -117,9 +116,19 @@ export function createShareRouters(s3: S3Client, protection = new BucketProtecti
     }
     if (req.query.preview === '1') {
       if (requested.endsWith('/')) throw new BucketAccessError(404, 'Item not shared')
-      res.type('html').send(await renderPublicPreview(s3, share.bucket, requested, base, share.expiresAt, share.key))
+      res.redirect(303, `/share#${new URLSearchParams({ token, key: requested, preview: '1' })}`)
       return
     }
+    if (req.query.metadata === '1' || req.query.raw === '1') {
+      await publicPreviewData(s3, share, requested, req, res)
+      return
+    }
+    if (req.query.view !== '1') {
+      res.redirect(303, `/share#${new URLSearchParams({ token, key: requested })}`)
+      return
+    }
+    // Deep preview links still load their containing folder as the background.
+    if (share.folder && !requested.endsWith('/')) requested = requested.slice(0, requested.lastIndexOf('/') + 1)
     const profile = await getSharer(share.ownerId)
     const sharer = profile?.name?.trim() || share.sharerName || profile?.email.split('@')[0] || 'Vault member'
     let entries: SharedEntry[]
@@ -140,8 +149,10 @@ export function createShareRouters(s3: S3Client, protection = new BucketProtecti
       const object = await s3.send(new HeadObjectCommand({ Bucket: share.bucket, Key: requested }))
       entries = [{ key: requested, folder: false, size: object.ContentLength, modified: object.LastModified }]
     }
-    res.type('html').send(renderPublicSharePage({ base, root: share.key, requested, folder: share.folder, sharer,
-      createdAt: share.createdAt, expiresAt: share.expiresAt, entries, nextCursor, preferences: profile?.preferences }))
+    res.json({ root: share.key, requested, folder: share.folder, sharer,
+      createdAt: share.createdAt, expiresAt: share.expiresAt, nextCursor, preferences: profile?.preferences,
+      entries: entries.map((entry) => ({ key: entry.key, name: entry.key.split('/').filter(Boolean).pop() || entry.key,
+        isFolder: entry.folder, size: entry.size || 0, lastModified: entry.modified?.toISOString() || '' })) })
   }))
   const errors = (err: unknown, _req: Request, res: Response, next: NextFunction) => {
     if (err instanceof BucketAccessError) { res.status(err.status).json({ error: err.message, code: err.code, bucket: err.bucket }); return }

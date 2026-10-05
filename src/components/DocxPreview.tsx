@@ -1,3 +1,4 @@
+import type { PreviewSource } from '../lib/previewSource'
 import { useEffect, useState } from 'react'
 import { Icon } from './Icon'
 import { fetchFileBuffer, type FileItem } from '../lib/api'
@@ -6,13 +7,14 @@ import { getFileTypeInfo } from '../lib/fileIcons'
 const MAX_OFFICE_BYTES = 20 * 1024 * 1024 // 20 MB
 
 type Props = {
+  source?: PreviewSource
   file: FileItem
   bucket: string
   activeColor: string
   onDownload: (key: string, name: string) => void
 }
 
-export default function DocxPreview({ file, bucket, activeColor, onDownload }: Props) {
+export default function DocxPreview({ file, bucket, source, activeColor, onDownload }: Props) {
   const [html, setHtml] = useState<string | null>(null)
   const [error, setError] = useState<'unsupported' | 'tooLarge' | 'failed' | null>(null)
   const fileInfo = getFileTypeInfo(file.name, false)
@@ -34,7 +36,7 @@ export default function DocxPreview({ file, bucket, activeColor, onDownload }: P
     ;(async () => {
       try {
         const [buffer, mammothMod, purifyMod] = await Promise.all([
-          fetchFileBuffer(bucket, file.key),
+          (source ? source.buffer(file.key) : fetchFileBuffer(bucket, file.key)),
           import('mammoth'),
           import('dompurify'),
         ])
@@ -51,7 +53,7 @@ export default function DocxPreview({ file, bucket, activeColor, onDownload }: P
     return () => {
       cancelled = true
     }
-  }, [bucket, file.key, file.size, isDocx])
+  }, [bucket, file.key, file.size, isDocx, source])
 
   const fallback = (title: string, text: string) => (
     <div className="preview__rich-card">
