@@ -1,3 +1,4 @@
+import type { Preferences } from './preferences'
 export interface FileItem {
   key: string
   name: string
@@ -15,6 +16,8 @@ export interface BucketsResponse {
 export type UserRole = 'admin' | 'user'
 
 export interface SessionUser {
+  name?: string
+  preferences?: Preferences
   id: string
   email: string
   role: UserRole
@@ -32,7 +35,7 @@ export const UNAUTHORIZED_EVENT = 'vault:unauthorized'
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, { credentials: 'include', ...init })
 
-  if (res.status === 401 && !url.startsWith('/api/auth')) {
+  if (res.status === 401 && (!url.startsWith('/api/auth') || url === '/api/auth/me')) {
     window.dispatchEvent(new Event(UNAUTHORIZED_EVENT))
   }
 
@@ -238,4 +241,11 @@ export async function createFolder(bucket: string, path: string): Promise<void> 
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ bucket, path }),
   })
+}
+
+export async function updateAccount(updates: { name?: string; preferences?: Preferences }): Promise<SessionUser> {
+  const data = await request<{ user: SessionUser }>('/api/auth/me', {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updates),
+  })
+  return data.user
 }

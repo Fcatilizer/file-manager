@@ -1,3 +1,4 @@
+import { isPreferences, type Preferences } from '../src/lib/preferences.ts'
 import { MongoClient, ObjectId } from 'mongodb'
 import type { Collection, Db } from 'mongodb'
 import bcrypt from 'bcryptjs'
@@ -7,6 +8,8 @@ export type UserRole = 'admin' | 'user'
 export interface UserDoc {
   _id: ObjectId
   email: string
+  name?: string
+  preferences?: Preferences
   passwordHash: string
   role: UserRole
   createdAt: Date
@@ -15,6 +18,8 @@ export interface UserDoc {
 export interface PublicUser {
   id: string
   email: string
+  name?: string
+  preferences?: Preferences
   role: UserRole
   createdAt: string
 }
@@ -85,6 +90,8 @@ export function toPublicUser(user: UserDoc): PublicUser {
   return {
     id: String(user._id),
     email: user.email,
+    name: user.name || '',
+    preferences: isPreferences(user.preferences) ? user.preferences : undefined,
     role: user.role,
     createdAt: user.createdAt.toISOString(),
   }
@@ -164,4 +171,12 @@ export async function seedAdmin(): Promise<void> {
   await createUser(email, password, 'admin')
   adminChecked = true
   console.log(`[vault] seeded admin user: ${email}`)
+}
+
+export async function updateUserProfile(id: string, updates: { name?: string; preferences?: Preferences }): Promise<PublicUser | null> {
+  if (!ObjectId.isValid(id)) return null
+  const user = await getUsers().findOneAndUpdate(
+    { _id: new ObjectId(id) }, { $set: updates }, { returnDocument: 'after' },
+  )
+  return user ? toPublicUser(user) : null
 }

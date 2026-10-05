@@ -7,18 +7,8 @@
     <meta name="description" content="A minimal file manager for storing and sharing files with friends and family" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
     <meta name="color-scheme" content="dark light" />
     <title>Vault — File Manager</title>
-    <script>
-      (function() {
-        try {
-          var saved = localStorage.getItem('theme');
-          var theme = saved || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
-          document.documentElement.setAttribute('data-theme', theme);
-        } catch (e) {}
-      })();
-    </script>
   </head>
   <body>
     <div id="root"></div>

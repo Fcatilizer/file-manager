@@ -1,3 +1,4 @@
+import { isPreferences } from '../src/lib/preferences.ts'
 import express from 'express'
 import type { Request, Response, NextFunction } from 'express'
 import jwt from 'jsonwebtoken'
@@ -10,6 +11,7 @@ import {
   getUserById,
   toPublicUser,
   updateUserPassword,
+  updateUserProfile,
   type UserRole,
 } from './db.ts'
 
@@ -217,4 +219,29 @@ authRouter.post('/password', requireAuth, async (req: Request, res: Response) =>
 
   await updateUserPassword(user.id, newPassword)
   res.json({ success: true, message: 'Password updated successfully' })
+})
+
+// Account updates are scoped exclusively to the authenticated user.
+authRouter.patch('/me', requireAuth, async (req: Request, res: Response) => {
+  const user = (req as AuthedRequest).user!
+  const body = req.body
+  if (!body || typeof body !== 'object' || Array.isArray(body)
+    || !Object.keys(body).length || Object.keys(body).some((key) => !['name', 'preferences'].includes(key))) {
+    res.status(400).json({ error: 'Provide a name or preferences to update' })
+    return
+  }
+  if ('name' in body && (typeof body.name !== 'string' || !body.name.trim() || body.name.trim().length > 80 || Array.from(body.name as string).some((character) => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127))) {
+    res.status(400).json({ error: 'Name must contain 1–80 characters without control characters' })
+    return
+  }
+  if ('preferences' in body && !isPreferences(body.preferences)) {
+    res.status(400).json({ error: 'Invalid preferences' })
+    return
+  }
+  const updated = await updateUserProfile(user.id, {
+    ...('name' in body ? { name: body.name.trim() } : {}),
+    ...('preferences' in body ? { preferences: body.preferences } : {}),
+  })
+  if (!updated) { res.status(404).json({ error: 'User not found' }); return }
+  res.json({ user: updated })
 })

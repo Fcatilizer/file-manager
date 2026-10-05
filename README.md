@@ -47,10 +47,30 @@ Bucket creation does not change CORS or access policies. If direct uploads fail,
 the existing proxy fallback is subject to Vercel's
 [4.5 MB request limit](https://vercel.com/docs/functions/limitations).
 
+## Account settings and appearance
+
+Click your avatar or name to open **Account settings**:
+
+- **Profile:** update your display name (your login email stays unchanged).
+- **Password:** change your password after confirming the current password.
+- **Preferences:** preview and save the theme, interface font, accent color and rain
+  animation. Rain is off by default and its toggle appears only here. Closing the
+  modal or choosing **Cancel changes** restores the last saved appearance.
+
+Names and saved preferences are stored with the user in MongoDB and loaded on
+sign-in. Appearance is also cached in this browser for the sign-in screen. Existing
+accounts work without a database migration. The header theme shortcut saves its
+change to the signed-in account as well.
+
+All font stacks, the font stylesheet URL, accent palettes and default preferences
+live in `src/lib/preferences.ts`. `src/lib/appearance.ts` applies those choices as
+CSS variables; UI components consume the variables. Add future sections to
+`AccountSettingsModal.tsx` and validate any new persisted settings on the server.
+
 ## Checks
 
 ```bash
-npm test          # bucket API authorization, validation, errors and selection tests
+npm test          # account and bucket API tests
 npm run build     # TypeScript, frontend and Vercel function bundle
 npm run lint
 ```

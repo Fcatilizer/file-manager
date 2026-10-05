@@ -2,6 +2,27 @@
 import express4 from "express";
 import cookieParser from "cookie-parser";
 
+// src/lib/preferences.ts
+var FONTS = {
+  inter: { label: "Inter", family: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" },
+  system: { label: "System", family: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" },
+  serif: { label: "Serif", family: "Georgia, 'Times New Roman', serif" },
+  mono: { label: "Monospace", family: "'SFMono-Regular', ui-monospace, Menlo, Consolas, monospace" }
+};
+var ACCENTS = {
+  indigo: { label: "Indigo", light: "#4f46e5", dark: "#818cf8" },
+  violet: { label: "Violet", light: "#7c3aed", dark: "#a78bfa" },
+  blue: { label: "Blue", light: "#2563eb", dark: "#60a5fa" },
+  teal: { label: "Teal", light: "#0f766e", dark: "#2dd4bf" },
+  rose: { label: "Rose", light: "#be123c", dark: "#fb7185" },
+  amber: { label: "Amber", light: "#92400e", dark: "#fbbf24" }
+};
+function isPreferences(value) {
+  if (!value || typeof value !== "object") return false;
+  const p = value;
+  return (p.theme === "light" || p.theme === "dark") && typeof p.font === "string" && Object.hasOwn(FONTS, p.font) && typeof p.accent === "string" && Object.hasOwn(ACCENTS, p.accent) && typeof p.rain === "boolean" && Object.keys(p).every((key) => ["theme", "font", "accent", "rain"].includes(key));
+}
+
 // server/db.ts
 import { MongoClient, ObjectId } from "mongodb";
 import bcrypt from "bcryptjs";
@@ -55,6 +76,8 @@ function toPublicUser(user) {
   return {
     id: String(user._id),
     email: user.email,
+    name: user.name || "",
+    preferences: isPreferences(user.preferences) ? user.preferences : void 0,
     role: user.role,
     createdAt: user.createdAt.toISOString()
   };
@@ -119,6 +142,15 @@ async function seedAdmin() {
   await createUser(email, password, "admin");
   adminChecked = true;
   console.log(`[vault] seeded admin user: ${email}`);
+}
+async function updateUserProfile(id, updates) {
+  if (!ObjectId.isValid(id)) return null;
+  const user = await getUsers().findOneAndUpdate(
+    { _id: new ObjectId(id) },
+    { $set: updates },
+    { returnDocument: "after" }
+  );
+  return user ? toPublicUser(user) : null;
 }
 
 // server/auth.ts
@@ -282,6 +314,31 @@ authRouter.post("/password", requireAuth, async (req, res) => {
   }
   await updateUserPassword(user.id, newPassword);
   res.json({ success: true, message: "Password updated successfully" });
+});
+authRouter.patch("/me", requireAuth, async (req, res) => {
+  const user = req.user;
+  const body = req.body;
+  if (!body || typeof body !== "object" || Array.isArray(body) || !Object.keys(body).length || Object.keys(body).some((key) => !["name", "preferences"].includes(key))) {
+    res.status(400).json({ error: "Provide a name or preferences to update" });
+    return;
+  }
+  if ("name" in body && (typeof body.name !== "string" || !body.name.trim() || body.name.trim().length > 80 || Array.from(body.name).some((character) => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127))) {
+    res.status(400).json({ error: "Name must contain 1\u201380 characters without control characters" });
+    return;
+  }
+  if ("preferences" in body && !isPreferences(body.preferences)) {
+    res.status(400).json({ error: "Invalid preferences" });
+    return;
+  }
+  const updated = await updateUserProfile(user.id, {
+    ..."name" in body ? { name: body.name.trim() } : {},
+    ..."preferences" in body ? { preferences: body.preferences } : {}
+  });
+  if (!updated) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+  res.json({ user: updated });
 });
 
 // server/users.ts

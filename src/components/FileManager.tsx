@@ -1,3 +1,4 @@
+import AppearanceControls from './AppearanceControls'
 import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef, Fragment, type DragEvent } from 'react'
 import {
   fetchBuckets,
@@ -17,7 +18,8 @@ import BucketDropdown from './BucketDropdown'
 import { chooseBucket, validateBucketName } from '../lib/buckets'
 import PreviewModal from './PreviewModal'
 import UsersModal from './UsersModal'
-import ChangePasswordModal from './ChangePasswordModal'
+import AccountSettingsModal from './AccountSettingsModal'
+import type { Preferences } from '../lib/preferences'
 import TextInputDialog from './TextInputDialog'
 import ConfirmDialog from './ConfirmDialog'
 
@@ -51,12 +53,15 @@ type Props = {
   user: SessionUser
   theme: 'light' | 'dark'
   onToggleTheme: () => void
+  preferences: Preferences
+  onPreferencesChange: (preferences: Preferences) => void
+  onUserUpdated: (user: SessionUser) => void
   onLogout: () => void
 }
 
 /* ─── FileManager ─────────────────────────────────────── */
 
-export default function FileManager({ user, theme, onToggleTheme, onLogout }: Props) {
+export default function FileManager({ user, theme, onToggleTheme, preferences, onPreferencesChange, onUserUpdated, onLogout }: Props) {
   const [buckets, setBuckets] = useState<string[]>([])
   const [activeBucket, setActiveBucket] = useState('')
   const [bucketsLoading, setBucketsLoading] = useState(true)
@@ -75,7 +80,7 @@ export default function FileManager({ user, theme, onToggleTheme, onLogout }: Pr
   const [toast, setToast] = useState<ToastData | null>(null)
   const [previewIndex, setPreviewIndex] = useState<number | null>(null)
   const [showUsers, setShowUsers] = useState(false)
-  const [showChangePassword, setShowChangePassword] = useState(false)
+  const [showAccount, setShowAccount] = useState(false)
   const [query, setQuery] = useState('')
   const [activeCategory, setActiveCategory] = useState<FileCategory | null>(null)
   const [showNewFolder, setShowNewFolder] = useState(false)
@@ -401,14 +406,7 @@ export default function FileManager({ user, theme, onToggleTheme, onLogout }: Pr
             onDelete={setPendingBucketDelete}
             onRefresh={() => void refreshBuckets()}
           />
-          <button
-            className="theme-toggle"
-            onClick={onToggleTheme}
-            title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
-            aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
-          >
-            <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={15} />
-          </button>
+          <AppearanceControls theme={theme} onToggleTheme={onToggleTheme} />
           {user.role === 'admin' && (
             <button
               className="theme-toggle"
@@ -420,17 +418,9 @@ export default function FileManager({ user, theme, onToggleTheme, onLogout }: Pr
             </button>
           )}
           <div className="user-chip" title={user.email}>
-            <span className="user-chip__avatar" aria-hidden="true">
-              {user.email.charAt(0).toUpperCase()}
-            </span>
-            <span className="user-chip__email">{user.email}</span>
-            <button
-              className="user-chip__action"
-              onClick={() => setShowChangePassword(true)}
-              title="Change password"
-              aria-label="Change password"
-            >
-              <Icon name="key" size={13} />
+            <button type="button" className="user-chip__profile" onClick={() => setShowAccount(true)} aria-label="Account settings" title="Account settings">
+              <span className="user-chip__avatar" aria-hidden="true">{(user.name || user.email).charAt(0).toUpperCase()}</span>
+              <span className="user-chip__email">{user.name || user.email}</span>
             </button>
             <button className="user-chip__logout" onClick={onLogout} title="Sign out" aria-label="Sign out">
               <Icon name="back" size={14} />
@@ -737,14 +727,16 @@ export default function FileManager({ user, theme, onToggleTheme, onLogout }: Pr
         />
       )}
 
-      {/* Change Password Modal */}
-      {showChangePassword && (
-        <ChangePasswordModal
-          currentUser={user}
-          onClose={() => setShowChangePassword(false)}
-          onToast={showToast}
+      {showAccount && (
+        <AccountSettingsModal
+          user={user}
+          preferences={preferences}
+          onPreferencesChange={onPreferencesChange}
+          onUserUpdated={onUserUpdated}
+          onClose={() => setShowAccount(false)}
         />
       )}
+
     </div>
   )
 }

@@ -1,6 +1,7 @@
 import { useEffect, type ReactNode } from 'react'
 
 type Props = {
+  ariaLabel?: string
   onClose: () => void
   children: ReactNode
   /** Extra classes applied to the card (e.g. size/variant). */
@@ -21,6 +22,7 @@ type Props = {
  */
 export default function Modal({
   onClose,
+  ariaLabel,
   children,
   className = '',
   overlayClassName = '',
@@ -49,6 +51,7 @@ export default function Modal({
       onClick={closeOnBackdrop ? onClose : undefined}
       role="dialog"
       aria-modal="true"
+      aria-label={ariaLabel}
     >
       <div className={`modal ${className}`.trim()} onClick={(e) => e.stopPropagation()}>
         {children}

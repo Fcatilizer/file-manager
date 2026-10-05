@@ -1,11 +1,15 @@
+import { DEFAULT_PREFERENCES, type Preferences } from './lib/preferences'
+import { applyPreferences, readPreferences } from './lib/appearance'
 import { useState, useEffect, useCallback } from 'react'
 import {
   getSession,
+  updateAccount,
   getAuthStatus,
   logout,
   UNAUTHORIZED_EVENT,
   type SessionUser,
 } from './lib/api'
+import RainBackground from './components/RainBackground'
 import Login from './components/Login'
 import Setup from './components/Setup'
 import FileManager from './components/FileManager'
@@ -16,28 +20,36 @@ export default function App() {
   const [needsSetup, setNeedsSetup] = useState(false)
   const [setupTokenRequired, setSetupTokenRequired] = useState(false)
 
-  // ─── Theme ──────────────────────────────────────────────
-  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('theme')
-      if (saved === 'light' || saved === 'dark') return saved
-      if (window.matchMedia?.('(prefers-color-scheme: light)').matches) return 'light'
-    }
-    return 'dark'
-  })
+  const [preferences, setPreferences] = useState<Preferences>(readPreferences)
+  const [appearanceError, setAppearanceError] = useState('')
+  const [savingTheme, setSavingTheme] = useState(false)
+  const theme = preferences.theme
 
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme)
-    try {
-      localStorage.setItem('theme', theme)
-    } catch {
-      // ignore storage errors
-    }
-  }, [theme])
+    applyPreferences(preferences)
+    try { localStorage.setItem('vault:preferences', JSON.stringify(preferences)) } catch { /* optional browser cache */ }
+  }, [preferences])
 
-  const toggleTheme = useCallback(() => {
-    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))
+  const acceptUser = useCallback((nextUser: SessionUser) => {
+    setUser(nextUser)
+    setPreferences(nextUser.preferences || { ...DEFAULT_PREFERENCES })
   }, [])
+
+  const toggleTheme = async () => {
+    if (savingTheme) return
+    const next: Preferences = { ...preferences, theme: theme === 'dark' ? 'light' : 'dark' }
+    setPreferences(next)
+    setAppearanceError('')
+    if (!user) return
+    setSavingTheme(true)
+    try {
+      const updated = await updateAccount({ preferences: next })
+      setUser((current) => current ? { ...current, preferences: updated.preferences } : null)
+    } catch (err) {
+      setPreferences(preferences)
+      setAppearanceError(err instanceof Error ? err.message : 'Could not save theme')
+    } finally { setSavingTheme(false) }
+  }
 
   // ─── Session + setup bootstrap ──────────────────────────
   useEffect(() => {
@@ -47,13 +59,13 @@ export default function App() {
       if (!active) return
       setNeedsSetup(status.needsSetup)
       setSetupTokenRequired(status.setupTokenRequired)
-      setUser(session)
+      if (session) acceptUser(session)
       setAuthChecking(false)
     })()
     return () => {
       active = false
     }
-  }, [])
+  }, [acceptUser])
 
   // ─── Global 401 handling (session expired / user removed) ─
   useEffect(() => {
@@ -72,12 +84,13 @@ export default function App() {
 
   const handleSetupComplete = useCallback((created: SessionUser) => {
     setNeedsSetup(false)
-    setUser(created)
-  }, [])
+    acceptUser(created)
+  }, [acceptUser])
 
   // ─── Render ─────────────────────────────────────────────
+  let content
   if (authChecking) {
-    return (
+    content = (
       <div className="auth-splash">
         <div className="auth-splash__inner">
           <div className="spinner" />
@@ -85,10 +98,8 @@ export default function App() {
         </div>
       </div>
     )
-  }
-
-  if (needsSetup) {
-    return (
+  } else if (needsSetup) {
+    content = (
       <Setup
         theme={theme}
         onToggleTheme={toggleTheme}
@@ -96,18 +107,21 @@ export default function App() {
         onSuccess={handleSetupComplete}
       />
     )
+  } else if (!user) {
+    content = <Login theme={theme} onToggleTheme={toggleTheme} onSuccess={acceptUser} />
+  } else {
+    content = (
+      <FileManager
+        user={user}
+        theme={theme}
+        onToggleTheme={toggleTheme}
+        onLogout={handleLogout}
+        preferences={preferences}
+        onPreferencesChange={setPreferences}
+        onUserUpdated={setUser}
+      />
+    )
   }
 
-  if (!user) {
-    return <Login theme={theme} onToggleTheme={toggleTheme} onSuccess={setUser} />
-  }
-
-  return (
-    <FileManager
-      user={user}
-      theme={theme}
-      onToggleTheme={toggleTheme}
-      onLogout={handleLogout}
-    />
-  )
+  return <><RainBackground enabled={preferences.rain} />{content}{appearanceError && <div className="toast toast--error" role="alert" onClick={() => setAppearanceError('')}>{appearanceError}</div>}</>
 }

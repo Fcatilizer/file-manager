@@ -115,6 +115,8 @@ const PATHS: Record<string, string[]> = {
     'M12 11v6',
   ],
 
+  rain: ['M7 14H6a4 4 0 110-8 6 6 0 0111.6-1A4.5 4.5 0 1120 14h-1', 'M9 14l-2 4', 'M14 14l-2 4', 'M19 14l-2 4', 'M10 20l-1 2'],
+
   // Actions & Controls
   plus: ['M12 5v14', 'M5 12h14'],
   chevronDown: ['M6 9l6 6 6-6'],

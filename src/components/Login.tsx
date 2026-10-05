@@ -1,3 +1,4 @@
+import AppearanceControls from './AppearanceControls'
 import { useState, type FormEvent } from 'react'
 import { Icon } from './Icon'
 import { login, type SessionUser } from '../lib/api'
@@ -30,14 +31,9 @@ export default function Login({ theme, onToggleTheme, onSuccess }: Props) {
 
   return (
     <div className="auth">
-      <button
-        className="theme-toggle auth__theme"
-        onClick={onToggleTheme}
-        title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
-        aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
-      >
-        <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={15} />
-      </button>
+      <div className="auth__theme">
+        <AppearanceControls theme={theme} onToggleTheme={onToggleTheme} />
+      </div>
 
       <form className="auth__card" onSubmit={handleSubmit}>
         <div className="auth__brand">
