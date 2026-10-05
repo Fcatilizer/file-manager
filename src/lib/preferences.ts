@@ -1,3 +1,4 @@
+import { isRainSettings, type RainSettings } from './rain.ts'
 /** Central source for appearance options, defaults, font stacks and accent colors. */
 export const FONTS = {
   inter: { label: 'Inter', family: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" },
@@ -20,6 +21,7 @@ export type Preferences = {
   font: keyof typeof FONTS
   accent: keyof typeof ACCENTS
   rain: boolean
+  rainSettings?: RainSettings
 }
 export const DEFAULT_PREFERENCES: Preferences = { theme: 'dark', font: 'inter', accent: 'indigo', rain: false }
 export function isPreferences(value: unknown): value is Preferences {
@@ -27,5 +29,6 @@ export function isPreferences(value: unknown): value is Preferences {
   const p = value as Record<string, unknown>
   return (p.theme === 'light' || p.theme === 'dark') && typeof p.font === 'string' && Object.hasOwn(FONTS, p.font)
     && typeof p.accent === 'string' && Object.hasOwn(ACCENTS, p.accent) && typeof p.rain === 'boolean'
-    && Object.keys(p).every((key) => ['theme', 'font', 'accent', 'rain'].includes(key))
+    && (!('rainSettings' in p) || isRainSettings(p.rainSettings))
+    && Object.keys(p).every((key) => ['theme', 'font', 'accent', 'rain', 'rainSettings'].includes(key))
 }

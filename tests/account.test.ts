@@ -90,3 +90,24 @@ test('password change verifies current password and stores a new hash', async ()
   assert.equal(await bcrypt.compare('new-password', account.passwordHash as string), true)
   assert.equal(await bcrypt.compare('current-password', account.passwordHash as string), false)
 })
+
+test('custom rain settings persist through the account API', async () => {
+  const preferences = { ...DEFAULT_PREFERENCES, rain: true, rainSettings: {
+    direction: 'down-left', density: 'light', speed: 1.5, height: 90, width: 2.5, splash: true, color: '#f0a123',
+  } }
+  assert.equal((await call('/me', 'PATCH', { preferences })).status, 200)
+  assert.deepEqual((await (await call('/me', 'GET')).json()).user.preferences, preferences)
+})
+
+test('invalid rain options are rejected before writing to MongoDB', async () => {
+  const defaults = { direction: 'down-right', density: 'balanced', speed: 1, height: 64, width: 1.5, splash: false, color: 'theme' }
+  for (const patch of [
+    { speed: 0 }, { speed: 500 }, { height: -1 }, { height: 121 }, { width: 0 }, { width: 5 },
+    { density: 'unlimited' }, { direction: 'up' }, { splash: 'true' }, { color: 'url(https://example.com)' },
+    { color: '#123' }, { extra: true },
+  ]) {
+    const preferences = { ...DEFAULT_PREFERENCES, rainSettings: { ...defaults, ...patch } }
+    assert.equal((await call('/me', 'PATCH', { preferences })).status, 400)
+  }
+  assert.equal(updates.length, 0)
+})

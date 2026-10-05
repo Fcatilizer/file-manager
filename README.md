@@ -53,7 +53,7 @@ Click your avatar or name to open **Account settings**:
 
 - **Profile:** update your display name (your login email stays unchanged).
 - **Password:** change your password after confirming the current password.
-- **Preferences:** preview and save the theme, interface font, accent color and rain
+- **Preferences:** preview and save the theme (Light/Dark chips), interface font, accent color and rain
   animation. Rain is off by default and its toggle appears only here. Closing the
   modal or choosing **Cancel changes** restores the last saved appearance.
 
@@ -66,6 +66,28 @@ All font stacks, the font stylesheet URL, accent palettes and default preference
 live in `src/lib/preferences.ts`. `src/lib/appearance.ts` applies those choices as
 CSS variables; UI components consume the variables. Add future sections to
 `AccountSettingsModal.tsx` and validate any new persisted settings on the server.
+
+### Rain customization and reusable controls
+
+Rain settings include downward/right/left direction, speed (0.5–2×), drop height
+(12–120 px), drop width (1–4 px), optional bottom-edge splashes, and theme color or
+any custom hex color. A contained live preview uses the same renderer as the
+background. Save, Cancel and Reset apply to all rain settings too.
+
+Density offers Light (16 drops), Balanced (32) or Full (56). Mobile displays half
+of those drops; the small preview uses fewer particles. Rain and splashes use CSS
+transforms/opacity without a JavaScript frame loop. Off removes the animation
+nodes; reduced motion disables animation, and hidden tabs pause it. Older account
+preferences without customization automatically use the defaults.
+
+Maintenance is split by responsibility:
+
+- `src/lib/rain.ts`: defaults, ranges, density limits and shared API validation.
+- `src/components/RainBackground.tsx`: reusable background/preview renderer.
+- `src/styles/rain-animation.css`: drop/splash keyframes, directions and motion rules.
+- `src/components/settings/SettingsControls.tsx`: reusable chips, ranges and switches.
+- `src/components/settings/PreferencesPanel.tsx` and `RainSettingsPanel.tsx`: settings UI.
+- `src/styles/settings-controls.css`, `rain-settings.css`, `account-settings.css`: scoped UI styles.
 
 ## Checks
 

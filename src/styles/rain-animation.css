@@ -1,0 +1,88 @@
+/* Container units let the same scene render in a viewport or a small preview. */
+.rain-scene {
+  --rain-travel: calc(100cqh + 140px);
+  --rain-drift: var(--rain-travel);
+  --rain-angle: -45deg;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+  contain: strict;
+  container-type: size;
+}
+
+.rain-background {
+  position: fixed;
+  z-index: -1;
+}
+
+.rain-scene[data-direction="down"] {
+  --rain-drift: 0px;
+  --rain-angle: 0deg;
+}
+
+.rain-scene[data-direction="down-left"] {
+  --rain-drift: calc(-1 * var(--rain-travel));
+  --rain-angle: 45deg;
+}
+
+.rain-particle {
+  --rain-start: calc(var(--rain-position) * (100cqw + 100cqh + 140px) - var(--rain-travel));
+}
+
+[data-direction="down"] .rain-particle {
+  --rain-start: calc(var(--rain-position) * 100cqw);
+}
+
+[data-direction="down-left"] .rain-particle {
+  --rain-start: calc(var(--rain-position) * (100cqw + 100cqh + 140px));
+}
+
+.rain-drop {
+  position: absolute;
+  top: -140px;
+  left: var(--rain-start);
+  width: var(--rain-width);
+  height: var(--rain-length);
+  border-radius: 999px;
+  background: linear-gradient(to bottom, transparent, var(--rain-color));
+  opacity: 0;
+  animation: rain-fall var(--rain-duration) var(--rain-delay) linear infinite;
+}
+
+.rain-splash {
+  position: absolute;
+  bottom: 2px;
+  left: calc(var(--rain-start) + var(--rain-drift));
+  width: 24px;
+  height: 8px;
+  border: 1px solid var(--rain-color);
+  border-radius: 50%;
+  opacity: 0;
+  animation: rain-splash var(--rain-duration) var(--rain-delay) linear infinite;
+}
+
+@keyframes rain-fall {
+  0% { transform: translate3d(0, 0, 0) rotate(var(--rain-angle)); opacity: 0; }
+  10%, 88% { opacity: 0.32; }
+  94%, 100% { transform: translate3d(var(--rain-drift), var(--rain-travel), 0) rotate(var(--rain-angle)); opacity: 0; }
+}
+
+@keyframes rain-splash {
+  0%, 93% { transform: translateX(-50%) scale(0.15); opacity: 0; }
+  95% { transform: translateX(-50%) scale(0.4); opacity: 0.45; }
+  100% { transform: translateX(-50%) scale(1.5); opacity: 0; }
+}
+
+.rain-scene--paused .rain-drop,
+.rain-scene--paused .rain-splash { animation-play-state: paused; }
+
+@media (max-width: 640px) {
+  .rain-particle:nth-child(even) { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rain-scene { display: none; }
+  .rain-drop, .rain-splash { animation: none; }
+}

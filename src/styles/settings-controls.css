@@ -1,0 +1,31 @@
+.settings-field {
+  border: 0;
+  min-width: 0;
+  margin: 18px 0;
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.settings-field legend { margin-bottom: 10px; font-weight: 500; }
+.settings-chips__options { display: flex; flex-wrap: wrap; gap: 8px; }
+.settings-chip { position: relative; cursor: pointer; }
+.settings-chip input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.settings-chip span {
+  display: block;
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--border-light);
+  background: var(--bg-2);
+  color: var(--text-2);
+  transition: background 150ms, border-color 150ms;
+}
+.settings-chip input:checked + span { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.settings-chip input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 3px; }
+.settings-chip input:disabled + span { opacity: 0.5; cursor: not-allowed; }
+.settings-range > div { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.settings-range output { font-variant-numeric: tabular-nums; color: var(--text-1); }
+.settings-range input { width: 100%; accent-color: var(--accent); cursor: pointer; }
+.settings-switch { display: flex; align-items: center; justify-content: space-between; gap: 16px; cursor: pointer; }
+.settings-switch strong { font-size: 13px; font-weight: 500; }
+.settings-switch small { display: block; margin-top: 4px; font-size: 11px; color: var(--text-2); }
+.settings-switch input { width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--accent); }

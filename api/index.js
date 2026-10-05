@@ -2,6 +2,37 @@
 import express4 from "express";
 import cookieParser from "cookie-parser";
 
+// src/lib/rain.ts
+var RAIN_DIRECTIONS = [
+  { value: "down-right", label: "\u2198 Right" },
+  { value: "down", label: "\u2193 Down" },
+  { value: "down-left", label: "\u2199 Left" }
+];
+var RAIN_DENSITIES = [
+  { value: "light", label: "Light", count: 16 },
+  { value: "balanced", label: "Balanced", count: 32 },
+  { value: "full", label: "Full", count: 56 }
+];
+var RAIN_LIMITS = {
+  speed: { min: 0.5, max: 2, step: 0.1 },
+  height: { min: 12, max: 120, step: 1 },
+  width: { min: 1, max: 4, step: 0.5 }
+};
+var DEFAULT_RAIN = {
+  direction: "down-right",
+  density: "balanced",
+  speed: 1,
+  height: 64,
+  width: 1.5,
+  splash: false,
+  color: "theme"
+};
+function isRainSettings(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const settings = value;
+  return Object.keys(settings).every((key) => Object.hasOwn(DEFAULT_RAIN, key)) && RAIN_DIRECTIONS.some((option) => option.value === settings.direction) && RAIN_DENSITIES.some((option) => option.value === settings.density) && Object.entries(RAIN_LIMITS).every(([key, range]) => typeof settings[key] === "number" && Number.isFinite(settings[key]) && settings[key] >= range.min && settings[key] <= range.max) && typeof settings.splash === "boolean" && typeof settings.color === "string" && (settings.color === "theme" || /^#[0-9a-f]{6}$/i.test(settings.color));
+}
+
 // src/lib/preferences.ts
 var FONTS = {
   inter: { label: "Inter", family: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" },
@@ -20,7 +51,7 @@ var ACCENTS = {
 function isPreferences(value) {
   if (!value || typeof value !== "object") return false;
   const p = value;
-  return (p.theme === "light" || p.theme === "dark") && typeof p.font === "string" && Object.hasOwn(FONTS, p.font) && typeof p.accent === "string" && Object.hasOwn(ACCENTS, p.accent) && typeof p.rain === "boolean" && Object.keys(p).every((key) => ["theme", "font", "accent", "rain"].includes(key));
+  return (p.theme === "light" || p.theme === "dark") && typeof p.font === "string" && Object.hasOwn(FONTS, p.font) && typeof p.accent === "string" && Object.hasOwn(ACCENTS, p.accent) && typeof p.rain === "boolean" && (!("rainSettings" in p) || isRainSettings(p.rainSettings)) && Object.keys(p).every((key) => ["theme", "font", "accent", "rain", "rainSettings"].includes(key));
 }
 
 // server/db.ts

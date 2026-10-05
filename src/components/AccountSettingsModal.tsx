@@ -1,8 +1,10 @@
+import '../styles/account-settings.css'
+import PreferencesPanel from './settings/PreferencesPanel'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import Modal from './Modal'
 import { Icon } from './Icon'
 import { changePassword, updateAccount, type SessionUser } from '../lib/api'
-import { ACCENTS, FONTS, DEFAULT_PREFERENCES, type Preferences } from '../lib/preferences'
+import { DEFAULT_PREFERENCES, type Preferences } from '../lib/preferences'
 
 const SECTIONS = [
   { id: 'profile', label: 'Profile', icon: 'users' },
@@ -74,9 +76,9 @@ export default function AccountSettingsModal({ user, preferences, onPreferencesC
 
   return (
     <Modal onClose={close} className="account-settings" closeOnBackdrop={!busy} closeOnEscape={!busy} ariaLabel="Account settings">
-      <div ref={contentRef} onKeyDown={(event) => {
+      <div className="account-settings__content" ref={contentRef} onKeyDown={(event) => {
         if (event.key !== 'Tab') return
-        const controls = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), select:not(:disabled)'))
+        const controls = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), select:not(:disabled)')).filter((element) => element.getClientRects().length > 0)
         const first = controls[0], last = controls.at(-1)
         if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus() }
         if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus() }
@@ -104,10 +106,7 @@ export default function AccountSettingsModal({ user, preferences, onPreferencesC
           </form>}
           {section === 'preferences' && <div>
             <h3>Make Vault yours</h3><p className="account-settings__hint">Preview changes here. Save to use them across your devices.</p>
-            <div className="auth__field"><label className="auth__label" htmlFor="account-theme">Theme</label><select id="account-theme" className="auth__input" value={draft.theme} disabled={busy} onChange={(e) => preview({ ...draft, theme: e.target.value as Preferences['theme'] })}><option value="light">Light</option><option value="dark">Dark</option></select></div>
-            <div className="auth__field"><label className="auth__label" htmlFor="account-font">Interface font</label><select id="account-font" className="auth__input" value={draft.font} disabled={busy} onChange={(e) => preview({ ...draft, font: e.target.value as Preferences['font'] })}>{Object.entries(FONTS).map(([id, font]) => <option key={id} value={id}>{font.label}</option>)}</select></div>
-            <fieldset className="account-settings__accents" disabled={busy}><legend className="auth__label">Accent color</legend>{Object.entries(ACCENTS).map(([id, accent]) => <label key={id} className="account-settings__swatch"><input type="radio" name="accent" value={id} checked={draft.accent === id} onChange={() => preview({ ...draft, accent: id as Preferences['accent'] })} /><span style={{ background: accent[draft.theme] }} />{accent.label}</label>)}</fieldset>
-            <label className="account-settings__rain"><span><strong>Rain animation</strong><small>Subtle diagonal rain. Paused when reduced motion is enabled.</small></span><input type="checkbox" role="switch" aria-label="Rain animation" checked={draft.rain} disabled={busy} onChange={(e) => preview({ ...draft, rain: e.target.checked })} /></label>
+            <PreferencesPanel value={draft} onChange={preview} disabled={busy} />
             <div className="account-settings__actions"><button type="button" className="btn btn--ghost" disabled={busy} onClick={() => preview({ ...DEFAULT_PREFERENCES })}>Reset defaults</button><button type="button" className="btn btn--ghost" disabled={busy} onClick={() => preview(savedPreferences.current)}>Cancel changes</button><button type="button" className="btn btn--primary" disabled={busy} onClick={savePreferences}>{busy ? 'Saving…' : 'Save preferences'}</button></div>
           </div>}
           {error && <p className="dialog__error" role="alert">{error}</p>}

@@ -123,5 +123,5 @@ export default function App() {
     )
   }
 
-  return <><RainBackground enabled={preferences.rain} />{content}{appearanceError && <div className="toast toast--error" role="alert" onClick={() => setAppearanceError('')}>{appearanceError}</div>}</>
+  return <><RainBackground enabled={preferences.rain} settings={preferences.rainSettings} />{content}{appearanceError && <div className="toast toast--error" role="alert" onClick={() => setAppearanceError('')}>{appearanceError}</div>}</>
 }
