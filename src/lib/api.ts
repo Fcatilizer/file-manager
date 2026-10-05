@@ -281,7 +281,7 @@ export async function updateAccount(updates: { name?: string; preferences?: Pref
   return data.user
 }
 
-export interface PublicShare { id: string; createdAt: string; expiresAt: string | null }
+export interface PublicShare { path?: string; id: string; createdAt: string; expiresAt: string | null }
 export function createShare(bucket: string, key: string, folder: boolean, duration: string, customHours: number) {
   return request<PublicShare & { path: string }>('/api/shares', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bucket, key, folder, duration, customHours }) })
 }
@@ -289,3 +289,12 @@ export async function listShares(bucket: string, key: string): Promise<PublicSha
   return (await request<{ shares: PublicShare[] }>(`/api/shares?${new URLSearchParams({ bucket, key })}`)).shares
 }
 export function revokeShare(id: string) { return request(`/api/shares/${encodeURIComponent(id)}`, { method: 'DELETE' }) }
+
+export interface ObjectMetadata {
+  key: string; isFolder: boolean; size: number; lastModified?: string; contentType?: string;
+  etag?: string; storageClass?: string; versionId?: string; metadata?: Record<string, string>;
+  fileCount?: number; folderCount?: number; partial?: boolean;
+}
+export function fetchMetadata(bucket: string, key: string) {
+  return request<ObjectMetadata>(`/api/metadata?${new URLSearchParams({ bucket, key })}`)
+}

@@ -208,8 +208,12 @@ it expires or the creator revokes it. Deleting the private bucket invalidates it
 shares. Open the item's share dialog to view and revoke your active links.
 Permanent means no automatic expiry; it does not prevent revocation.
 
-Share tokens contain 256 random bits; only SHA-256 hashes are stored in MongoDB.
-The full URL is shown once on creation—copy it before closing the dialog. Public
+Share tokens contain 256 random bits. Authentication uses SHA-256 hashes; new
+links also retain an AES-256-GCM encrypted token so the creator can copy the same
+URL again from active links. Encryption uses `SHARE_TOKEN_SECRET`, falling back
+to `JWT_SECRET`; keep this secret stable and backed up. Changing it prevents
+re-copying old URLs, but their existing public URLs remain valid. Older hash-only
+links cannot be reconstructed; create a new link if you no longer have the URL. Public
 pages have no third-party resources, disable caching/indexing, and suppress
 referrers. Storage policies are not made public. Downloads redirect to signed,
 attachment-only storage URLs valid for at most 60 seconds and no later than the
@@ -222,3 +226,11 @@ breadcrumbs and file rows. Recipients see the sharer's display name (email
 username when no name is set), creation time, original duration, remaining time
 at page load, and readable expiry dates labeled UTC. Full email addresses are
 not published. Existing links resolve the current owner profile automatically.
+
+## Item details
+
+The information icon beside a file or folder opens storage metadata. File details
+include exact size, MIME type, modified time, ETag, storage class, version (when
+available), and custom metadata. Folder details scan nested contents across
+pages, up to 10,000 entries; capped scans are explicitly partial. Original
+creation and last-opened timestamps are not available from object storage.

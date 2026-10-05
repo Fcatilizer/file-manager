@@ -4,3 +4,5 @@
 .share-dialog__list { padding: 0; margin: 12px 0 0; list-style: none; max-height: 180px; overflow-y: auto; }
 .share-dialog__list li { display: flex; align-items: center; gap: 12px; justify-content: space-between; padding: 8px 0; font-size: 12px; }
 .share-dialog__list small { display: block; color: var(--text-2); margin-top: 4px; }
+.share-dialog__actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.share-dialog__legacy { font-size: 10px; line-height: 1.4; color: var(--text-3); }

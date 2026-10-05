@@ -1,3 +1,4 @@
+import { getObjectMetadata } from './object-metadata.ts'
 import express from 'express'
 import type { Request, Response, NextFunction, Router } from 'express'
 import {
@@ -156,7 +157,7 @@ export function createS3Router(protection = new BucketProtection()): Router {
   // Resolve one canonical bucket before any storage access, signing or upload
   // buffering. Body/query disagreements can never select a different bucket.
   router.use('/folders', express.json())
-  const filePaths = new Set(['/files', '/upload-url', '/upload', '/download', '/raw', '/folders'])
+  const filePaths = new Set(['/files', '/upload-url', '/upload', '/download', '/raw', '/folders', '/metadata'])
   router.use((req, res, next) => {
     const routePath = req.path.toLowerCase().replace(/\/+$/, '')
     if (!filePaths.has(routePath)) { next(); return }
@@ -172,6 +173,16 @@ export function createS3Router(protection = new BucketProtection()): Router {
       next()
     })().catch(next)
   })
+
+  router.get('/metadata', wrap(async (req, res) => {
+    const key = req.query.key
+    if (typeof key !== 'string' || !key) { res.status(400).json({ error: 'A file or folder key is required' }); return }
+    try { res.json(await getObjectMetadata(s3, res.locals.bucket, key)) }
+    catch (err) {
+      if (['NotFound', 'NoSuchKey', 'NoSuchBucket'].includes((err as Error).name)) { res.status(404).json({ error: 'This item no longer exists' }); return }
+      throw err
+    }
+  }))
 
   // ─── List Files ────────────────────────────────────────
   router.get('/files', wrap(async (req, res) => {

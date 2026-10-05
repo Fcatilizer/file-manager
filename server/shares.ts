@@ -1,3 +1,4 @@
+import { encryptShareToken, recoverShareToken } from './share-token.ts'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import express, { type Request, type Response, type NextFunction } from 'express'
 import { S3Client, HeadObjectCommand, ListObjectsV2Command, GetObjectCommand } from '@aws-sdk/client-s3'
@@ -9,6 +10,7 @@ import { PRIVATE_BUCKET_PREFIX } from '../src/lib/bucketProtection.ts'
 
 export interface ShareRecord {
   _id: string
+  encryptedToken?: string
   tokenHash: string
   ownerId: string
   sharerName?: string
@@ -46,7 +48,10 @@ export const mongoShareStore: ShareStore = {
 const hash = (token: string) => createHash('sha256').update(token).digest('hex')
 const asyncRoute = (fn: (req: Request, res: Response) => Promise<void>) => (req: Request, res: Response, next: NextFunction) => { void fn(req, res).catch(next) }
 const safeKey = (key: string) => !key.split('/').some((part) => part === '.' || part === '..') && ![...key].some((char) => char.charCodeAt(0) < 32 || char === '\\')
-const summary = (share: ShareRecord) => ({ id: share._id, expiresAt: share.expiresAt, createdAt: share.createdAt })
+const summary = (share: ShareRecord) => {
+  const token = recoverShareToken(share.encryptedToken)
+  return { id: share._id, expiresAt: share.expiresAt, createdAt: share.createdAt, path: token && hash(token) === share.tokenHash ? `/api/public/${token}` : undefined }
+}
 
 export function createShareRouters(s3: S3Client, protection = new BucketProtection(), store: ShareStore = mongoShareStore, getSharer = getUserById) {
   const management = express.Router()
@@ -65,7 +70,7 @@ export function createShareRouters(s3: S3Client, protection = new BucketProtecti
     const profile = await getSharer(bucketUser(req).id)
     const sharerName = profile?.name?.trim() || bucketUser(req).email.split('@')[0]
     const token = randomBytes(32).toString('base64url')
-    const record: ShareRecord = { _id: randomUUID(), tokenHash: hash(token), ownerId: bucketUser(req).id, sharerName, bucket, key, folder,
+    const record: ShareRecord = { _id: randomUUID(), tokenHash: hash(token), encryptedToken: encryptShareToken(token), ownerId: bucketUser(req).id, sharerName, bucket, key, folder,
       privateOwner: metadata?.ownerId, expiresAt: duration === 'permanent' ? null : new Date(Date.now() + hours * 3600000), createdAt: new Date(), revoked: false }
     await store.insert(record)
     res.status(201).json({ ...summary(record), path: `/api/public/${token}` })

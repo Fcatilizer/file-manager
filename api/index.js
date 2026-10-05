@@ -528,14 +528,40 @@ usersRouter.patch("/:id/password", async (req, res) => {
   res.json({ success: true, message: "Password updated successfully" });
 });
 
+// server/share-token.ts
+import { createCipheriv, createDecipheriv, createHash as createHash2, randomBytes } from "node:crypto";
+function encryptionKey() {
+  const secret = process.env.SHARE_TOKEN_SECRET || process.env.JWT_SECRET;
+  if (!secret && process.env.NODE_ENV === "production") throw new Error("SHARE_TOKEN_SECRET or JWT_SECRET is required");
+  return createHash2("sha256").update("vault:share-token:v1:").update(secret || "dev-insecure-secret-change-me").digest();
+}
+function encryptShareToken(token) {
+  const iv = randomBytes(12);
+  const cipher = createCipheriv("aes-256-gcm", encryptionKey(), iv);
+  const ciphertext = Buffer.concat([cipher.update(token, "utf8"), cipher.final()]);
+  return Buffer.concat([iv, cipher.getAuthTag(), ciphertext]).toString("base64url");
+}
+function recoverShareToken(encrypted) {
+  if (!encrypted) return void 0;
+  try {
+    const payload = Buffer.from(encrypted, "base64url");
+    const decipher = createDecipheriv("aes-256-gcm", encryptionKey(), payload.subarray(0, 12));
+    decipher.setAuthTag(payload.subarray(12, 28));
+    return Buffer.concat([decipher.update(payload.subarray(28)), decipher.final()]).toString("utf8");
+  } catch {
+    return void 0;
+  }
+}
+
 // server/shares.ts
-import { createHash as createHash3, randomBytes, randomUUID as randomUUID3 } from "node:crypto";
+import { createHash as createHash4, randomBytes as randomBytes2, randomUUID as randomUUID3 } from "node:crypto";
 import express3 from "express";
 import { HeadObjectCommand, ListObjectsV2Command, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 // src/lib/iconPaths.ts
 var ICON_PATHS = {
+  info: ["M12 22a10 10 0 100-20 10 10 0 000 20", "M12 11v6", "M12 7h.01"],
   link: ["M10 13a5 5 0 007 .5l3-3a5 5 0 00-7-7l-1.7 1.7", "M14 11a5 5 0 00-7-.5l-3 3a5 5 0 007 7l1.7-1.7"],
   folder: [
     "M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"
@@ -1088,7 +1114,7 @@ function renderPublicSharePage({ base, root, requested, folder, sharer, createdA
 }
 
 // server/bucket-protection.ts
-import { createHash as createHash2, randomUUID as randomUUID2 } from "node:crypto";
+import { createHash as createHash3, randomUUID as randomUUID2 } from "node:crypto";
 import bcrypt3 from "bcryptjs";
 
 // src/lib/bucketProtection.ts
@@ -1117,7 +1143,7 @@ var BucketAccessError = class extends Error {
 function bucketSession(req) {
   const cookie = req.cookies?.vault_session;
   if (typeof cookie !== "string" || !cookie) throw new BucketAccessError(401, "Unauthorized");
-  return createHash2("sha256").update(cookie).digest("hex");
+  return createHash3("sha256").update(cookie).digest("hex");
 }
 function bucketUser(req) {
   const user = req.user;
@@ -1243,12 +1269,15 @@ var mongoShareStore = {
     await (await indexedCollection()).updateOne({ _id, ownerId }, { $set: { revoked: true } });
   }
 };
-var hash = (token) => createHash3("sha256").update(token).digest("hex");
+var hash = (token) => createHash4("sha256").update(token).digest("hex");
 var asyncRoute = (fn) => (req, res, next) => {
   void fn(req, res).catch(next);
 };
 var safeKey = (key) => !key.split("/").some((part) => part === "." || part === "..") && ![...key].some((char) => char.charCodeAt(0) < 32 || char === "\\");
-var summary = (share) => ({ id: share._id, expiresAt: share.expiresAt, createdAt: share.createdAt });
+var summary = (share) => {
+  const token = recoverShareToken(share.encryptedToken);
+  return { id: share._id, expiresAt: share.expiresAt, createdAt: share.createdAt, path: token && hash(token) === share.tokenHash ? `/api/public/${token}` : void 0 };
+};
 function createShareRouters(s3, protection = new BucketProtection(), store = mongoShareStore, getSharer = getUserById) {
   const management = express3.Router();
   management.use(express3.json());
@@ -1268,10 +1297,11 @@ function createShareRouters(s3, protection = new BucketProtection(), store = mon
     } else await s3.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
     const profile = await getSharer(bucketUser(req).id);
     const sharerName = profile?.name?.trim() || bucketUser(req).email.split("@")[0];
-    const token = randomBytes(32).toString("base64url");
+    const token = randomBytes2(32).toString("base64url");
     const record = {
       _id: randomUUID3(),
       tokenHash: hash(token),
+      encryptedToken: encryptShareToken(token),
       ownerId: bucketUser(req).id,
       sharerName,
       bucket,
@@ -1365,6 +1395,45 @@ function createShareRouters(s3, protection = new BucketProtection(), store = mon
   return { management, publicRouter };
 }
 
+// server/object-metadata.ts
+import { HeadObjectCommand as HeadObjectCommand2, ListObjectsV2Command as ListObjectsV2Command2 } from "@aws-sdk/client-s3";
+async function getObjectMetadata(s3, bucket, key) {
+  if (!key.endsWith("/")) {
+    const object = await s3.send(new HeadObjectCommand2({ Bucket: bucket, Key: key }));
+    return {
+      key,
+      isFolder: false,
+      size: object.ContentLength ?? 0,
+      lastModified: object.LastModified?.toISOString(),
+      contentType: object.ContentType,
+      etag: object.ETag?.replace(/^"|"$/g, ""),
+      storageClass: object.StorageClass || "STANDARD",
+      versionId: object.VersionId,
+      metadata: object.Metadata
+    };
+  }
+  let cursor;
+  let size2 = 0, fileCount = 0, latest = 0, pages = 0;
+  const folders = /* @__PURE__ */ new Set();
+  do {
+    const page = await s3.send(new ListObjectsV2Command2({ Bucket: bucket, Prefix: key, MaxKeys: 1e3, ContinuationToken: cursor }));
+    for (const object of page.Contents || []) {
+      if (!object.Key?.startsWith(key)) continue;
+      if (object.LastModified) latest = Math.max(latest, object.LastModified.getTime());
+      const relative = object.Key.slice(key.length);
+      const parts = relative.split("/");
+      for (let i = 1; i < parts.length; i++) folders.add(parts.slice(0, i).join("/"));
+      if (object.Key !== key && !object.Key.endsWith("/")) {
+        fileCount++;
+        size2 += object.Size || 0;
+      }
+    }
+    cursor = page.IsTruncated ? page.NextContinuationToken : void 0;
+    pages++;
+  } while (cursor && pages < 10);
+  return { key, isFolder: true, size: size2, fileCount, folderCount: folders.size, lastModified: latest ? new Date(latest).toISOString() : void 0, partial: !!cursor };
+}
+
 // server/s3.ts
 import express4 from "express";
 import {
@@ -1372,7 +1441,7 @@ import {
   ListBucketsCommand,
   CreateBucketCommand,
   DeleteBucketCommand,
-  ListObjectsV2Command as ListObjectsV2Command2,
+  ListObjectsV2Command as ListObjectsV2Command3,
   PutObjectCommand,
   DeleteObjectCommand,
   DeleteObjectsCommand,
@@ -1519,7 +1588,7 @@ function createS3Router(protection = new BucketProtection()) {
     res.json({ success: true });
   }));
   router.use("/folders", express4.json());
-  const filePaths = /* @__PURE__ */ new Set(["/files", "/upload-url", "/upload", "/download", "/raw", "/folders"]);
+  const filePaths = /* @__PURE__ */ new Set(["/files", "/upload-url", "/upload", "/download", "/raw", "/folders", "/metadata"]);
   router.use((req, res, next) => {
     const routePath = req.path.toLowerCase().replace(/\/+$/, "");
     if (!filePaths.has(routePath)) {
@@ -1540,11 +1609,27 @@ function createS3Router(protection = new BucketProtection()) {
       next();
     })().catch(next);
   });
+  router.get("/metadata", wrap(async (req, res) => {
+    const key = req.query.key;
+    if (typeof key !== "string" || !key) {
+      res.status(400).json({ error: "A file or folder key is required" });
+      return;
+    }
+    try {
+      res.json(await getObjectMetadata(s3, res.locals.bucket, key));
+    } catch (err) {
+      if (["NotFound", "NoSuchKey", "NoSuchBucket"].includes(err.name)) {
+        res.status(404).json({ error: "This item no longer exists" });
+        return;
+      }
+      throw err;
+    }
+  }));
   router.get("/files", wrap(async (req, res) => {
     const bucket = res.locals.bucket;
     const prefix = req.query.prefix || "";
     const result = await s3.send(
-      new ListObjectsV2Command2({ Bucket: bucket, Prefix: prefix, Delimiter: "/" })
+      new ListObjectsV2Command3({ Bucket: bucket, Prefix: prefix, Delimiter: "/" })
     );
     const folders = await Promise.all(
       (result.CommonPrefixes || []).map(async (p) => {
@@ -1553,7 +1638,7 @@ function createS3Router(protection = new BucketProtection()) {
         let lastModified = "";
         try {
           const folderObjects = await s3.send(
-            new ListObjectsV2Command2({ Bucket: bucket, Prefix: folderPrefix })
+            new ListObjectsV2Command3({ Bucket: bucket, Prefix: folderPrefix })
           );
           const items = folderObjects.Contents || [];
           let latestTime = 0;
@@ -1628,7 +1713,7 @@ function createS3Router(protection = new BucketProtection()) {
     const bucket = res.locals.bucket;
     const key = req.query.key || "";
     if (key.endsWith("/")) {
-      const list = await s3.send(new ListObjectsV2Command2({ Bucket: bucket, Prefix: key }));
+      const list = await s3.send(new ListObjectsV2Command3({ Bucket: bucket, Prefix: key }));
       if (list.Contents && list.Contents.length > 0) {
         await s3.send(
           new DeleteObjectsCommand({

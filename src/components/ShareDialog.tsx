@@ -1,3 +1,4 @@
+import CopyButton from './CopyButton'
 import { useEffect, useState } from 'react'
 import Modal, { ModalHeader } from './Modal'
 import CopyField from './CopyField'
@@ -41,9 +42,9 @@ export default function ShareDialog({ bucket, item, isPrivate, onClose }: Props)
       {duration === 'custom' && <label className="auth__field"><span className="auth__label">Expires in hours</span><input className="auth__input" type="number" min="0.01" max="87600" step="any" value={hours} onChange={(e) => setHours(e.target.value)} disabled={busy} /></label>}
       {duration === 'permanent' && <p className="dialog__message">This link stays public until you revoke it.</p>}
       <button className="btn btn--primary" disabled={busy} onClick={() => void create()}>{busy ? 'Please wait…' : 'Create public link'}</button>
-      {url && <CopyField key={url} value={url} label="Public URL — copy before closing" />}
+      {url && <CopyField key={url} value={url} label="Public URL" />}
       {error && <p className="dialog__error" role="alert">{error}</p>}
-      {shares.length > 0 && <section><h3>Your active links</h3><p className="dialog__message">Revoking blocks new download links. Already-issued download links may work for 60 seconds; files already downloaded or transfers in progress cannot be recalled.</p><ul className="share-dialog__list">{shares.map((share) => <li key={share.id}><span>Created {new Date(share.createdAt).toLocaleString()}<small>{share.expiresAt ? `Expires ${new Date(share.expiresAt).toLocaleString()}` : 'Permanent'}</small></span><button className="btn btn--ghost danger" disabled={busy} onClick={() => void revoke(share.id)}>Revoke</button></li>)}</ul></section>}
+      {shares.length > 0 && <section><h3>Your active links</h3><p className="dialog__message">Revoking blocks new download links. Already-issued download links may work for 60 seconds; files already downloaded or transfers in progress cannot be recalled.</p><ul className="share-dialog__list">{shares.map((share) => <li key={share.id}><span>Created {new Date(share.createdAt).toLocaleString()}<small>{share.expiresAt ? `Expires ${new Date(share.expiresAt).toLocaleString()}` : 'Permanent'}</small></span><div className="share-dialog__actions">{share.path ? <CopyButton value={new URL(share.path, window.location.origin).href} label="Copy existing link" disabled={busy} onError={(message) => { setUrl(new URL(share.path!, window.location.origin).href); setError(message) }} /> : <span className="share-dialog__legacy" title="This older link was stored as a hash and cannot be recovered. Create a new link to copy it.">Older link<br />URL unavailable</span>}<button className="btn btn--ghost danger" disabled={busy} onClick={() => void revoke(share.id)}>Revoke</button></div></li>)}</ul></section>}
     </div>
   </Modal>
 }

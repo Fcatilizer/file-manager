@@ -38,7 +38,7 @@ async function create(extra:Record<string,unknown>={}) { const res=await request
 beforeEach(()=>{records.clear();buckets.buckets.clear();calls.length=0})
 after(async()=>{stub.mock.restore();await new Promise<void>(resolve=>server.close(()=>resolve()))})
 
-test('creates opaque random links, stores only hashes, and opens without login',async()=>{
+test('creates opaque random links, stores no plaintext tokens, and opens without login',async()=>{
  const a=await create(),b=await create()
  assert.match(a.path,/^\/api\/public\/[A-Za-z0-9_-]{43}$/);assert.notEqual(a.path,b.path)
  assert.ok(!JSON.stringify([...records.values()]).includes(a.path.split('/').pop()))
@@ -105,4 +105,15 @@ test('public page uses Vault file rows, sharer identity, readable expiry and esc
  assert.match(html,/class="row"/)
  const permanent=await create({duration:'permanent'})
  assert.match(await (await request(permanent.path)).text(),/Until the owner revokes it/)
+})
+
+test('owners can retrieve exactly the same public URL; legacy hashes remain nonrecoverable',async()=>{
+ const share=await create()
+ let data=await (await request('/api/shares?bucket=shared&key=photos%2Fa.jpg')).json()
+ assert.equal(data.shares[0].path,share.path)
+ assert.ok(records.get(share.id)!.encryptedToken)
+ delete records.get(share.id)!.encryptedToken
+ data=await (await request('/api/shares?bucket=shared&key=photos%2Fa.jpg')).json()
+ assert.equal(data.shares[0].path,undefined)
+ assert.equal((await request(share.path)).status,200)
 })

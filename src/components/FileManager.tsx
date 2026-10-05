@@ -1,3 +1,4 @@
+import ItemDetailsDialog from './ItemDetailsDialog'
 import ShareDialog from './ShareDialog'
 import CreateBucketDialog from './buckets/CreateBucketDialog'
 import BucketPasswordDialog from './buckets/BucketPasswordDialog'
@@ -89,6 +90,7 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
   const [dragActive, setDragActive] = useState(false)
   const [toast, setToast] = useState<ToastData | null>(null)
   const [previewIndex, setPreviewIndex] = useState<number | null>(null)
+  const [detailsItem, setDetailsItem] = useState<FileItem | null>(null)
   const [shareItem, setShareItem] = useState<FileItem | null>(null)
   const [showUsers, setShowUsers] = useState(false)
   const [showAccount, setShowAccount] = useState(false)
@@ -105,6 +107,7 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
       fileRequest.current = null
       setFiles([])
       setPreviewIndex(null)
+      setDetailsItem(null)
       setPendingDelete(null)
       setShowNewFolder(false)
       setLoading(false)
@@ -154,6 +157,7 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
     setActiveCategory(null)
     setPreviewIndex(null)
     setShareItem(null)
+    setDetailsItem(null)
     setPendingDelete(null)
   }, [activeBucket, prefix])
 
@@ -689,6 +693,7 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
                     <span className="file-row__size">{formatSize(f.size)}</span>
                     <span className="file-row__date">{formatDate(f.lastModified)}</span>
                     <div className="file-row__actions">
+                      <button className="btn btn--icon" title="Details" aria-label={`Details for ${f.name}`} onClick={(e) => { e.stopPropagation(); setDetailsItem(f) }}><Icon name="info" size={14} /></button>
                       <button className="btn btn--icon" title="Share publicly" aria-label={`Share ${f.name}`} onClick={(e) => { e.stopPropagation(); setShareItem(f) }}><Icon name="link" size={14} /></button>
                       {!f.isFolder && (
                         <button
@@ -724,6 +729,7 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
         )}
       </div>
 
+      {detailsItem && <ItemDetailsDialog key={detailsItem.key} bucket={activeBucket} bucketLabel={activeDetails?.label || activeBucket} item={detailsItem} onClose={() => setDetailsItem(null)} />}
       {shareItem && <ShareDialog bucket={activeBucket} item={shareItem} isPrivate={!!activeDetails?.isPrivate} onClose={() => setShareItem(null)} />}
 
       {/* Upload Progress */}
