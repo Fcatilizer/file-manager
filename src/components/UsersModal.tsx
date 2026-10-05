@@ -1,7 +1,7 @@
 import PasswordInput from './PasswordInput'
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { Icon } from './Icon'
-import Modal from './Modal'
+import Modal, { ModalCloseButton } from './Modal'
 import ChangePasswordModal from './ChangePasswordModal'
 import {
   createUser,
@@ -100,9 +100,7 @@ export default function UsersModal({ currentUser, onClose, onToast }: Props) {
           <span>Users</span>
           {!loading && <span className="users-modal__count">{users.length}</span>}
         </div>
-        <button className="btn btn--icon" title="Close (Esc)" onClick={onClose}>
-          <Icon name="close" size={16} />
-        </button>
+        <ModalCloseButton onClose={onClose} label="Close users" />
       </div>
 
         {/* Add user */}

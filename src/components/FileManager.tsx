@@ -1,3 +1,4 @@
+import ShareDialog from './ShareDialog'
 import CreateBucketDialog from './buckets/CreateBucketDialog'
 import BucketPasswordDialog from './buckets/BucketPasswordDialog'
 import AppearanceControls from './AppearanceControls'
@@ -88,6 +89,7 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
   const [dragActive, setDragActive] = useState(false)
   const [toast, setToast] = useState<ToastData | null>(null)
   const [previewIndex, setPreviewIndex] = useState<number | null>(null)
+  const [shareItem, setShareItem] = useState<FileItem | null>(null)
   const [showUsers, setShowUsers] = useState(false)
   const [showAccount, setShowAccount] = useState(false)
   const [query, setQuery] = useState('')
@@ -151,6 +153,7 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
     setQuery('')
     setActiveCategory(null)
     setPreviewIndex(null)
+    setShareItem(null)
     setPendingDelete(null)
   }, [activeBucket, prefix])
 
@@ -686,6 +689,7 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
                     <span className="file-row__size">{formatSize(f.size)}</span>
                     <span className="file-row__date">{formatDate(f.lastModified)}</span>
                     <div className="file-row__actions">
+                      <button className="btn btn--icon" title="Share publicly" aria-label={`Share ${f.name}`} onClick={(e) => { e.stopPropagation(); setShareItem(f) }}><Icon name="link" size={14} /></button>
                       {!f.isFolder && (
                         <button
                           className="btn btn--icon"
@@ -719,6 +723,8 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
           </>
         )}
       </div>
+
+      {shareItem && <ShareDialog bucket={activeBucket} item={shareItem} isPrivate={!!activeDetails?.isPrivate} onClose={() => setShareItem(null)} />}
 
       {/* Upload Progress */}
       {uploading && (

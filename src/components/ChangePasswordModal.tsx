@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { Icon } from './Icon'
-import Modal from './Modal'
+import Modal, { ModalCloseButton } from './Modal'
 import { changePassword, adminResetPassword, type SessionUser } from '../lib/api'
 
 type Props = {
@@ -72,7 +72,7 @@ export default function ChangePasswordModal({
   }
 
   return (
-    <Modal onClose={onClose} className="password-modal">
+    <Modal onClose={onClose} className="password-modal" closeOnBackdrop={!submitting} closeOnEscape={!submitting}>
       <div className="password-modal__header">
         <div className="password-modal__title">
           <div className="password-modal__icon">
@@ -83,9 +83,7 @@ export default function ChangePasswordModal({
             <p className="password-modal__sub">{targetEmail}</p>
           </div>
         </div>
-        <button className="btn btn--icon" onClick={onClose} title="Close (Esc)" type="button">
-          <Icon name="close" size={16} />
-        </button>
+        <ModalCloseButton onClose={onClose} disabled={submitting} label="Close password settings" />
       </div>
 
       <form onSubmit={handleSubmit} className="password-modal__form">

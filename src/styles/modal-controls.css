@@ -1,0 +1,4 @@
+.modal-heading { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.modal-heading > :first-child { min-width: 0; flex: 1; }
+.modal-close { margin-left: auto; flex-shrink: 0; }
+.modal-close:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

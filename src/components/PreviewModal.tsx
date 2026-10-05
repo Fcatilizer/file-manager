@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Icon } from './Icon'
-import Modal from './Modal'
+import Modal, { ModalCloseButton } from './Modal'
 import DocxPreview from './DocxPreview'
 import SheetPreview from './SheetPreview'
 import { rawUrl, fetchTextContent, type FileItem } from '../lib/api'
@@ -533,9 +533,7 @@ export default function PreviewModal({
             >
               <Icon name="download" size={15} />
             </button>
-            <button className="btn btn--icon" title="Close preview (Esc)" onClick={onClose}>
-              <Icon name="close" size={16} />
-            </button>
+            <ModalCloseButton onClose={onClose} label="Close preview" />
           </div>
         </div>
 

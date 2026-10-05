@@ -2,7 +2,7 @@ import PasswordInput from './PasswordInput'
 import '../styles/account-settings.css'
 import PreferencesPanel from './settings/PreferencesPanel'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import Modal from './Modal'
+import Modal, { ModalCloseButton } from './Modal'
 import { Icon } from './Icon'
 import { changePassword, updateAccount, type SessionUser } from '../lib/api'
 import { DEFAULT_PREFERENCES, type Preferences } from '../lib/preferences'
@@ -86,7 +86,7 @@ export default function AccountSettingsModal({ user, preferences, onPreferencesC
       }}>
         <header className="account-settings__header">
           <div><h2>Account settings</h2><p>{user.email}</p></div>
-          <button type="button" className="btn btn--icon" disabled={busy} onClick={close} aria-label="Close account settings"><Icon name="close" size={18} /></button>
+          <ModalCloseButton onClose={close} disabled={busy} label="Close account settings" />
         </header>
         <nav className="account-settings__nav" aria-label="Settings sections">
           {SECTIONS.map((item) => <button type="button" key={item.id} aria-current={section === item.id ? 'page' : undefined} disabled={busy} onClick={() => { setSection(item.id); setError(''); setMessage('') }}><Icon name={item.icon} size={15} />{item.label}</button>)}

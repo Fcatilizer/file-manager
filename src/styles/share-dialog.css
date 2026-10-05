@@ -1,0 +1,6 @@
+.share-dialog { display: grid; gap: 16px; padding: 24px; max-height: calc(100dvh - 48px); overflow-y: auto; }
+.share-dialog h2, .share-dialog h3, .share-dialog p { margin: 0; }
+.share-dialog h3 { font-size: 14px; margin-bottom: 8px; }
+.share-dialog__list { padding: 0; margin: 12px 0 0; list-style: none; max-height: 180px; overflow-y: auto; }
+.share-dialog__list li { display: flex; align-items: center; gap: 12px; justify-content: space-between; padding: 8px 0; font-size: 12px; }
+.share-dialog__list small { display: block; color: var(--text-2); margin-top: 4px; }

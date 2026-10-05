@@ -50,8 +50,8 @@ export interface S3Config {
   privateBucket: string
 }
 
-export function createS3Router(protection = new BucketProtection()): Router {
-  const s3 = new S3Client({
+export function createStorageClient(): S3Client {
+  return new S3Client({
     endpoint: process.env.MINIO_ENDPOINT || 'http://localhost:9000',
     region: process.env.MINIO_REGION || 'us-east-1',
     credentials: {
@@ -61,6 +61,10 @@ export function createS3Router(protection = new BucketProtection()): Router {
     forcePathStyle: true,
   })
 
+}
+
+export function createS3Router(protection = new BucketProtection()): Router {
+  const s3 = createStorageClient()
   const defaultBucket = process.env.MINIO_BUCKET || 'fruitms-public-local'
   const privateBucket = process.env.MINIO_PRIVATE_BUCKET || 'shared-files'
 

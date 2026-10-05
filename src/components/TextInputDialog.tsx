@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
-import Modal from './Modal'
+import Modal, { ModalCloseButton } from './Modal'
 import { Icon } from './Icon'
 
 type Props = {
@@ -85,6 +85,7 @@ export default function TextInputDialog({
         <div className="dialog__header">
           <span className={`dialog__icon${danger ? ' dialog__icon--danger' : ''}`}><Icon name={icon} size={16} /></span>
           <span className="dialog__title">{title}</span>
+        <ModalCloseButton onClose={onClose} disabled={submitting} />
         </div>
 
         <div className="dialog__body">

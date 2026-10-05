@@ -1,0 +1,7 @@
+.copy-field { display: grid; gap: 8px; min-width: 0; }
+.copy-field__control { position: relative; min-width: 0; }
+.copy-field__control input { width: 100%; padding-right: 46px; }
+.copy-field__button { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); color: var(--text-2); }
+.copy-field__button:hover { color: var(--accent); }
+.copy-field__button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.copy-field__status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }

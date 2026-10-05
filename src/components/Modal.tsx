@@ -1,3 +1,5 @@
+import { Icon } from './Icon'
+import '../styles/modal-controls.css'
 import { useEffect, type ReactNode } from 'react'
 
 type Props = {
@@ -59,4 +61,13 @@ export default function Modal({
       {overlayChildren}
     </div>
   )
+}
+
+/** Shared close control, placed last in modal headers including file previews. */
+export function ModalCloseButton({ onClose, disabled = false, label = 'Close dialog' }: { onClose: () => void; disabled?: boolean; label?: string }) {
+  return <button type="button" className="btn btn--icon modal-close" disabled={disabled} onClick={onClose} aria-label={label} title={`${label} (Esc)`}><Icon name="close" size={16} /></button>
+}
+
+export function ModalHeader({ children, onClose, disabled = false, label }: { children: ReactNode; onClose: () => void; disabled?: boolean; label?: string }) {
+  return <header className="modal-heading">{children}<ModalCloseButton onClose={onClose} disabled={disabled} label={label} /></header>
 }

@@ -4,7 +4,8 @@ import cookieParser from 'cookie-parser'
 import { connectDB, seedAdmin } from './db.ts'
 import { authRouter, requireAuth, requireAdmin } from './auth.ts'
 import { usersRouter } from './users.ts'
-import { createS3Router } from './s3.ts'
+import { createShareRouters } from './shares.ts'
+import { createS3Router, createStorageClient } from './s3.ts'
 
 const app = express()
 app.disable('x-powered-by')
@@ -35,6 +36,10 @@ app.use('/api/auth', express.json(), authRouter)
 // ─── User management (admin only) ────────────────────────────
 app.use('/api/users', requireAuth, requireAdmin, express.json(), usersRouter)
 
+const shares = createShareRouters(createStorageClient())
+app.use('/api/public', shares.publicRouter)
+app.use('/api/shares', requireAuth, shares.management)
+
 // ─── Protected file API ──────────────────────────────────────
 app.use('/api', requireAuth, createS3Router())
 app.use('/api', (_req: Request, res: Response) => {
@@ -45,7 +50,7 @@ app.use('/api', (_req: Request, res: Response) => {
 app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
   if (!req.path.startsWith('/api')) return next(err)
   const message = err instanceof Error ? err.message : 'Internal server error'
-  console.error('[vault]', req.method, req.originalUrl, '→', message)
+  console.error('[vault]', req.method, req.path.startsWith('/api/public/') ? '/api/public/[redacted]' : req.path, '→', message)
   if (res.headersSent) return next(err)
   res.status(500).json({ error: message })
 })

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import Modal from './Modal'
+import Modal, { ModalCloseButton } from './Modal'
 import { Icon } from './Icon'
 
 type Props = {
@@ -37,12 +37,13 @@ export default function ConfirmDialog({
   }
 
   return (
-    <Modal onClose={onClose} className="dialog">
+    <Modal onClose={onClose} className="dialog" closeOnBackdrop={!busy} closeOnEscape={!busy}>
       <div className="dialog__header">
         <span className={`dialog__icon${danger ? ' dialog__icon--danger' : ''}`}>
           <Icon name={icon} size={16} />
         </span>
         <span className="dialog__title">{title}</span>
+        <ModalCloseButton onClose={onClose} disabled={busy} />
       </div>
 
       <div className="dialog__body">
@@ -51,7 +52,7 @@ export default function ConfirmDialog({
       </div>
 
       <div className="dialog__footer">
-        <button type="button" className="btn btn--ghost" onClick={onClose}>
+        <button type="button" className="btn btn--ghost" onClick={onClose} disabled={busy}>
           Cancel
         </button>
         <button

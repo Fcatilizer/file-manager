@@ -1,6 +1,6 @@
 import PasswordInput from '../PasswordInput'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import Modal from '../Modal'
+import Modal, { ModalHeader } from '../Modal'
 import { Icon } from '../Icon'
 import { validateBucketPassword } from '../../lib/bucketProtection'
 import '../../styles/bucket-protection.css'
@@ -41,7 +41,7 @@ export default function BucketPasswordDialog({ mode, label, onSubmit, onClose }:
   return (
     <Modal className="dialog" ariaLabel={change ? 'Change bucket password' : 'Unlock bucket'} onClose={onClose} closeOnBackdrop={!busy} closeOnEscape={!busy}>
       <form onSubmit={submit} className="bucket-dialog">
-        <h2><Icon name="lock" size={18} />{change ? 'Change bucket password' : 'Unlock bucket'}</h2>
+        <ModalHeader onClose={onClose} disabled={busy}><h2><Icon name="lock" size={18} />{change ? 'Change bucket password' : 'Unlock bucket'}</h2></ModalHeader>
         <p className="dialog__message">{label}</p>
         <p className="dialog__message">{change ? 'Enter the current bucket password. Changing it locks this bucket on all devices.' : 'Your unlock lasts 15 minutes in this login session. This is the bucket password, not your account password.'}</p>
         <label className="auth__field"><span className="auth__label">{change ? 'Current bucket password' : 'Bucket password'}</span>

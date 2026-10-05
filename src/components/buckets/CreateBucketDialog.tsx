@@ -1,6 +1,6 @@
 import PasswordInput from '../PasswordInput'
 import { useState, type FormEvent } from 'react'
-import Modal from '../Modal'
+import Modal, { ModalHeader } from '../Modal'
 import { ChoiceChips } from '../settings/SettingsControls'
 import { validateBucketName } from '../../lib/buckets'
 import { validateBucketPassword } from '../../lib/bucketProtection'
@@ -28,7 +28,7 @@ export default function CreateBucketDialog({ canCreateShared, onClose, onCreate 
   return (
     <Modal className="dialog" ariaLabel="Create bucket" onClose={onClose} closeOnBackdrop={!busy} closeOnEscape={!busy}>
       <form className="bucket-dialog" onSubmit={submit}>
-        <h2>Create bucket</h2>
+        <ModalHeader onClose={onClose} disabled={busy}><h2>Create bucket</h2></ModalHeader>
         {canCreateShared && <ChoiceChips label="Access" value={kind} onChange={setKind} disabled={busy} options={[{ value: 'private', label: 'Only me' }, { value: 'shared', label: 'Shared vault' }]} />}
         <p className="dialog__message">{kind === 'private' ? 'Only you can access this bucket in Vault. Keep the password safe: there is no admin reset.' : 'Everyone signed in to this vault can access this bucket.'}</p>
         <label className="auth__field"><span className="auth__label">Bucket name</span><input className="auth__input" autoFocus autoComplete="off" placeholder="personal-documents" value={name} onChange={(e) => setName(e.target.value)} required disabled={busy} maxLength={63} /></label>

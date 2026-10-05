@@ -192,3 +192,33 @@ Deploy the whole app (frontend + long-running API) as a persistent service:
   ```
 
 Set all required environment variables in the host's dashboard. In production (`NODE_ENV=production`), session cookies are marked `Secure`, so the site must be served over HTTPS (all hosts above provide this automatically).
+
+## Public sharing
+
+Use the link icon beside a file or folder to create a read-only public URL.
+Choose 1 hour, 6 hours, 24 hours, a custom number of hours (up to 10 years), or
+permanent. Anyone holding the URL can access the item without signing in.
+Folder shares include existing and future contents under that folder, with
+paginated browsing. File shares reference the current object at that path;
+replacing it changes what recipients download.
+
+Private-bucket sharing requires the owner to unlock the bucket first. The share
+then remains available independently of bucket locks and password changes, until
+it expires or the creator revokes it. Deleting the private bucket invalidates its
+shares. Open the item's share dialog to view and revoke your active links.
+Permanent means no automatic expiry; it does not prevent revocation.
+
+Share tokens contain 256 random bits; only SHA-256 hashes are stored in MongoDB.
+The full URL is shown once on creation—copy it before closing the dialog. Public
+pages have no third-party resources, disable caching/indexing, and suppress
+referrers. Storage policies are not made public. Downloads redirect to signed,
+attachment-only storage URLs valid for at most 60 seconds and no later than the
+share expiry. Revocation cannot recall those URLs, active transfers, or saved
+copies. Share URLs are bearer credentials: anyone they are forwarded to can use
+them. Configure hosting/access logs to redact `/api/public/*` token paths.
+
+Public share pages use Vault's file icons, font/accent preferences, folder
+breadcrumbs and file rows. Recipients see the sharer's display name (email
+username when no name is set), creation time, original duration, remaining time
+at page load, and readable expiry dates labeled UTC. Full email addresses are
+not published. Existing links resolve the current owner profile automatically.
