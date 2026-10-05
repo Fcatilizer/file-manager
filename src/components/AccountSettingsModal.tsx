@@ -1,3 +1,4 @@
+import PasswordInput from './PasswordInput'
 import '../styles/account-settings.css'
 import PreferencesPanel from './settings/PreferencesPanel'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
@@ -99,9 +100,9 @@ export default function AccountSettingsModal({ user, preferences, onPreferencesC
           </form>}
           {section === 'password' && <form onSubmit={savePassword}>
             <h3>Change password</h3><p className="account-settings__hint">Confirm your current password to secure your account.</p>
-            <label className="auth__field"><span className="auth__label">Current password</span><input className="auth__input" type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} autoComplete="current-password" required disabled={busy} /></label>
-            <label className="auth__field"><span className="auth__label">New password</span><input className="auth__input" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} autoComplete="new-password" required minLength={8} disabled={busy} /></label>
-            <label className="auth__field"><span className="auth__label">Confirm new password</span><input className="auth__input" type="password" value={confirmation} onChange={(e) => setConfirmation(e.target.value)} autoComplete="new-password" required minLength={8} disabled={busy} /></label>
+            <label className="auth__field"><span className="auth__label">Current password</span><PasswordInput className="auth__input" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} autoComplete="current-password" required disabled={busy} /></label>
+            <label className="auth__field"><span className="auth__label">New password</span><PasswordInput className="auth__input" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} autoComplete="new-password" required minLength={8} disabled={busy} /></label>
+            <label className="auth__field"><span className="auth__label">Confirm new password</span><PasswordInput className="auth__input" value={confirmation} onChange={(e) => setConfirmation(e.target.value)} autoComplete="new-password" required minLength={8} disabled={busy} /></label>
             <div className="account-settings__actions"><button className="btn btn--primary" disabled={busy}>{busy ? 'Updating…' : 'Update password'}</button></div>
           </form>}
           {section === 'preferences' && <div>

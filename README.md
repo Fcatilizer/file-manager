@@ -24,7 +24,8 @@ npm run dev            # http://localhost:3000
 ## Bucket management
 
 Open the bucket dropdown in the header to switch buckets or refresh the list.
-Admins also get **Create bucket** and a trash button beside each bucket.
+Every member can create a password-protected **Only me** bucket. Admins can also
+create shared buckets. A trash button appears for buckets you can delete.
 Creation validates S3-compatible names. Deletion requires typing the exact name
 and succeeds only for an empty bucket; it never deletes files recursively. Older
 object versions and delete markers must also be removed using your storage tools.
@@ -34,11 +35,27 @@ to another available bucket; deleting the last one shows a create-bucket screen.
 The configured private/default buckets are selection preferences. Opening Vault
 no longer automatically creates or recreates the private bucket.
 
-These are shared vault buckets: all signed-in users retain file access to buckets
-available to the server credentials. The admin role controls bucket creation and
-deletion, not per-user file privacy. New buckets are not given a public-read policy.
-The server's storage credentials need bucket create/delete permissions in addition
-to the existing list/object permissions.
+Existing buckets remain shared. Private buckets are visible only to their owner,
+including when another member is an app admin. Each private bucket has a separate
+password (12 characters minimum, 72 UTF-8 bytes maximum), stored as a bcrypt hash.
+Unlocks last 15 minutes and are tied to the current login. **Lock now** and password
+changes revoke all unlocks for that bucket; logout removes this login's unlocks.
+Changing a bucket password requires its current password; there is no admin reset.
+Five password checks per bucket/owner are allowed per 15-minute window.
+
+Ownership and unlock checks cover every file API, previews, and URL generation.
+Private signed URLs last at most 60 seconds; already-issued URLs remain usable
+until they expire, and locking cannot recall downloaded files or an active transfer.
+This is application access control, not client-side encryption: operators with
+server/storage credentials can still access the data. RustFS buckets must remain
+non-public. Back up MongoDB with storage: it holds ownership and password hashes.
+The `vault-private-` storage-name prefix is reserved and fails closed if metadata
+is missing. The displayed name is independent of the generated storage name.
+An interrupted creation can be retried with the same name and password.
+
+New buckets are not given a public-read policy. Storage credentials need bucket
+create/delete permissions in addition to existing list/object permissions.
+MongoDB must allow creation of the ownership, grant, and rate-limit indexes.
 
 For direct browser uploads from Vercel, allow your deployed frontend origin in
 RustFS's `RUSTFS_CORS_ALLOWED_ORIGINS` and restart RustFS when changing that server

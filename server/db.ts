@@ -180,3 +180,8 @@ export async function updateUserProfile(id: string, updates: { name?: string; pr
   )
   return user ? toPublicUser(user) : null
 }
+
+export function getDatabase(): Db {
+  if (!db) throw new Error('Database not connected')
+  return db
+}

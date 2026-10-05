@@ -1,3 +1,4 @@
+import PasswordInput from './PasswordInput'
 import AppearanceControls from './AppearanceControls'
 import { useState, type FormEvent } from 'react'
 import { Icon } from './Icon'
@@ -70,9 +71,9 @@ export default function Setup({ theme, onToggleTheme, setupTokenRequired, onSucc
 
         <label className="auth__field">
           <span className="auth__label">Password</span>
-          <input
+          <PasswordInput
             className="auth__input"
-            type="password"
+
             value={password}
             autoComplete="new-password"
             required
@@ -84,9 +85,9 @@ export default function Setup({ theme, onToggleTheme, setupTokenRequired, onSucc
 
         <label className="auth__field">
           <span className="auth__label">Confirm password</span>
-          <input
+          <PasswordInput
             className="auth__input"
-            type="password"
+
             value={confirm}
             autoComplete="new-password"
             required
@@ -98,9 +99,9 @@ export default function Setup({ theme, onToggleTheme, setupTokenRequired, onSucc
         {setupTokenRequired && (
           <label className="auth__field">
             <span className="auth__label">Setup token</span>
-            <input
+            <PasswordInput
               className="auth__input"
-              type="password"
+
               value={token}
               required
               onChange={(e) => setToken(e.target.value)}

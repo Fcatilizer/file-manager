@@ -1,3 +1,5 @@
+import type { BucketDetails } from './bucketProtection'
+export type { BucketDetails } from './bucketProtection'
 import type { Preferences } from './preferences'
 export interface FileItem {
   key: string
@@ -9,6 +11,7 @@ export interface FileItem {
 
 export interface BucketsResponse {
   buckets: string[]
+  bucketDetails?: BucketDetails[]
   defaultBucket: string
   privateBucket: string
 }
@@ -31,6 +34,14 @@ export interface AuthStatus {
 
 /** Fired when any protected call comes back unauthorized (session expired / user removed). */
 export const UNAUTHORIZED_EVENT = 'vault:unauthorized'
+export const BUCKET_LOCKED_EVENT = 'vault:bucket-locked'
+export class ApiError extends Error {
+  status: number
+  constructor(message: string, status: number) { super(message); this.status = status }
+}
+export function notifyBucketLocked(bucket: string) {
+  window.dispatchEvent(new CustomEvent(BUCKET_LOCKED_EVENT, { detail: bucket }))
+}
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, { credentials: 'include', ...init })
@@ -40,7 +51,8 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
   }
 
   const data = await res.json().catch(() => ({}))
-  if (!res.ok) throw new Error(data.error || `Request failed: ${res.status}`)
+  if (res.status === 423 && data.bucket) notifyBucketLocked(data.bucket)
+  if (!res.ok) throw new ApiError(data.error || `Request failed: ${res.status}`, res.status)
   return data as T
 }
 
@@ -151,11 +163,27 @@ export async function fetchBuckets(): Promise<BucketsResponse> {
   return request('/api/buckets')
 }
 
-export async function createBucket(name: string): Promise<void> {
-  await request('/api/buckets', {
+export async function createBucket(name: string, isPrivate = false, password?: string): Promise<BucketDetails> {
+  const data = await request<{ details: BucketDetails }>('/api/buckets', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name }),
+    body: JSON.stringify({ name, private: isPrivate, password }),
+  })
+  return data.details
+}
+
+export async function unlockBucket(name: string, password: string): Promise<BucketDetails> {
+  const data = await request<{ details: BucketDetails }>(`/api/buckets/${encodeURIComponent(name)}/unlock`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password }),
+  })
+  return data.details
+}
+export async function lockBucket(name: string): Promise<void> {
+  await request(`/api/buckets/${encodeURIComponent(name)}/lock`, { method: 'POST' })
+}
+export async function changeBucketPassword(name: string, currentPassword: string, newPassword: string): Promise<void> {
+  await request(`/api/buckets/${encodeURIComponent(name)}/password`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ currentPassword, newPassword }),
   })
 }
 
@@ -192,6 +220,7 @@ export async function uploadFile(bucket: string, key: string, file: File): Promi
       console.warn('[vault] Direct S3 upload returned status:', directRes.status, '— falling back to proxy')
     }
   } catch (err) {
+    if (err instanceof ApiError && err.status < 500) throw err
     console.warn('[vault] Direct S3 upload negotiation failed, falling back to server proxy:', err)
   }
 
@@ -224,6 +253,7 @@ export function rawUrl(bucket: string, key: string, options?: { redirect?: boole
 export async function fetchTextContent(bucket: string, key: string): Promise<string> {
   const res = await fetch(rawUrl(bucket, key), { credentials: 'include' })
   if (res.status === 401) window.dispatchEvent(new Event(UNAUTHORIZED_EVENT))
+  if (res.status === 423) notifyBucketLocked(bucket)
   if (!res.ok) throw new Error(`Failed to load file: ${res.status}`)
   return res.text()
 }
@@ -231,6 +261,7 @@ export async function fetchTextContent(bucket: string, key: string): Promise<str
 export async function fetchFileBuffer(bucket: string, key: string): Promise<ArrayBuffer> {
   const res = await fetch(rawUrl(bucket, key), { credentials: 'include' })
   if (res.status === 401) window.dispatchEvent(new Event(UNAUTHORIZED_EVENT))
+  if (res.status === 423) notifyBucketLocked(bucket)
   if (!res.ok) throw new Error(`Failed to load file: ${res.status}`)
   return res.arrayBuffer()
 }

@@ -1,3 +1,4 @@
+import PasswordInput from './PasswordInput'
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { Icon } from './Icon'
 import Modal from './Modal'
@@ -115,9 +116,9 @@ export default function UsersModal({ currentUser, onClose, onToast }: Props) {
               required
               onChange={(e) => setEmail(e.target.value)}
             />
-            <input
+            <PasswordInput
               className="auth__input"
-              type="password"
+
               placeholder="Password (min 8)"
               value={password}
               required

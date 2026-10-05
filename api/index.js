@@ -183,6 +183,88 @@ async function updateUserProfile(id, updates) {
   );
   return user ? toPublicUser(user) : null;
 }
+function getDatabase() {
+  if (!db) throw new Error("Database not connected");
+  return db;
+}
+
+// server/auth.ts
+import { randomUUID, createHash } from "node:crypto";
+
+// server/bucket-store.ts
+var indexes;
+async function collections() {
+  const db2 = getDatabase();
+  const buckets = db2.collection("private_buckets");
+  const grants = db2.collection("bucket_grants");
+  const attempts = db2.collection("bucket_attempts");
+  indexes ??= Promise.all([
+    buckets.createIndex({ claim: 1 }, { unique: true, sparse: true }),
+    buckets.createIndex({ ownerId: 1, state: 1 }),
+    grants.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
+    grants.createIndex({ session: 1 }),
+    attempts.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 })
+  ]).catch((err) => {
+    indexes = void 0;
+    throw err;
+  });
+  await indexes;
+  return { buckets, grants, attempts };
+}
+async function upsert(operation) {
+  try {
+    await operation();
+  } catch (err) {
+    if (err?.code !== 11e3) throw err;
+    await operation();
+  }
+}
+var mongoBucketStore = {
+  async find(name) {
+    return (await collections()).buckets.findOne({ _id: name });
+  },
+  async findClaim(claim) {
+    return (await collections()).buckets.findOne({ claim });
+  },
+  async listOwned(ownerId) {
+    return (await collections()).buckets.find({ ownerId, state: "active" }).toArray();
+  },
+  async reserve(record) {
+    await (await collections()).buckets.insertOne(record);
+  },
+  async activate(name) {
+    await (await collections()).buckets.updateOne({ _id: name, state: "creating" }, { $set: { state: "active" } });
+  },
+  async revoke(name) {
+    await (await collections()).buckets.updateOne({ _id: name }, { $inc: { version: 1 } });
+  },
+  async changePassword(name, version, passwordHash) {
+    const result = await (await collections()).buckets.updateOne({ _id: name, version, state: "active" }, { $set: { passwordHash }, $inc: { version: 1 } });
+    return result.matchedCount === 1;
+  },
+  async markDeleted(name) {
+    await (await collections()).buckets.updateOne({ _id: name }, { $set: { state: "deleted" }, $unset: { claim: "" }, $inc: { version: 1 } });
+  },
+  async getGrant(id) {
+    return (await collections()).grants.findOne({ _id: id });
+  },
+  async putGrant(grant) {
+    const { grants } = await collections();
+    await upsert(() => grants.replaceOne({ _id: grant._id }, grant, { upsert: true }));
+  },
+  async deleteSession(session) {
+    await (await collections()).grants.deleteMany({ session });
+  },
+  async attempt(id, expiresAt) {
+    const { attempts } = await collections();
+    let count = 0;
+    await upsert(async () => {
+      const result = await attempts.findOneAndUpdate({ _id: id }, { $inc: { count: 1 }, $setOnInsert: { expiresAt } }, { upsert: true, returnDocument: "after" });
+      count = result.count;
+    });
+    return count;
+  }
+};
 
 // server/auth.ts
 import express from "express";
@@ -212,7 +294,7 @@ function cookieOptions() {
   };
 }
 function signToken(userId, email) {
-  const options = { expiresIn: getTtl() };
+  const options = { expiresIn: getTtl(), jwtid: randomUUID() };
   return jwt.sign({ sub: userId, email }, getSecret(), options);
 }
 function verifyToken(token) {
@@ -304,8 +386,13 @@ authRouter.post("/login", async (req, res) => {
   res.cookie(SESSION_COOKIE, token, cookieOptions());
   res.json({ user: toPublicUser(user) });
 });
-authRouter.post("/logout", (_req, res) => {
-  res.clearCookie(SESSION_COOKIE, { path: "/" });
+authRouter.post("/logout", async (req, res) => {
+  const session = req.cookies?.[SESSION_COOKIE];
+  try {
+    if (typeof session === "string") await mongoBucketStore.deleteSession(createHash("sha256").update(session).digest("hex"));
+  } finally {
+    res.clearCookie(SESSION_COOKIE, { path: "/" });
+  }
   res.json({ success: true });
 });
 authRouter.get("/me", async (req, res) => {
@@ -456,6 +543,134 @@ import {
   HeadBucketCommand
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import bcrypt4 from "bcryptjs";
+
+// server/bucket-protection.ts
+import { createHash as createHash2, randomUUID as randomUUID2 } from "node:crypto";
+import bcrypt3 from "bcryptjs";
+
+// src/lib/bucketProtection.ts
+var PRIVATE_BUCKET_PREFIX = "vault-private-";
+var BUCKET_UNLOCK_MS = 15 * 60 * 1e3;
+var PRIVATE_URL_SECONDS = 60;
+function validateBucketPassword(value) {
+  if (typeof value !== "string" || value.length < 12) return "Use at least 12 characters for the bucket password";
+  if (new TextEncoder().encode(value).length > 72) return "Bucket passwords must be at most 72 UTF-8 bytes";
+  return null;
+}
+
+// server/bucket-protection.ts
+var BucketAccessError = class extends Error {
+  status;
+  code;
+  bucket;
+  retryAfter;
+  constructor(status, message, code, bucket) {
+    super(message);
+    this.status = status;
+    this.code = code;
+    this.bucket = bucket;
+  }
+};
+function bucketSession(req) {
+  const cookie = req.cookies?.vault_session;
+  if (typeof cookie !== "string" || !cookie) throw new BucketAccessError(401, "Unauthorized");
+  return createHash2("sha256").update(cookie).digest("hex");
+}
+function bucketUser(req) {
+  const user = req.user;
+  if (!user) throw new BucketAccessError(401, "Unauthorized");
+  return user;
+}
+var BucketProtection = class {
+  store;
+  constructor(store = mongoBucketStore) {
+    this.store = store;
+  }
+  async owned(req, name) {
+    const bucket = await this.store.find(name);
+    if (!bucket || bucket.ownerId !== bucketUser(req).id || bucket.state !== "active") {
+      throw new BucketAccessError(404, "Bucket not found");
+    }
+    return bucket;
+  }
+  async grantExpiry(req, bucket) {
+    const grant = await this.store.getGrant(`${bucket._id}:${bucketSession(req)}`);
+    return grant && grant.version === bucket.version && grant.expiresAt.getTime() > Date.now() ? grant.expiresAt : null;
+  }
+  async authorize(req, name) {
+    bucketUser(req);
+    const bucket = await this.store.find(name);
+    if (!bucket && !name.startsWith(PRIVATE_BUCKET_PREFIX)) return null;
+    if (!bucket || bucket.state !== "active" || bucket.ownerId !== bucketUser(req).id) throw new BucketAccessError(404, "Bucket not found");
+    if (!await this.grantExpiry(req, bucket)) throw new BucketAccessError(423, "Unlock this bucket to continue", "BUCKET_LOCKED", name);
+    return bucket;
+  }
+  async describe(req, names) {
+    const owned = await this.store.listOwned(bucketUser(req).id);
+    const shared = names.filter((name) => !name.startsWith(PRIVATE_BUCKET_PREFIX));
+    const visible = [];
+    for (const name of shared) {
+      if (!await this.store.find(name)) visible.push({ name, label: name, isPrivate: false, locked: false });
+    }
+    for (const bucket of owned) {
+      if (!names.includes(bucket._id)) continue;
+      const expiry = await this.grantExpiry(req, bucket);
+      visible.push({ name: bucket._id, label: bucket.label, isPrivate: true, locked: !expiry, unlockedUntil: expiry?.toISOString() });
+    }
+    return visible;
+  }
+  async checkPassword(req, bucket, password) {
+    if (bucketUser(req).id !== bucket.ownerId) throw new BucketAccessError(404, "Bucket not found");
+    const window = Math.floor(Date.now() / BUCKET_UNLOCK_MS);
+    const end = (window + 1) * BUCKET_UNLOCK_MS;
+    const count = await this.store.attempt(`${bucket.ownerId}:${bucket._id}:${window}`, new Date(end));
+    if (count > 5) {
+      const error = new BucketAccessError(429, "Too many password attempts. Try again in a few minutes.");
+      error.retryAfter = Math.ceil((end - Date.now()) / 1e3);
+      throw error;
+    }
+    if (validateBucketPassword(password) || !await bcrypt3.compare(password, bucket.passwordHash)) {
+      throw new BucketAccessError(400, "Bucket password is incorrect");
+    }
+  }
+  async unlock(req, name, password) {
+    const bucket = await this.owned(req, name);
+    await this.checkPassword(req, bucket, password);
+    const session = bucketSession(req);
+    const expiresAt = new Date(Date.now() + BUCKET_UNLOCK_MS);
+    await this.store.putGrant({ _id: `${name}:${session}`, session, bucket: name, version: bucket.version, expiresAt });
+    return { name, label: bucket.label, isPrivate: true, locked: false, unlockedUntil: expiresAt.toISOString() };
+  }
+  async reserve(req, label, password) {
+    const error = validateBucketPassword(password);
+    if (error) throw new BucketAccessError(400, error);
+    const ownerId = bucketUser(req).id;
+    const claim = `${ownerId}:${label}`;
+    const existing = await this.store.findClaim(claim);
+    if (existing) {
+      if (existing.state !== "creating") throw new BucketAccessError(409, "You already have a private bucket with this name");
+      await this.checkPassword(req, existing, password);
+      return existing;
+    }
+    const bucket = {
+      _id: `${PRIVATE_BUCKET_PREFIX}${randomUUID2()}`,
+      ownerId,
+      label,
+      claim,
+      passwordHash: await bcrypt3.hash(password, 12),
+      version: 1,
+      state: "creating"
+    };
+    try {
+      await this.store.reserve(bucket);
+    } catch (err) {
+      if (err?.code === 11e3) throw new BucketAccessError(409, "Bucket creation is already in progress. Retry with the same name and password.");
+      throw err;
+    }
+    return bucket;
+  }
+};
 
 // src/lib/buckets.ts
 function validateBucketName(name) {
@@ -495,7 +710,7 @@ function bucketError(res, err) {
 var wrap = (fn) => (req, res, next) => {
   Promise.resolve(fn(req, res)).catch(next);
 };
-function createS3Router() {
+function createS3Router(protection = new BucketProtection()) {
   const s3 = new S3Client({
     endpoint: process.env.MINIO_ENDPOINT || "http://localhost:9000",
     region: process.env.MINIO_REGION || "us-east-1",
@@ -510,46 +725,110 @@ function createS3Router() {
   console.log(`[vault] S3 endpoint: ${process.env.MINIO_ENDPOINT || "http://localhost:9000"}`);
   console.log(`[vault] default bucket: ${defaultBucket} | private bucket: ${privateBucket}`);
   const router = express3.Router();
-  router.get("/health", (_req, res) => {
-    res.json({ status: "ok", defaultBucket, privateBucket });
+  router.use((_req, res, next) => {
+    res.setHeader("Cache-Control", "no-store");
+    next();
   });
-  router.get("/buckets", wrap(async (_req, res) => {
+  router.get("/health", (_req, res) => {
+    res.json({ status: "ok" });
+  });
+  router.get("/buckets", wrap(async (req, res) => {
     const result = await s3.send(new ListBucketsCommand({}));
+    const bucketDetails = await protection.describe(req, result.Buckets?.map((b) => b.Name).filter((n) => !!n) || []);
+    const buckets = bucketDetails.map((bucket) => bucket.name);
     res.json({
-      buckets: result.Buckets?.map((b) => b.Name).filter((n) => !!n) || [],
-      defaultBucket,
-      privateBucket
+      buckets,
+      bucketDetails,
+      defaultBucket: buckets.includes(defaultBucket) ? defaultBucket : "",
+      privateBucket: buckets.includes(privateBucket) ? privateBucket : ""
     });
   }));
-  router.post("/buckets", requireAdmin, express3.json(), wrap(async (req, res) => {
+  router.post("/buckets", express3.json(), wrap(async (req, res) => {
+    const isPrivate = req.body?.private === true;
+    if (!isPrivate && bucketUser(req).role !== "admin") throw new BucketAccessError(403, "Admin access required");
     const name = req.body?.name;
     const error = validateBucketName(name);
-    if (error) {
-      res.status(400).json({ error });
+    if (error) throw new BucketAccessError(400, error);
+    if (name.startsWith(PRIVATE_BUCKET_PREFIX)) throw new BucketAccessError(400, "This prefix is reserved for private bucket storage");
+    if (isPrivate) {
+      const record = await protection.reserve(req, name, req.body?.password);
+      try {
+        await s3.send(new HeadBucketCommand({ Bucket: record._id }));
+      } catch (err) {
+        const failure = err;
+        if (failure.name !== "NotFound" && failure.name !== "NoSuchBucket" && failure.$metadata?.httpStatusCode !== 404) throw err;
+        await s3.send(new CreateBucketCommand({ Bucket: record._id }));
+      }
+      await protection.store.activate(record._id);
+      const details = await protection.unlock(req, record._id, req.body?.password);
+      res.status(201).json({ success: true, bucket: record._id, details });
       return;
     }
+    if (await protection.store.find(name)) throw new BucketAccessError(409, "Bucket name unavailable");
     try {
       await s3.send(new CreateBucketCommand({ Bucket: name }));
-      res.status(201).json({ success: true, bucket: name });
+      res.status(201).json({ success: true, bucket: name, details: { name, label: name, isPrivate: false, locked: false } });
     } catch (err) {
       bucketError(res, err);
     }
   }));
-  router.delete("/buckets/:name", requireAdmin, express3.json(), wrap(async (req, res) => {
+  router.post("/buckets/:name/unlock", express3.json(), wrap(async (req, res) => {
+    res.json({ details: await protection.unlock(req, String(req.params.name), req.body?.password) });
+  }));
+  router.post("/buckets/:name/lock", wrap(async (req, res) => {
+    const bucket = await protection.owned(req, String(req.params.name));
+    await protection.store.revoke(bucket._id);
+    res.json({ details: { name: bucket._id, label: bucket.label, isPrivate: true, locked: true } });
+  }));
+  router.patch("/buckets/:name/password", express3.json(), wrap(async (req, res) => {
+    const bucket = await protection.owned(req, String(req.params.name));
+    const error = validateBucketPassword(req.body?.newPassword);
+    if (error) throw new BucketAccessError(400, error);
+    await protection.checkPassword(req, bucket, req.body?.currentPassword);
+    const changed = await protection.store.changePassword(bucket._id, bucket.version, await bcrypt4.hash(req.body.newPassword, 12));
+    if (!changed) throw new BucketAccessError(409, "Bucket changed. Please try again.");
+    res.json({ details: { name: bucket._id, label: bucket.label, isPrivate: true, locked: true } });
+  }));
+  router.delete("/buckets/:name", express3.json(), wrap(async (req, res) => {
     const name = String(req.params.name);
-    if (!name || req.body?.confirmName !== name) {
-      res.status(400).json({ error: "Type the exact bucket name to confirm deletion" });
-      return;
-    }
+    const bucket = await protection.authorize(req, name);
+    if (!bucket && bucketUser(req).role !== "admin") throw new BucketAccessError(403, "Admin access required");
+    if (req.body?.confirmName !== (bucket?.label || name)) throw new BucketAccessError(400, "Type the exact bucket name to confirm deletion");
     try {
       await s3.send(new DeleteBucketCommand({ Bucket: name }));
-      res.json({ success: true });
     } catch (err) {
-      bucketError(res, err);
+      if (!bucket || err.name !== "NoSuchBucket") {
+        bucketError(res, err);
+        return;
+      }
     }
+    if (bucket) await protection.store.markDeleted(name);
+    res.json({ success: true });
   }));
+  router.use("/folders", express3.json());
+  const filePaths = /* @__PURE__ */ new Set(["/files", "/upload-url", "/upload", "/download", "/raw", "/folders"]);
+  router.use((req, res, next) => {
+    const routePath = req.path.toLowerCase().replace(/\/+$/, "");
+    if (!filePaths.has(routePath)) {
+      next();
+      return;
+    }
+    void (async () => {
+      const requested = routePath === "/folders" ? req.body?.bucket : req.query.bucket;
+      if (requested !== void 0 && (typeof requested !== "string" || !requested)) throw new BucketAccessError(400, "A valid bucket name is required");
+      const bucket = requested ?? privateBucket;
+      const metadata = await protection.authorize(req, bucket);
+      res.locals.bucket = bucket;
+      res.locals.privateBucket = !!metadata;
+      res.locals.urlTtl = metadata ? Math.max(1, Math.min(
+        PRIVATE_URL_SECONDS,
+        Math.floor(((await protection.grantExpiry(req, metadata))?.getTime() || 0) / 1e3 - Date.now() / 1e3)
+      )) : 900;
+      next();
+    })().catch(next);
+  });
   router.get("/files", wrap(async (req, res) => {
-    const bucket = req.query.bucket || privateBucket;
+    const bucket = res.locals.bucket;
     const prefix = req.query.prefix || "";
     const result = await s3.send(
       new ListObjectsV2Command({ Bucket: bucket, Prefix: prefix, Delimiter: "/" })
@@ -600,7 +879,7 @@ function createS3Router() {
     res.json({ items: [...folders, ...files], prefix });
   }));
   router.get("/upload-url", wrap(async (req, res) => {
-    const bucket = req.query.bucket || privateBucket;
+    const bucket = res.locals.bucket;
     const key = req.query.key || "";
     const contentType = req.query.contentType || "application/octet-stream";
     if (!key) {
@@ -614,7 +893,7 @@ function createS3Router() {
         Key: key,
         ContentType: contentType
       }),
-      { expiresIn: 900 }
+      { expiresIn: res.locals.urlTtl }
     );
     res.json({ uploadUrl, bucket, key });
   }));
@@ -622,7 +901,7 @@ function createS3Router() {
     "/upload",
     express3.raw({ type: "*/*", limit: "5gb" }),
     wrap(async (req, res) => {
-      const bucket = req.query.bucket || privateBucket;
+      const bucket = res.locals.bucket;
       const key = req.query.key || "";
       const contentType = req.headers["content-type"] || "application/octet-stream";
       const body = req.body;
@@ -633,7 +912,7 @@ function createS3Router() {
     })
   );
   router.delete("/files", wrap(async (req, res) => {
-    const bucket = req.query.bucket || privateBucket;
+    const bucket = res.locals.bucket;
     const key = req.query.key || "";
     if (key.endsWith("/")) {
       const list = await s3.send(new ListObjectsV2Command({ Bucket: bucket, Prefix: key }));
@@ -651,17 +930,17 @@ function createS3Router() {
     res.json({ success: true });
   }));
   router.get("/download", wrap(async (req, res) => {
-    const bucket = req.query.bucket || privateBucket;
+    const bucket = res.locals.bucket;
     const key = req.query.key || "";
     const signedUrl = await getSignedUrl(
       s3,
       new GetObjectCommand({ Bucket: bucket, Key: key }),
-      { expiresIn: 3600 }
+      { expiresIn: res.locals.urlTtl }
     );
     res.json({ url: signedUrl });
   }));
   router.get("/raw", wrap(async (req, res) => {
-    const bucket = req.query.bucket || privateBucket;
+    const bucket = res.locals.bucket;
     const key = req.query.key || "";
     const redirect = req.query.redirect === "true";
     const isMedia = /\.(mp4|webm|mov|mkv|mp3|wav|ogg|m4a|flac|aac)$/i.test(key);
@@ -670,7 +949,7 @@ function createS3Router() {
       const signedUrl = await getSignedUrl(
         s3,
         new GetObjectCommand({ Bucket: bucket, Key: key }),
-        { expiresIn: 3600 }
+        { expiresIn: res.locals.urlTtl }
       );
       res.redirect(307, signedUrl);
       return;
@@ -689,8 +968,13 @@ function createS3Router() {
       "Content-Type": object.ContentType || "application/octet-stream",
       "Accept-Ranges": "bytes",
       "Content-Disposition": `inline; filename="${encodeURIComponent(filename)}"`,
-      "Cache-Control": "private, max-age=3600"
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
     };
+    if (!/^(image\/(?!svg\+xml)|audio\/|video\/|application\/pdf(?:;|$)|text\/plain(?:;|$))/i.test(headers["Content-Type"])) {
+      headers["Content-Disposition"] = `attachment; filename="${encodeURIComponent(filename)}"`;
+      headers["Content-Security-Policy"] = "sandbox; default-src 'none'";
+    }
     if (object.ContentLength !== void 0) headers["Content-Length"] = String(object.ContentLength);
     if (isPartial) headers["Content-Range"] = object.ContentRange;
     res.writeHead(isPartial ? 206 : 200, headers);
@@ -706,7 +990,7 @@ function createS3Router() {
     body.pipe(res);
   }));
   router.post("/folders", express3.json(), wrap(async (req, res) => {
-    const bucket = req.body?.bucket || privateBucket;
+    const bucket = res.locals.bucket;
     const path = req.body?.path || "";
     const folderPath = path.endsWith("/") ? path : path + "/";
     await s3.send(
@@ -714,7 +998,8 @@ function createS3Router() {
     );
     res.json({ success: true });
   }));
-  router.post("/ensure-bucket", requireAdmin, wrap(async (_req, res) => {
+  router.post("/ensure-bucket", requireAdmin, wrap(async (req, res) => {
+    await protection.authorize(req, privateBucket);
     try {
       await s3.send(new HeadBucketCommand({ Bucket: privateBucket }));
     } catch (err) {
@@ -725,6 +1010,14 @@ function createS3Router() {
     }
     res.json({ success: true, bucket: privateBucket });
   }));
+  router.use((err, _req, res, next) => {
+    if (!(err instanceof BucketAccessError)) {
+      next(err);
+      return;
+    }
+    if (err.retryAfter) res.setHeader("Retry-After", err.retryAfter);
+    res.status(err.status).json({ error: err.message, code: err.code, bucket: err.bucket });
+  });
   return router;
 }
 

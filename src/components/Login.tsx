@@ -1,3 +1,4 @@
+import PasswordInput from './PasswordInput'
 import AppearanceControls from './AppearanceControls'
 import { useState, type FormEvent } from 'react'
 import { Icon } from './Icon'
@@ -57,9 +58,9 @@ export default function Login({ theme, onToggleTheme, onSuccess }: Props) {
 
         <label className="auth__field">
           <span className="auth__label">Password</span>
-          <input
+          <PasswordInput
             className="auth__input"
-            type="password"
+
             value={password}
             autoComplete="current-password"
             required
@@ -75,7 +76,7 @@ export default function Login({ theme, onToggleTheme, onSuccess }: Props) {
         )}
 
         <button className="btn btn--primary auth__submit" type="submit" disabled={submitting}>
-          {submitting ? <span className="spinner spinner--sm" /> : <Icon name="eye" size={14} />}
+          {submitting && <span className="spinner spinner--sm" />}
           {submitting ? 'Signing in…' : 'Sign in'}
         </button>
       </form>

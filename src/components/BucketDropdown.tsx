@@ -1,8 +1,10 @@
+import type { BucketDetails } from '../lib/bucketProtection'
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
 import { Icon } from './Icon'
 
 type Props = {
   buckets: string[]
+  details: Record<string, BucketDetails>
   activeBucket: string
   canManage: boolean
   disabled: boolean
@@ -12,7 +14,7 @@ type Props = {
   onRefresh: () => void
 }
 
-export default function BucketDropdown({ buckets, activeBucket, canManage, disabled, onSelect, onCreate, onDelete, onRefresh }: Props) {
+export default function BucketDropdown({ buckets, details, activeBucket, canManage, disabled, onSelect, onCreate, onDelete, onRefresh }: Props) {
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
@@ -60,7 +62,7 @@ export default function BucketDropdown({ buckets, activeBucket, canManage, disab
         className="bucket-select"
         ref={triggerRef}
         disabled={disabled}
-        aria-label={`Buckets: ${activeBucket || 'No bucket selected'}`}
+        aria-label={`Buckets: ${details[activeBucket]?.label || activeBucket || 'No bucket selected'}`}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
@@ -71,9 +73,9 @@ export default function BucketDropdown({ buckets, activeBucket, canManage, disab
             setOpen(true)
           }
         }}
-        title={activeBucket || 'Select or create a bucket'}
+        title={details[activeBucket]?.label || activeBucket || 'Select or create a bucket'}
       >
-        <span className="bucket-select__name">{activeBucket || 'Select bucket'}</span>
+        <span className="bucket-select__name">{details[activeBucket]?.label || activeBucket || 'Select bucket'}</span>
         <Icon name="chevronDown" size={13} />
       </button>
       {open && (
@@ -84,13 +86,13 @@ export default function BucketDropdown({ buckets, activeBucket, canManage, disab
             {buckets.map((name) => (
               <div key={name} className={`bucket-menu__row${name === activeBucket ? ' bucket-menu__row--active' : ''}`} role="presentation">
                 <button type="button" className="bucket-menu__select" role="menuitemradio" aria-checked={name === activeBucket}
-                  onClick={() => { close(); onSelect(name) }} title={name}>
-                  <Icon name="database" size={15} />
-                  <span>{name}</span>
+                  onClick={() => { close(); onSelect(name) }} title={details[name]?.label || name}>
+                  <Icon name={details[name]?.isPrivate ? 'lock' : 'database'} size={15} />
+                  <span>{details[name]?.label || name}{details[name]?.isPrivate && <small className="bucket-menu__private"> · Only me{details[name].locked ? ' · Locked' : ''}</small>}</span>
                   {name === activeBucket && <Icon name="check" size={14} />}
                 </button>
-                {canManage && (
-                  <button type="button" className="bucket-menu__delete" role="menuitem" aria-label={`Delete bucket ${name}`} title={`Delete ${name}`}
+                {(canManage || details[name]?.isPrivate) && (
+                  <button type="button" className="bucket-menu__delete" role="menuitem" aria-label={`Delete bucket ${details[name]?.label || name}`} title={`Delete ${details[name]?.label || name}`}
                     onClick={() => { close(); onDelete(name) }}>
                     <Icon name="trash" size={14} />
                   </button>
@@ -99,11 +101,9 @@ export default function BucketDropdown({ buckets, activeBucket, canManage, disab
             ))}
           </div>
           <div className="bucket-menu__footer" role="presentation">
-            {canManage && (
-              <button type="button" className="bucket-menu__action bucket-menu__action--create" role="menuitem" onClick={() => { close(); onCreate() }}>
+            <button type="button" className="bucket-menu__action bucket-menu__action--create" role="menuitem" onClick={() => { close(); onCreate() }}>
                 <Icon name="plus" size={15} /> Create bucket
               </button>
-            )}
             <button type="button" className="bucket-menu__action" role="menuitem" onClick={() => { close(); onRefresh() }}>
               <Icon name="refresh" size={14} /> Refresh buckets
             </button>

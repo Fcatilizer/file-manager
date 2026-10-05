@@ -1,3 +1,5 @@
+import CreateBucketDialog from './buckets/CreateBucketDialog'
+import BucketPasswordDialog from './buckets/BucketPasswordDialog'
 import AppearanceControls from './AppearanceControls'
 import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef, Fragment, type DragEvent } from 'react'
 import {
@@ -8,6 +10,11 @@ import {
   downloadFile,
   createFolder,
   createBucket,
+  unlockBucket,
+  lockBucket,
+  changeBucketPassword,
+  BUCKET_LOCKED_EVENT,
+  type BucketDetails,
   deleteBucket,
   type FileItem,
   type SessionUser,
@@ -15,7 +22,7 @@ import {
 import { getFileTypeInfo, getCategoryInfo, CATEGORY_ORDER, type FileCategory } from '../lib/fileIcons'
 import { Icon } from './Icon'
 import BucketDropdown from './BucketDropdown'
-import { chooseBucket, validateBucketName } from '../lib/buckets'
+import { chooseBucket } from '../lib/buckets'
 import PreviewModal from './PreviewModal'
 import UsersModal from './UsersModal'
 import AccountSettingsModal from './AccountSettingsModal'
@@ -63,6 +70,8 @@ type Props = {
 
 export default function FileManager({ user, theme, onToggleTheme, preferences, onPreferencesChange, onUserUpdated, onLogout }: Props) {
   const [buckets, setBuckets] = useState<string[]>([])
+  const [bucketDetails, setBucketDetails] = useState<Record<string, BucketDetails>>({})
+  const [passwordDialog, setPasswordDialog] = useState<{ name: string; mode: 'unlock' | 'change' } | null>(null)
   const [activeBucket, setActiveBucket] = useState('')
   const [bucketsLoading, setBucketsLoading] = useState(true)
   const [bucketError, setBucketError] = useState('')
@@ -85,6 +94,43 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
   const [activeCategory, setActiveCategory] = useState<FileCategory | null>(null)
   const [showNewFolder, setShowNewFolder] = useState(false)
   const [pendingDelete, setPendingDelete] = useState<{ key: string; name: string } | null>(null)
+
+  const activeDetails = bucketDetails[activeBucket]
+  const activeLocked = !!activeDetails?.isPrivate && (activeDetails.locked || !activeDetails.unlockedUntil)
+  const markBucketLocked = useCallback((name: string) => {
+    setBucketDetails((current) => current[name] ? { ...current, [name]: { ...current[name], locked: true, unlockedUntil: undefined } } : current)
+    if (name === activeBucket) {
+      fileRequest.current = null
+      setFiles([])
+      setPreviewIndex(null)
+      setPendingDelete(null)
+      setShowNewFolder(false)
+      setLoading(false)
+    }
+  }, [activeBucket])
+
+  useEffect(() => {
+    const onLocked = (event: Event) => markBucketLocked((event as CustomEvent<string>).detail)
+    window.addEventListener(BUCKET_LOCKED_EVENT, onLocked)
+    const channel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('vault:bucket-locks') : null
+    if (channel) channel.onmessage = (event) => { if (typeof event.data === 'string') markBucketLocked(event.data) }
+    return () => { window.removeEventListener(BUCKET_LOCKED_EVENT, onLocked); channel?.close() }
+  }, [markBucketLocked])
+
+  useEffect(() => {
+    if (!activeDetails?.unlockedUntil || activeDetails.locked) return
+    const timer = setTimeout(() => markBucketLocked(activeBucket), Math.max(0, Date.parse(activeDetails.unlockedUntil) - Date.now()))
+    return () => clearTimeout(timer)
+  }, [activeDetails, activeBucket, markBucketLocked])
+
+  const announceLock = (name: string) => {
+    markBucketLocked(name)
+    if (typeof BroadcastChannel !== 'undefined') {
+      const channel = new BroadcastChannel('vault:bucket-locks')
+      channel.postMessage(name)
+      channel.close()
+    }
+  }
 
   // ─── Toast ──────────────────────────────────────────────
 
@@ -118,6 +164,7 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
       if (requestId !== bucketRequest.current) return
       preferredBuckets.current = data
       setBuckets(data.buckets)
+      setBucketDetails(Object.fromEntries((data.bucketDetails || data.buckets.map((name) => ({ name, label: name, isPrivate: false, locked: false }))).map((bucket) => [bucket.name, bucket])))
       setActiveBucket((current) => chooseBucket(data.buckets, current, data.privateBucket, data.defaultBucket))
     } catch (err) {
       if (requestId !== bucketRequest.current) return
@@ -136,14 +183,43 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
     return () => { bucketRequest.current = null }
   }, [refreshBuckets])
 
-  const createNewBucket = async (name: string) => {
-    await createBucket(name)
-    setBuckets((current) => [...new Set([...current, name])].sort())
+  const createNewBucket = async (name: string, isPrivate: boolean, password?: string) => {
+    const details = await createBucket(name, isPrivate, password)
+    setBuckets((current) => [...new Set([...current, details.name])].sort())
+    setBucketDetails((current) => ({ ...current, [details.name]: details }))
     setBucketError('')
-    selectBucket(name)
+    selectBucket(details.name)
     setShowNewBucket(false)
-    showToast(`Created bucket “${name}”`)
+    showToast(`Created bucket “${details.label}”`)
   }
+
+  const submitBucketPassword = async (password: string, newPassword: string) => {
+    if (!passwordDialog) return
+    if (passwordDialog.mode === 'unlock') {
+      const details = await unlockBucket(passwordDialog.name, password)
+      setBucketDetails((current) => ({ ...current, [details.name]: details }))
+    } else {
+      await changeBucketPassword(passwordDialog.name, password, newPassword)
+      announceLock(passwordDialog.name)
+      showToast('Password changed. Unlock with your new bucket password.')
+    }
+    setPasswordDialog(null)
+  }
+
+  const lockActiveBucket = async () => {
+    markBucketLocked(activeBucket)
+    try {
+      await lockBucket(activeBucket)
+      announceLock(activeBucket)
+    } catch (err) { showToast(err instanceof Error ? err.message : 'Could not lock bucket', 'error') }
+  }
+
+  // Recheck ownership/unlock status when returning to a tab or device.
+  useEffect(() => {
+    const onFocus = () => { if (activeDetails?.isPrivate) void refreshBuckets() }
+    window.addEventListener('focus', onFocus)
+    return () => window.removeEventListener('focus', onFocus)
+  }, [activeDetails?.isPrivate, refreshBuckets])
 
   const confirmBucketDelete = async (confirmation: string) => {
     if (!pendingBucketDelete) return
@@ -154,8 +230,9 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
       const { privateBucket, defaultBucket } = preferredBuckets.current
       selectBucket(chooseBucket(remaining, '', privateBucket, defaultBucket))
     }
+    announceLock(pendingBucketDelete)
     setPendingBucketDelete(null)
-    showToast(`Deleted bucket “${pendingBucketDelete}”`)
+    showToast(`Deleted bucket “${bucketDetails[pendingBucketDelete]?.label || pendingBucketDelete}”`)
   }
 
   // ─── Load files ─────────────────────────────────────────
@@ -170,7 +247,7 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
     if (!isCurrentLocation()) return
     const requestId = Symbol()
     fileRequest.current = requestId
-    if (!activeBucket) {
+    if (!activeBucket || activeLocked) {
       setFiles([])
       setLoading(false)
       return
@@ -187,7 +264,7 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
     } finally {
       if (requestId === fileRequest.current && isCurrentLocation()) setLoading(false)
     }
-  }, [activeBucket, prefix, showToast])
+  }, [activeBucket, activeLocked, prefix, showToast])
 
   useEffect(() => {
     setFiles([])
@@ -204,7 +281,7 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
 
   const handleUpload = useCallback(
     async (fileList: FileList) => {
-      if (!fileList.length || !activeBucket || uploading) return
+      if (!fileList.length || !activeBucket || activeLocked || uploading) return
       setUploading(true)
       setUploadProgress({ done: 0, total: fileList.length })
 
@@ -225,7 +302,7 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
         loadFiles()
       }
     },
-    [activeBucket, prefix, uploading, showToast, loadFiles],
+    [activeBucket, activeLocked, prefix, uploading, showToast, loadFiles],
   )
 
   // ─── Delete ─────────────────────────────────────────────
@@ -370,7 +447,7 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
 
   const onDragEnter = (e: DragEvent) => {
     e.preventDefault()
-    if (activeBucket && !uploading) setDragActive(true)
+    if (activeBucket && !activeLocked && !uploading) setDragActive(true)
   }
 
   const onDragOver = (e: DragEvent) => e.preventDefault()
@@ -398,12 +475,19 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
         <div className="header__controls">
           <BucketDropdown
             buckets={buckets}
+            details={bucketDetails}
             activeBucket={activeBucket}
             canManage={user.role === 'admin'}
             disabled={bucketsLoading || uploading}
             onSelect={selectBucket}
             onCreate={() => setShowNewBucket(true)}
-            onDelete={setPendingBucketDelete}
+            onDelete={(name) => {
+              const details = bucketDetails[name]
+              if (details?.isPrivate && (details.locked || !details.unlockedUntil || Date.parse(details.unlockedUntil) <= Date.now())) {
+                selectBucket(name)
+                setPasswordDialog({ name, mode: 'unlock' })
+              } else setPendingBucketDelete(name)
+            }}
             onRefresh={() => void refreshBuckets()}
           />
           <AppearanceControls theme={theme} onToggleTheme={onToggleTheme} />
@@ -429,6 +513,14 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
         </div>
       </header>
 
+      {activeDetails?.isPrivate && (
+        <div className="bucket-protection">
+          <span className="bucket-protection__label"><Icon name="lock" size={13} />Only me · {activeLocked ? 'Locked' : 'Unlocked for this login'}</span>
+          {!activeLocked && <button className="btn btn--ghost btn--sm" onClick={() => void lockActiveBucket()}>Lock now</button>}
+          <button className="btn btn--ghost btn--sm" onClick={() => setPasswordDialog({ name: activeBucket, mode: 'change' })}>Bucket password</button>
+        </div>
+      )}
+
       {/* Toolbar */}
       <div className="toolbar">
         <nav className="breadcrumbs">
@@ -446,14 +538,14 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
           ))}
         </nav>
         <div className="toolbar__actions">
-          <button className="btn btn--ghost" disabled={!activeBucket} onClick={() => setShowNewFolder(true)}>
+          <button className="btn btn--ghost" disabled={!activeBucket || activeLocked} onClick={() => setShowNewFolder(true)}>
             <Icon name="folderPlus" size={14} /> New Folder
           </button>
-          <label className={`btn btn--primary${!activeBucket || uploading ? ' btn--disabled' : ''}`}>
+          <label className={`btn btn--primary${!activeBucket || activeLocked || uploading ? ' btn--disabled' : ''}`}>
             <Icon name="upload" size={14} /> Upload
             <input
               type="file"
-              disabled={!activeBucket || uploading}
+              disabled={!activeBucket || activeLocked || uploading}
               multiple
               className="upload-input"
               onChange={(e) => {
@@ -466,7 +558,7 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
       </div>
 
       {/* Search & Filter */}
-      {files.length > 0 && (
+      {!activeLocked && files.length > 0 && (
         <div className="search-filter">
           <div className="search-box">
             <Icon name="search" size={15} />
@@ -521,7 +613,14 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
 
       {/* File List */}
       <div className="file-list">
-        {bucketsLoading || loading ? (
+        {activeLocked ? (
+          <div className="empty">
+            <div className="empty__icon"><Icon name="lock" size={36} /></div>
+            <div className="empty__title">Private bucket locked</div>
+            <div className="empty__subtitle">Enter your bucket password to access {activeDetails.label}.</div>
+            <button className="btn btn--primary empty__action" onClick={() => setPasswordDialog({ name: activeBucket, mode: 'unlock' })}>Unlock bucket</button>
+          </div>
+        ) : bucketsLoading || loading ? (
           <div className="loading">
             <div className="spinner" />
             Loading…
@@ -530,10 +629,10 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
           <div className="empty">
             <div className="empty__icon"><Icon name="database" size={36} /></div>
             <div className="empty__title">{bucketError ? 'Storage unavailable' : 'No buckets yet'}</div>
-            <div className="empty__subtitle">{bucketError || (user.role === 'admin' ? 'Create a bucket to start storing your files.' : 'Ask an admin to create a bucket to get started.')}</div>
+            <div className="empty__subtitle">{bucketError || 'Create a private bucket to start storing your files.'}</div>
             {bucketError ? (
               <button className="btn btn--ghost empty__action" onClick={() => void refreshBuckets()}>Retry connection</button>
-            ) : user.role === 'admin' && (
+            ) : (
               <button className="btn btn--primary empty__action" onClick={() => setShowNewBucket(true)}><Icon name="plus" size={14} /> Create bucket</button>
             )}
           </div>
@@ -643,7 +742,7 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
       {toast && <div className={`toast toast--${toast.type}`}>{toast.message}</div>}
 
       {/* Preview Modal */}
-      {activePreview && (
+      {!activeLocked && activePreview && (
         <PreviewModal
           key={activePreview.key}
           file={activePreview}
@@ -658,30 +757,24 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
         />
       )}
 
-      {showNewBucket && (
-        <TextInputDialog
-          title="Create bucket"
-          label="Bucket name"
-          placeholder="family-photos"
-          description="Use 3–63 lowercase letters, numbers, dots or hyphens. This bucket will be available to everyone in this vault."
-          confirmLabel="Create bucket"
-          icon="plus"
-          validate={(name) => validateBucketName(name) || (buckets.includes(name) ? 'A bucket with this name already exists' : null)}
-          onConfirm={createNewBucket}
-          onClose={() => setShowNewBucket(false)}
-        />
-      )}
+      {showNewBucket && <CreateBucketDialog canCreateShared={user.role === 'admin'} onCreate={createNewBucket} onClose={() => setShowNewBucket(false)} />}
+      {passwordDialog && <BucketPasswordDialog
+        mode={passwordDialog.mode}
+        label={bucketDetails[passwordDialog.name]?.label || passwordDialog.name}
+        onSubmit={submitBucketPassword}
+        onClose={() => setPasswordDialog(null)}
+      />}
 
       {pendingBucketDelete !== null && (
         <TextInputDialog
           title="Delete bucket"
-          description={`Delete “${pendingBucketDelete}”? Only an empty bucket can be deleted. Files, folders and any older versions must be removed first. This cannot be undone.`}
+          description={`Delete “${bucketDetails[pendingBucketDelete]?.label || pendingBucketDelete}”? Only an empty bucket can be deleted. Files, folders and any older versions must be removed first. This cannot be undone.`}
           label="Type the bucket name to confirm"
-          placeholder={pendingBucketDelete}
+          placeholder={bucketDetails[pendingBucketDelete]?.label || pendingBucketDelete}
           confirmLabel="Delete bucket"
           icon="trash"
           danger
-          validate={(name) => name === pendingBucketDelete ? null : 'Enter the exact bucket name to confirm'}
+          validate={(name) => name === (bucketDetails[pendingBucketDelete]?.label || pendingBucketDelete) ? null : 'Enter the exact bucket name to confirm'}
           onConfirm={confirmBucketDelete}
           onClose={() => setPendingBucketDelete(null)}
         />

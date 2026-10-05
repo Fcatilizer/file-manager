@@ -1,3 +1,5 @@
+import { BucketProtection } from '../server/bucket-protection.ts'
+import { MemoryBucketStore } from './helpers/bucket-store.ts'
 import assert from 'node:assert/strict'
 import { after, beforeEach, mock, test } from 'node:test'
 import { once } from 'node:events'
@@ -28,7 +30,7 @@ app.use((req: AuthedRequest, res, next) => {
     void requireAuth(req, res, next)
   }
 })
-app.use('/api', createS3Router())
+app.use('/api', createS3Router(new BucketProtection(new MemoryBucketStore())))
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   res.status(500).json({ error: err.message })
 })

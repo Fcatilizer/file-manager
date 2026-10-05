@@ -20,7 +20,17 @@ creation and offers admins a create action. Opening the app no longer recreates
 Stale file-list responses are ignored after navigation. No runtime dependency was
 added, and the Vercel function bundle was rebuilt.
 
-## Existing findings to address separately
+## Follow-up — 5 October 2026
+
+Owner-only password-protected buckets now enforce ownership and expiring login
+grants on all object routes. Shared bucket behavior remains unchanged. Active
+HTML/SVG raw responses now use attachment disposition, sandbox CSP and nosniff.
+The first two original findings below are addressed for the application; storage
+policy and operator access still require the deployment controls in README.
+Private-bucket API tests cover owners, other users, admins, expiry, revocation,
+password changes, rate limits, safe creation retries and empty-only deletion.
+
+## Original findings (1–2 addressed by the follow-up)
 
 1. **Bucket separation does not provide member privacy.** `server/app.ts` mounts
    the file API behind login only. `server/s3.ts` lists buckets using the shared

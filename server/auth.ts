@@ -1,3 +1,5 @@
+import { randomUUID, createHash } from 'node:crypto'
+import { mongoBucketStore } from './bucket-store.ts'
 import { isPreferences } from '../src/lib/preferences.ts'
 import express from 'express'
 import type { Request, Response, NextFunction } from 'express'
@@ -54,7 +56,7 @@ function cookieOptions() {
 }
 
 function signToken(userId: string, email: string): string {
-  const options: SignOptions = { expiresIn: getTtl() as SignOptions['expiresIn'] }
+  const options: SignOptions = { expiresIn: getTtl() as SignOptions['expiresIn'], jwtid: randomUUID() }
   return jwt.sign({ sub: userId, email }, getSecret(), options)
 }
 
@@ -168,8 +170,11 @@ authRouter.post('/login', async (req: Request, res: Response) => {
 })
 
 // ─── Logout ──────────────────────────────────────────────
-authRouter.post('/logout', (_req: Request, res: Response) => {
-  res.clearCookie(SESSION_COOKIE, { path: '/' })
+authRouter.post('/logout', async (req: Request, res: Response) => {
+  const session = req.cookies?.[SESSION_COOKIE]
+  try {
+    if (typeof session === 'string') await mongoBucketStore.deleteSession(createHash('sha256').update(session).digest('hex'))
+  } finally { res.clearCookie(SESSION_COOKIE, { path: '/' }) }
   res.json({ success: true })
 })
 
