@@ -1,6 +1,300 @@
-// server/app.ts
-import express5 from "express";
-import cookieParser from "cookie-parser";
+// src/lib/iconPaths.ts
+var ICON_PATHS = {
+  info: ["M12 22a10 10 0 100-20 10 10 0 000 20", "M12 11v6", "M12 7h.01"],
+  link: ["M10 13a5 5 0 007 .5l3-3a5 5 0 00-7-7l-1.7 1.7", "M14 11a5 5 0 00-7-.5l-3 3a5 5 0 007 7l1.7-1.7"],
+  folder: [
+    "M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"
+  ],
+  folderPlus: [
+    "M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z",
+    "M12 11v6",
+    "M9 14h6"
+  ],
+  back: ["M9 14L4 9l5-5", "M20 20v-7a4 4 0 00-4-4H4"],
+  // Standard File
+  file: [
+    "M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z",
+    "M14 2v6h6"
+  ],
+  // Word / Document (.doc, .docx, .odt)
+  fileDoc: [
+    "M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z",
+    "M14 2v6h6",
+    "M8 12h8",
+    "M8 15h8",
+    "M8 18h5"
+  ],
+  // PDF Document (.pdf)
+  filePdf: [
+    "M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z",
+    "M14 2v6h6",
+    "M9 17v-5h2a1.5 1.5 0 010 3H9",
+    "M13.5 12h1.5a1.5 1.5 0 011.5 1.5v2a1.5 1.5 0 01-1.5 1.5h-1.5z"
+  ],
+  // Spreadsheet (.xlsx, .xls, .csv)
+  fileSheet: [
+    "M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z",
+    "M14 2v6h6",
+    "M8 13h8",
+    "M8 17h8",
+    "M12 11v8"
+  ],
+  // Presentation (.pptx, .ppt, .key)
+  fileSlide: [
+    "M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z",
+    "M14 2v6h6",
+    "M8 12h8v5H8z",
+    "M10 19h4"
+  ],
+  // Code & Config (.json, .ts, .js, .py, etc.)
+  fileCode: [
+    "M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z",
+    "M14 2v6h6",
+    "M10 13l-2 2 2 2",
+    "M14 13l2 2-2 2"
+  ],
+  // Plain Text / Notes (.txt, .md, .log)
+  fileText: [
+    "M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z",
+    "M14 2v6h6",
+    "M8 12h8",
+    "M8 15h8"
+  ],
+  // Image (.jpg, .png, .webp, .svg)
+  fileImage: [
+    "M19 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2z",
+    "M8.5 10a1.5 1.5 0 100-3 1.5 1.5 0 000 3z",
+    "M21 15l-5-5L5 21"
+  ],
+  image: [
+    "M19 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2z",
+    "M8.5 10a1.5 1.5 0 100-3 1.5 1.5 0 000 3z",
+    "M21 15l-5-5L5 21"
+  ],
+  // Video (.mp4, .mov, .webm)
+  fileVideo: [
+    "M23 7l-7 5 7 5V7z",
+    "M14 3H5a2 2 0 00-2 2v14a2 2 0 002 2h9a2 2 0 002-2V5a2 2 0 00-2-2z"
+  ],
+  video: [
+    "M23 7l-7 5 7 5V7z",
+    "M14 3H5a2 2 0 00-2 2v14a2 2 0 002 2h9a2 2 0 002-2V5a2 2 0 00-2-2z"
+  ],
+  // Audio (.mp3, .wav, .flac)
+  fileAudio: [
+    "M9 18V5l12-2v13",
+    "M9 18a3 3 0 11-6 0 3 3 0 016 0z",
+    "M21 16a3 3 0 11-6 0 3 3 0 016 0z"
+  ],
+  music: [
+    "M9 18V5l12-2v13",
+    "M9 18a3 3 0 11-6 0 3 3 0 016 0z",
+    "M21 16a3 3 0 11-6 0 3 3 0 016 0z"
+  ],
+  // Archive (.zip, .tar, .rar)
+  fileArchive: [
+    "M21 8v13H3V8",
+    "M1 3h22v5H1z",
+    "M10 12h4",
+    "M12 11v6"
+  ],
+  archive: [
+    "M21 8v13H3V8",
+    "M1 3h22v5H1z",
+    "M10 12h4",
+    "M12 11v6"
+  ],
+  rain: ["M7 14H6a4 4 0 110-8 6 6 0 0111.6-1A4.5 4.5 0 1120 14h-1", "M9 14l-2 4", "M14 14l-2 4", "M19 14l-2 4", "M10 20l-1 2"],
+  // Actions & Controls
+  plus: ["M12 5v14", "M5 12h14"],
+  chevronDown: ["M6 9l6 6 6-6"],
+  refresh: ["M23 4v6h-6", "M1 20v-6h6", "M3.51 9a9 9 0 0114.85-3.36L23 10", "M1 14l4.64 4.36A9 9 0 0020.49 15"],
+  database: ["M20 6c0 2.2-3.6 4-8 4S4 8.2 4 6s3.6-4 8-4 8 1.8 8 4z", "M4 6v12c0 2.2 3.6 4 8 4s8-1.8 8-4V6", "M4 12c0 2.2 3.6 4 8 4s8-1.8 8-4"],
+  upload: ["M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4", "M17 8l-5-5-5 5", "M12 3v12"],
+  download: ["M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4", "M7 10l5 5 5-5", "M12 15V3"],
+  trash: [
+    "M3 6h18",
+    "M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6",
+    "M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"
+  ],
+  sun: [
+    "M12 7a5 5 0 100 10 5 5 0 000-10z",
+    "M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"
+  ],
+  moon: ["M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"],
+  close: ["M18 6L6 18", "M6 6l12 12"],
+  chevronLeft: ["M15 18l-6-6 6-6"],
+  chevronRight: ["M9 18l6-6-6-6"],
+  eye: ["M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z", "M12 9a3 3 0 100 6 3 3 0 000-6z"],
+  eyeOff: [
+    "M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94",
+    "M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19",
+    "M14.12 14.12a3 3 0 11-4.24-4.24",
+    "M1 1l22 22"
+  ],
+  lock: [
+    "M19 11H5a2 2 0 00-2 2v7a2 2 0 002 2h14a2 2 0 002-2v-7a2 2 0 00-2-2z",
+    "M7 11V7a5 5 0 0110 0v4"
+  ],
+  key: [
+    "M7.5 15.5m-5.5 0a5.5 5.5 0 1 0 11 0a5.5 5.5 0 1 0-11 0",
+    "M21 2l-9.6 9.6",
+    "M15.5 7.5l3 3L22 7l-3-3"
+  ],
+  search: ["M11 19a8 8 0 100-16 8 8 0 000 16z", "M21 21l-4.35-4.35"],
+  code: ["M16 18l6-6-6-6", "M8 6l-6 6 6 6"],
+  text: ["M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z", "M14 2v6h6", "M8 13h8", "M8 17h5"],
+  copy: [
+    "M8 4H6a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2v-2",
+    "M16 4h2a2 2 0 012 2v4",
+    "M21 14H11a2 2 0 01-2-2V4a2 2 0 012-2h10a2 2 0 012 2v8a2 2 0 01-2 2z"
+  ],
+  check: ["M20 6L9 17l-5-5"],
+  externalLink: [
+    "M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6",
+    "M15 3h6v6",
+    "M10 14L21 3"
+  ],
+  // Users / Accounts
+  users: [
+    "M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2",
+    "M9 11a4 4 0 100-8 4 4 0 000 8z",
+    "M23 21v-2a4 4 0 00-3-3.87",
+    "M16 3.13a4 4 0 010 7.75"
+  ],
+  userPlus: [
+    "M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2",
+    "M8.5 11a4 4 0 100-8 4 4 0 000 8z",
+    "M20 8v6",
+    "M23 11h-6"
+  ],
+  shield: ["M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"]
+};
+
+// src/lib/fileIcons.ts
+var EXT_MAP = {
+  // Word / Documents
+  doc: { category: "doc", label: "Word Document", iconName: "fileDoc", colorLight: "#2563eb", colorDark: "#60a5fa" },
+  docx: { category: "doc", label: "Word Document", iconName: "fileDoc", colorLight: "#2563eb", colorDark: "#60a5fa" },
+  odt: { category: "doc", label: "OpenDocument Text", iconName: "fileDoc", colorLight: "#2563eb", colorDark: "#60a5fa" },
+  rtf: { category: "doc", label: "Rich Text", iconName: "fileDoc", colorLight: "#2563eb", colorDark: "#60a5fa" },
+  dot: { category: "doc", label: "Word Template", iconName: "fileDoc", colorLight: "#2563eb", colorDark: "#60a5fa" },
+  dotx: { category: "doc", label: "Word Template", iconName: "fileDoc", colorLight: "#2563eb", colorDark: "#60a5fa" },
+  // PDF
+  pdf: { category: "pdf", label: "PDF Document", iconName: "filePdf", colorLight: "#dc2626", colorDark: "#f87171" },
+  // Spreadsheets
+  xls: { category: "sheet", label: "Excel Spreadsheet", iconName: "fileSheet", colorLight: "#059669", colorDark: "#34d399" },
+  xlsx: { category: "sheet", label: "Excel Spreadsheet", iconName: "fileSheet", colorLight: "#059669", colorDark: "#34d399" },
+  xlsm: { category: "sheet", label: "Excel Spreadsheet", iconName: "fileSheet", colorLight: "#059669", colorDark: "#34d399" },
+  csv: { category: "sheet", label: "CSV Spreadsheet", iconName: "fileSheet", colorLight: "#059669", colorDark: "#34d399" },
+  tsv: { category: "sheet", label: "TSV Spreadsheet", iconName: "fileSheet", colorLight: "#059669", colorDark: "#34d399" },
+  ods: { category: "sheet", label: "OpenDocument Sheet", iconName: "fileSheet", colorLight: "#059669", colorDark: "#34d399" },
+  numbers: { category: "sheet", label: "Numbers Sheet", iconName: "fileSheet", colorLight: "#059669", colorDark: "#34d399" },
+  // Presentations
+  ppt: { category: "slide", label: "PowerPoint", iconName: "fileSlide", colorLight: "#ea580c", colorDark: "#fb923c" },
+  pptx: { category: "slide", label: "PowerPoint", iconName: "fileSlide", colorLight: "#ea580c", colorDark: "#fb923c" },
+  odp: { category: "slide", label: "OpenDocument Slide", iconName: "fileSlide", colorLight: "#ea580c", colorDark: "#fb923c" },
+  key: { category: "slide", label: "Keynote", iconName: "fileSlide", colorLight: "#ea580c", colorDark: "#fb923c" },
+  // Code & Config
+  json: { category: "code", label: "JSON Data", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
+  js: { category: "code", label: "JavaScript", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
+  jsx: { category: "code", label: "React JSX", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
+  ts: { category: "code", label: "TypeScript", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
+  tsx: { category: "code", label: "React TSX", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
+  html: { category: "code", label: "HTML Document", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
+  htm: { category: "code", label: "HTML Document", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
+  css: { category: "code", label: "CSS Stylesheet", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
+  scss: { category: "code", label: "SCSS Stylesheet", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
+  sass: { category: "code", label: "Sass Stylesheet", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
+  less: { category: "code", label: "Less Stylesheet", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
+  py: { category: "code", label: "Python Script", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
+  rs: { category: "code", label: "Rust Source", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
+  go: { category: "code", label: "Go Source", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
+  java: { category: "code", label: "Java Source", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
+  c: { category: "code", label: "C Source", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
+  cpp: { category: "code", label: "C++ Source", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
+  cs: { category: "code", label: "C# Source", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
+  php: { category: "code", label: "PHP Script", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
+  rb: { category: "code", label: "Ruby Script", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
+  sql: { category: "code", label: "SQL Query", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
+  sh: { category: "code", label: "Shell Script", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
+  bash: { category: "code", label: "Bash Script", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
+  zsh: { category: "code", label: "Zsh Script", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
+  yaml: { category: "code", label: "YAML Config", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
+  yml: { category: "code", label: "YAML Config", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
+  toml: { category: "code", label: "TOML Config", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
+  xml: { category: "code", label: "XML Document", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
+  vue: { category: "code", label: "Vue Component", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
+  svelte: { category: "code", label: "Svelte Component", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
+  graphql: { category: "code", label: "GraphQL Schema", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
+  prisma: { category: "code", label: "Prisma Schema", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
+  dockerfile: { category: "code", label: "Dockerfile", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
+  env: { category: "code", label: "Environment Config", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
+  // Text & Notes
+  txt: { category: "text", label: "Plain Text", iconName: "fileText", colorLight: "#475569", colorDark: "#94a3b8" },
+  md: { category: "text", label: "Markdown", iconName: "fileText", colorLight: "#475569", colorDark: "#94a3b8" },
+  markdown: { category: "text", label: "Markdown", iconName: "fileText", colorLight: "#475569", colorDark: "#94a3b8" },
+  log: { category: "text", label: "Log File", iconName: "fileText", colorLight: "#475569", colorDark: "#94a3b8" },
+  ini: { category: "text", label: "Configuration", iconName: "fileText", colorLight: "#475569", colorDark: "#94a3b8" },
+  conf: { category: "text", label: "Configuration", iconName: "fileText", colorLight: "#475569", colorDark: "#94a3b8" },
+  // Images
+  jpg: { category: "image", label: "JPEG Image", iconName: "fileImage", colorLight: "#7c3aed", colorDark: "#a78bfa" },
+  jpeg: { category: "image", label: "JPEG Image", iconName: "fileImage", colorLight: "#7c3aed", colorDark: "#a78bfa" },
+  png: { category: "image", label: "PNG Image", iconName: "fileImage", colorLight: "#7c3aed", colorDark: "#a78bfa" },
+  gif: { category: "image", label: "GIF Animation", iconName: "fileImage", colorLight: "#7c3aed", colorDark: "#a78bfa" },
+  svg: { category: "image", label: "SVG Vector", iconName: "fileImage", colorLight: "#7c3aed", colorDark: "#a78bfa" },
+  webp: { category: "image", label: "WebP Image", iconName: "fileImage", colorLight: "#7c3aed", colorDark: "#a78bfa" },
+  bmp: { category: "image", label: "Bitmap Image", iconName: "fileImage", colorLight: "#7c3aed", colorDark: "#a78bfa" },
+  ico: { category: "image", label: "Icon", iconName: "fileImage", colorLight: "#7c3aed", colorDark: "#a78bfa" },
+  avif: { category: "image", label: "AVIF Image", iconName: "fileImage", colorLight: "#7c3aed", colorDark: "#a78bfa" },
+  tiff: { category: "image", label: "TIFF Image", iconName: "fileImage", colorLight: "#7c3aed", colorDark: "#a78bfa" },
+  // Video
+  mp4: { category: "video", label: "MP4 Video", iconName: "fileVideo", colorLight: "#e11d48", colorDark: "#fb7185" },
+  mov: { category: "video", label: "QuickTime Video", iconName: "fileVideo", colorLight: "#e11d48", colorDark: "#fb7185" },
+  mkv: { category: "video", label: "MKV Video", iconName: "fileVideo", colorLight: "#e11d48", colorDark: "#fb7185" },
+  webm: { category: "video", label: "WebM Video", iconName: "fileVideo", colorLight: "#e11d48", colorDark: "#fb7185" },
+  avi: { category: "video", label: "AVI Video", iconName: "fileVideo", colorLight: "#e11d48", colorDark: "#fb7185" },
+  m4v: { category: "video", label: "M4V Video", iconName: "fileVideo", colorLight: "#e11d48", colorDark: "#fb7185" },
+  // Audio
+  mp3: { category: "audio", label: "MP3 Audio", iconName: "fileAudio", colorLight: "#d97706", colorDark: "#fbbf24" },
+  wav: { category: "audio", label: "WAV Audio", iconName: "fileAudio", colorLight: "#d97706", colorDark: "#fbbf24" },
+  flac: { category: "audio", label: "FLAC Audio", iconName: "fileAudio", colorLight: "#d97706", colorDark: "#fbbf24" },
+  ogg: { category: "audio", label: "OGG Audio", iconName: "fileAudio", colorLight: "#d97706", colorDark: "#fbbf24" },
+  m4a: { category: "audio", label: "M4A Audio", iconName: "fileAudio", colorLight: "#d97706", colorDark: "#fbbf24" },
+  aac: { category: "audio", label: "AAC Audio", iconName: "fileAudio", colorLight: "#d97706", colorDark: "#fbbf24" },
+  // Archives
+  zip: { category: "archive", label: "ZIP Archive", iconName: "fileArchive", colorLight: "#b45309", colorDark: "#f59e0b" },
+  tar: { category: "archive", label: "TAR Archive", iconName: "fileArchive", colorLight: "#b45309", colorDark: "#f59e0b" },
+  gz: { category: "archive", label: "GZIP Archive", iconName: "fileArchive", colorLight: "#b45309", colorDark: "#f59e0b" },
+  rar: { category: "archive", label: "RAR Archive", iconName: "fileArchive", colorLight: "#b45309", colorDark: "#f59e0b" },
+  "7z": { category: "archive", label: "7-Zip Archive", iconName: "fileArchive", colorLight: "#b45309", colorDark: "#f59e0b" },
+  bz2: { category: "archive", label: "BZIP2 Archive", iconName: "fileArchive", colorLight: "#b45309", colorDark: "#f59e0b" },
+  xz: { category: "archive", label: "XZ Archive", iconName: "fileArchive", colorLight: "#b45309", colorDark: "#f59e0b" },
+  iso: { category: "archive", label: "Disc Image", iconName: "fileArchive", colorLight: "#b45309", colorDark: "#f59e0b" },
+  dmg: { category: "archive", label: "Apple Disk Image", iconName: "fileArchive", colorLight: "#b45309", colorDark: "#f59e0b" }
+};
+function getFileTypeInfo(name, isFolder) {
+  if (isFolder) {
+    return {
+      category: "folder",
+      label: "Folder",
+      iconName: "folder",
+      colorLight: "#4f46e5",
+      colorDark: "#818cf8"
+    };
+  }
+  const ext = name.split(".").pop()?.toLowerCase() || "";
+  if (ext && EXT_MAP[ext]) {
+    return EXT_MAP[ext];
+  }
+  return {
+    category: "other",
+    label: ext ? `${ext.toUpperCase()} File` : "File",
+    iconName: "file",
+    colorLight: "#64748b",
+    colorDark: "#94a3b8"
+  };
+}
 
 // src/lib/rain.ts
 var RAIN_DIRECTIONS = [
@@ -53,6 +347,288 @@ function isPreferences(value) {
   const p = value;
   return (p.theme === "light" || p.theme === "dark") && typeof p.font === "string" && Object.hasOwn(FONTS, p.font) && typeof p.accent === "string" && Object.hasOwn(ACCENTS, p.accent) && typeof p.rain === "boolean" && (!("rainSettings" in p) || isRainSettings(p.rainSettings)) && Object.keys(p).every((key) => ["theme", "font", "accent", "rain", "rainSettings"].includes(key));
 }
+
+// server/public-share-style.ts
+var publicShareStyle = `
+* {
+  box-sizing:border-box}
+body {
+  margin:0;
+  background:#f7f8fa;
+  color:#172033;
+  font-family:var(--font);
+  font-size:14px}
+a {
+  color:inherit;
+  text-decoration:none}
+svg {
+  flex-shrink:0;
+  vertical-align:middle}
+.topbar {
+  height:80px;
+  border-bottom:1px solid #e2e6ed;
+  background:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:0 max(24px,calc((100vw - 1120px)/2));
+  gap:20px}
+.brand {
+  font-size:26px;
+  font-weight:650;
+  letter-spacing:-1px;
+  display:flex;
+  gap:12px;
+  align-items:center}
+.brand span {
+  font-size:17px;
+  color:var(--accent)}
+.pill {
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  border:1px solid #e0e4eb;
+  border-radius:99px;
+  padding:8px 12px;
+  font-size:12px;
+  color:#657086;
+  white-space:nowrap}
+main {
+  max-width:1120px;
+  margin:48px auto;
+  padding:0 24px}
+.intro {
+  display:flex;
+  gap:18px;
+  align-items:center;
+  margin-bottom:28px}
+.hero-icon {
+  padding:18px;
+  border:1px solid #e0e4eb;
+  background:#fff;
+  border-radius:16px;
+  color:var(--accent)}
+h1 {
+  font-size:28px;
+  letter-spacing:-.6px;
+  margin:0 0 8px;
+  overflow-wrap:anywhere}
+.muted {
+  color:#768197;
+  line-height:1.6;
+  margin:0}
+.details {
+  display:grid;
+  grid-template-columns:1.1fr 1fr 1.2fr;
+  gap:20px;
+  background:#fff;
+  border:1px solid #e0e4eb;
+  border-radius:14px;
+  padding:22px;
+  margin-bottom:32px}
+.label {
+  display:block;
+  text-transform:uppercase;
+  font-size:10px;
+  letter-spacing:1px;
+  color:#7a8598;
+  margin-bottom:10px}
+.person {
+  display:flex;
+  align-items:center;
+  gap:10px}
+.avatar {
+  width:34px;
+  height:34px;
+  display:grid;
+  place-items:center;
+  background:color-mix(in srgb,var(--accent) 10%,white);
+  color:var(--accent);
+  border-radius:50%;
+  font-weight:600}
+.value {
+  font-weight:550;
+  overflow-wrap:anywhere}
+.details small {
+  display:block;
+  margin-top:5px;
+  color:#768197;
+  font-size:11px;
+  line-height:1.5}
+nav {
+  display:flex;
+  gap:9px;
+  align-items:center;
+  flex-wrap:wrap;
+  margin:0 0 16px;
+  color:#738097;
+  font-size:13px}
+nav a {
+  color:var(--accent)}
+.list {
+  background:#fff;
+  border:1px solid #e0e4eb;
+  border-radius:12px;
+  overflow:hidden}
+.row {
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 90px 165px 72px;
+  gap:16px;
+  align-items:center;
+  padding:17px 20px;
+  border-bottom:1px solid #edf0f4}
+.row:last-child {
+  border-bottom:0}
+a.row:hover {
+  background:color-mix(in srgb,var(--accent) 4%,white)}
+.row:focus-visible,nav a:focus-visible,.next:focus-visible {
+  outline:2px solid var(--accent);
+  outline-offset:-3px}
+.row.heading {
+  background:#fbfcfd;
+  color:#8490a2;
+  font-size:10px;
+  letter-spacing:1px;
+  text-transform:uppercase;
+  padding-top:12px;
+  padding-bottom:12px}
+.filename {
+  display:flex;
+  gap:12px;
+  align-items:center;
+  min-width:0}
+.filename span {
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap}
+.size,.modified {
+  font-size:12px;
+  color:#8490a2;
+  text-align:right}
+.action {
+  color:var(--accent);
+  text-align:right}
+.empty {
+  padding:48px;
+  text-align:center;
+  color:#768197}
+.footer {
+  display:flex;
+  justify-content:space-between;
+  gap:16px;
+  margin-top:18px;
+  color:#8490a2;
+  font-size:12px}
+.next {
+  color:var(--accent)}
+.notice {
+  margin-top:28px;
+  color:#8490a2;
+  font-size:12px;
+  line-height:1.6}
+time {
+  white-space:normal}
+@media(max-width:640px) {
+  .topbar {
+  height:68px;
+  padding:0 20px}
+.brand {
+  font-size:23px}
+main {
+  margin:28px auto;
+  padding:0 18px}
+.intro {
+  gap:12px}
+h1 {
+  font-size:23px}
+.hero-icon {
+  padding:13px}
+.details {
+  grid-template-columns:1fr;
+  padding:18px;
+  gap:18px}
+.row {
+  grid-template-columns:minmax(0,1fr) 65px 64px;
+  gap:8px;
+  padding:16px 14px}
+.modified {
+  display:none}
+.row.heading .modified {
+  display:none}
+.footer {
+  flex-wrap:wrap}
+.pill {
+  font-size:11px}
+.notice {
+  margin-top:20px}
+}
+
+
+.row:hover{background:color-mix(in srgb,var(--accent) 4%,white)}.action{display:flex;justify-content:flex-end;gap:6px}.icon-button{display:inline-flex;align-items:center;justify-content:center;width:30px;height:32px;border-radius:6px;color:var(--accent)}.icon-button:hover{background:color-mix(in srgb,var(--accent) 10%,white)}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}.public-error{max-width:520px;margin:90px auto;background:white;border:1px solid #e0e4eb;border-radius:16px;text-align:center;padding:44px 28px}.public-error>svg{color:var(--accent);margin-bottom:24px}.public-error p{color:#768197;line-height:1.7;margin:18px 0 28px}.public-button{display:inline-flex;padding:11px 18px;background:var(--accent);color:white;border-radius:8px;margin-top:12px}.public-preview{background:#fff;border:1px solid #e0e4eb;border-radius:14px;overflow:hidden}.public-preview__header{display:flex;align-items:center;gap:16px;padding:16px 20px;border-bottom:1px solid #e0e4eb}.public-preview__header strong{flex:1;min-width:0;overflow-wrap:anywhere}.public-preview__header>div{display:flex;gap:8px}.public-preview__body{min-height:55vh;display:grid;place-items:center;padding:20px}.public-preview img,.public-preview video{max-width:100%;max-height:70vh;object-fit:contain}.public-preview audio{max-width:100%}.public-preview iframe{width:100%;height:70vh;border:0}.text-preview{width:100%;overflow:auto;max-height:70vh}pre{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.6;font-size:13px}.empty p{line-height:1.6;margin-top:12px}@media(max-width:640px){.public-error{margin:40px auto;padding:32px 20px}.public-preview__body{padding:12px}.row{gap:6px}}
+`;
+
+// server/public-share-page.ts
+var escapeHtml = (value) => value.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+var publicIcon = (name, size2 = 18, color = "currentColor") => `<svg aria-hidden="true" width="${size2}" height="${size2}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${(ICON_PATHS[name] || ICON_PATHS.file).map((path) => `<path d="${path}"/>`).join("")}</svg>`;
+var date = (value) => new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "UTC" }).format(value) + " UTC";
+var time = (value) => `<time datetime="${value.toISOString()}">${date(value)}</time>`;
+function duration(ms) {
+  const minutes = Math.max(1, Math.ceil(ms / 6e4));
+  if (minutes < 60) return `${minutes} minute${minutes === 1 ? "" : "s"}`;
+  const hours = minutes / 60;
+  if (Number.isInteger(hours)) return `${hours} hour${hours === 1 ? "" : "s"}`;
+  return `${Math.floor(hours)}h ${minutes % 60}m`;
+}
+function size(bytes) {
+  if (bytes === void 0) return "\u2014";
+  if (bytes < 1024) return `${bytes} B`;
+  const unit = Math.min(3, Math.floor(Math.log(bytes) / Math.log(1024)));
+  return `${(bytes / 1024 ** unit).toFixed(1)} ${["B", "KB", "MB", "GB"][unit]}`;
+}
+function renderPublicSharePage({ base, root, requested, folder, sharer, createdAt, expiresAt, entries, nextCursor, preferences }) {
+  const accent = ACCENTS[preferences?.accent || "indigo"]?.light || ACCENTS.indigo.light;
+  const font = FONTS[preferences?.font || "inter"]?.family || FONTS.inter.family;
+  const title = root.split("/").filter(Boolean).pop() || "Shared folder";
+  const href = (key, download = false) => `${base}?key=${encodeURIComponent(key)}${download ? "&amp;download=1" : ""}`;
+  const crumbs = [`<a href="${base}">${escapeHtml(title)}</a>`];
+  if (folder && requested !== root) {
+    let path = root;
+    for (const part of requested.slice(root.length).split("/").filter(Boolean)) {
+      path += part + "/";
+      crumbs.push(`<span>/</span><a href="${href(path)}">${escapeHtml(part)}</a>`);
+    }
+  }
+  const rows = entries.map((entry) => {
+    const name = entry.key.slice(folder && requested.endsWith("/") ? requested.length : 0).split("/").filter(Boolean).pop() || entry.key;
+    const info = getFileTypeInfo(name, entry.folder);
+    const preview = `${href(entry.key)}&amp;preview=1`;
+    return `<div class="row"><a class="filename" href="${entry.folder ? href(entry.key) : preview}" aria-label="${escapeHtml((entry.folder ? "Open folder " : "Open file ") + name)}">${publicIcon(info.iconName, 19, info.colorLight)}<span>${escapeHtml(name)}</span></a><span class="size">${entry.folder ? "Folder" : size(entry.size)}</span><span class="modified">${entry.modified ? time(entry.modified) : "\u2014"}</span><span class="action">${entry.folder ? `<a class="icon-button" href="${href(entry.key)}" aria-label="${escapeHtml("Browse " + name)}">${publicIcon("chevronRight", 16)}</a>` : `<a class="icon-button" href="${preview}" aria-label="${escapeHtml("Preview " + name)}" title="Preview">${publicIcon("eye", 16)}</a><a class="icon-button" href="${href(entry.key, true)}" aria-label="${escapeHtml("Download file " + name)}" title="Download">${publicIcon("download", 16)}</a>`}</span></div>`;
+  }).join("");
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escapeHtml(title)} \xB7 Vault</title><style>:root{--accent:${accent};--font:${font}}${publicShareStyle}</style></head><body><header class="topbar"><div class="brand"><span>\u25C6</span>Vault</div><span class="pill">${publicIcon("link", 14)} Shared with you</span></header><main><section class="intro"><div class="hero-icon">${publicIcon(folder ? "folder" : getFileTypeInfo(title, false).iconName, 30)}</div><div><h1>${escapeHtml(title)}</h1><p class="muted">${folder ? "Shared folder" : "Shared file"} \xB7 View and download access</p></div></section><section class="details" aria-label="Sharing details"><div><span class="label">Shared by</span><div class="person"><span class="avatar">${escapeHtml(Array.from(sharer)[0]?.toUpperCase() || "V")}</span><span class="value">${escapeHtml(sharer)}</span></div></div><div><span class="label">Sharing duration</span><span class="value">${expiresAt ? duration(expiresAt.getTime() - createdAt.getTime()) : "Permanent link"}</span><small>Shared ${time(createdAt)}</small></div><div><span class="label">${expiresAt ? "Available until" : "Availability"}</span><span class="value">${expiresAt ? time(expiresAt) : "Until the owner revokes it"}</span><small>${expiresAt ? `${duration(expiresAt.getTime() - Date.now())} remaining` : "No automatic expiry"}</small></div></section><nav aria-label="Shared folder navigation">${publicIcon("folder", 15)}${crumbs.join("")}</nav><section class="list" aria-label="Shared files"><div class="row heading"><span>Name</span><span class="size">Size</span><span class="modified">Modified</span><span></span></div>${rows || '<div class="empty">This folder is empty.</div>'}</section><div class="footer"><span>${entries.length} item${entries.length === 1 ? "" : "s"}${nextCursor ? " on this page" : ""} \xB7 Read-only</span>${nextCursor ? `<a class="next" href="${href(requested)}&amp;cursor=${encodeURIComponent(nextCursor)}">Next page \u2192</a>` : ""}</div><p class="notice">${folder ? "Open a folder to browse, or select a file to preview. This link includes future additions to this folder." : "Select the file to preview it, or use the download icon."} No Vault account required.</p></main></body></html>`;
+}
+function renderPublicShell(title, content) {
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escapeHtml(title)} \xB7 Vault</title><style>:root{--accent:${ACCENTS.indigo.light};--font:${FONTS.inter.family}}${publicShareStyle}</style></head><body><header class="topbar"><a class="brand" href="/"><span>\u25C6</span>Vault</a><span class="pill">Shared with you</span></header><main>${content}</main></body></html>`;
+}
+function renderPublicError(status, unavailable = false) {
+  const title = status >= 500 ? "Something went wrong" : unavailable ? "Files unavailable" : "Page not found";
+  const message = status >= 500 ? "We could not load this share. Please try again later." : unavailable ? "This link may have expired, been revoked, or the files may have been removed. Ask the sender for a new link." : "The page you are looking for does not exist. Check the link and try again.";
+  return renderPublicShell(title, `<section class="public-error">${publicIcon(unavailable ? "lock" : "file", 44)}<span class="label">${status >= 500 ? "Unable to load" : "404 \xB7 Unavailable"}</span><h1>${title}</h1><p>${message}</p><a class="public-button" href="/">Go to Vault</a></section>`);
+}
+
+// server/not-found.ts
+function notFound(req, res) {
+  res.set({ "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer", Vary: "Accept" });
+  if ((req.method === "GET" || req.method === "HEAD") && req.get("accept")?.includes("text/html") && req.accepts(["html", "json"]) === "html") {
+    res.setHeader("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'");
+    res.status(404).type("html").send(renderPublicError(404));
+    return;
+  }
+  res.status(404).json({ error: "Not found" });
+}
+
+// server/app.ts
+import express5 from "express";
+import cookieParser from "cookie-parser";
 
 // server/db.ts
 import { MongoClient, ObjectId } from "mongodb";
@@ -528,593 +1104,12 @@ usersRouter.patch("/:id/password", async (req, res) => {
   res.json({ success: true, message: "Password updated successfully" });
 });
 
-// server/share-token.ts
-import { createCipheriv, createDecipheriv, createHash as createHash2, randomBytes } from "node:crypto";
-function encryptionKey() {
-  const secret = process.env.SHARE_TOKEN_SECRET || process.env.JWT_SECRET;
-  if (!secret && process.env.NODE_ENV === "production") throw new Error("SHARE_TOKEN_SECRET or JWT_SECRET is required");
-  return createHash2("sha256").update("vault:share-token:v1:").update(secret || "dev-insecure-secret-change-me").digest();
-}
-function encryptShareToken(token) {
-  const iv = randomBytes(12);
-  const cipher = createCipheriv("aes-256-gcm", encryptionKey(), iv);
-  const ciphertext = Buffer.concat([cipher.update(token, "utf8"), cipher.final()]);
-  return Buffer.concat([iv, cipher.getAuthTag(), ciphertext]).toString("base64url");
-}
-function recoverShareToken(encrypted) {
-  if (!encrypted) return void 0;
-  try {
-    const payload = Buffer.from(encrypted, "base64url");
-    const decipher = createDecipheriv("aes-256-gcm", encryptionKey(), payload.subarray(0, 12));
-    decipher.setAuthTag(payload.subarray(12, 28));
-    return Buffer.concat([decipher.update(payload.subarray(28)), decipher.final()]).toString("utf8");
-  } catch {
-    return void 0;
-  }
-}
-
-// server/shares.ts
-import { createHash as createHash4, randomBytes as randomBytes2, randomUUID as randomUUID3 } from "node:crypto";
-import express3 from "express";
-import { HeadObjectCommand, ListObjectsV2Command, GetObjectCommand } from "@aws-sdk/client-s3";
+// server/public-preview.ts
+import { GetObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
-// src/lib/iconPaths.ts
-var ICON_PATHS = {
-  info: ["M12 22a10 10 0 100-20 10 10 0 000 20", "M12 11v6", "M12 7h.01"],
-  link: ["M10 13a5 5 0 007 .5l3-3a5 5 0 00-7-7l-1.7 1.7", "M14 11a5 5 0 00-7-.5l-3 3a5 5 0 007 7l1.7-1.7"],
-  folder: [
-    "M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"
-  ],
-  folderPlus: [
-    "M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z",
-    "M12 11v6",
-    "M9 14h6"
-  ],
-  back: ["M9 14L4 9l5-5", "M20 20v-7a4 4 0 00-4-4H4"],
-  // Standard File
-  file: [
-    "M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z",
-    "M14 2v6h6"
-  ],
-  // Word / Document (.doc, .docx, .odt)
-  fileDoc: [
-    "M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z",
-    "M14 2v6h6",
-    "M8 12h8",
-    "M8 15h8",
-    "M8 18h5"
-  ],
-  // PDF Document (.pdf)
-  filePdf: [
-    "M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z",
-    "M14 2v6h6",
-    "M9 17v-5h2a1.5 1.5 0 010 3H9",
-    "M13.5 12h1.5a1.5 1.5 0 011.5 1.5v2a1.5 1.5 0 01-1.5 1.5h-1.5z"
-  ],
-  // Spreadsheet (.xlsx, .xls, .csv)
-  fileSheet: [
-    "M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z",
-    "M14 2v6h6",
-    "M8 13h8",
-    "M8 17h8",
-    "M12 11v8"
-  ],
-  // Presentation (.pptx, .ppt, .key)
-  fileSlide: [
-    "M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z",
-    "M14 2v6h6",
-    "M8 12h8v5H8z",
-    "M10 19h4"
-  ],
-  // Code & Config (.json, .ts, .js, .py, etc.)
-  fileCode: [
-    "M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z",
-    "M14 2v6h6",
-    "M10 13l-2 2 2 2",
-    "M14 13l2 2-2 2"
-  ],
-  // Plain Text / Notes (.txt, .md, .log)
-  fileText: [
-    "M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z",
-    "M14 2v6h6",
-    "M8 12h8",
-    "M8 15h8"
-  ],
-  // Image (.jpg, .png, .webp, .svg)
-  fileImage: [
-    "M19 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2z",
-    "M8.5 10a1.5 1.5 0 100-3 1.5 1.5 0 000 3z",
-    "M21 15l-5-5L5 21"
-  ],
-  image: [
-    "M19 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2z",
-    "M8.5 10a1.5 1.5 0 100-3 1.5 1.5 0 000 3z",
-    "M21 15l-5-5L5 21"
-  ],
-  // Video (.mp4, .mov, .webm)
-  fileVideo: [
-    "M23 7l-7 5 7 5V7z",
-    "M14 3H5a2 2 0 00-2 2v14a2 2 0 002 2h9a2 2 0 002-2V5a2 2 0 00-2-2z"
-  ],
-  video: [
-    "M23 7l-7 5 7 5V7z",
-    "M14 3H5a2 2 0 00-2 2v14a2 2 0 002 2h9a2 2 0 002-2V5a2 2 0 00-2-2z"
-  ],
-  // Audio (.mp3, .wav, .flac)
-  fileAudio: [
-    "M9 18V5l12-2v13",
-    "M9 18a3 3 0 11-6 0 3 3 0 016 0z",
-    "M21 16a3 3 0 11-6 0 3 3 0 016 0z"
-  ],
-  music: [
-    "M9 18V5l12-2v13",
-    "M9 18a3 3 0 11-6 0 3 3 0 016 0z",
-    "M21 16a3 3 0 11-6 0 3 3 0 016 0z"
-  ],
-  // Archive (.zip, .tar, .rar)
-  fileArchive: [
-    "M21 8v13H3V8",
-    "M1 3h22v5H1z",
-    "M10 12h4",
-    "M12 11v6"
-  ],
-  archive: [
-    "M21 8v13H3V8",
-    "M1 3h22v5H1z",
-    "M10 12h4",
-    "M12 11v6"
-  ],
-  rain: ["M7 14H6a4 4 0 110-8 6 6 0 0111.6-1A4.5 4.5 0 1120 14h-1", "M9 14l-2 4", "M14 14l-2 4", "M19 14l-2 4", "M10 20l-1 2"],
-  // Actions & Controls
-  plus: ["M12 5v14", "M5 12h14"],
-  chevronDown: ["M6 9l6 6 6-6"],
-  refresh: ["M23 4v6h-6", "M1 20v-6h6", "M3.51 9a9 9 0 0114.85-3.36L23 10", "M1 14l4.64 4.36A9 9 0 0020.49 15"],
-  database: ["M20 6c0 2.2-3.6 4-8 4S4 8.2 4 6s3.6-4 8-4 8 1.8 8 4z", "M4 6v12c0 2.2 3.6 4 8 4s8-1.8 8-4V6", "M4 12c0 2.2 3.6 4 8 4s8-1.8 8-4"],
-  upload: ["M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4", "M17 8l-5-5-5 5", "M12 3v12"],
-  download: ["M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4", "M7 10l5 5 5-5", "M12 15V3"],
-  trash: [
-    "M3 6h18",
-    "M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6",
-    "M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"
-  ],
-  sun: [
-    "M12 7a5 5 0 100 10 5 5 0 000-10z",
-    "M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"
-  ],
-  moon: ["M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"],
-  close: ["M18 6L6 18", "M6 6l12 12"],
-  chevronLeft: ["M15 18l-6-6 6-6"],
-  chevronRight: ["M9 18l6-6-6-6"],
-  eye: ["M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z", "M12 9a3 3 0 100 6 3 3 0 000-6z"],
-  eyeOff: [
-    "M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94",
-    "M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19",
-    "M14.12 14.12a3 3 0 11-4.24-4.24",
-    "M1 1l22 22"
-  ],
-  lock: [
-    "M19 11H5a2 2 0 00-2 2v7a2 2 0 002 2h14a2 2 0 002-2v-7a2 2 0 00-2-2z",
-    "M7 11V7a5 5 0 0110 0v4"
-  ],
-  key: [
-    "M7.5 15.5m-5.5 0a5.5 5.5 0 1 0 11 0a5.5 5.5 0 1 0-11 0",
-    "M21 2l-9.6 9.6",
-    "M15.5 7.5l3 3L22 7l-3-3"
-  ],
-  search: ["M11 19a8 8 0 100-16 8 8 0 000 16z", "M21 21l-4.35-4.35"],
-  code: ["M16 18l6-6-6-6", "M8 6l-6 6 6 6"],
-  text: ["M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z", "M14 2v6h6", "M8 13h8", "M8 17h5"],
-  copy: [
-    "M8 4H6a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2v-2",
-    "M16 4h2a2 2 0 012 2v4",
-    "M21 14H11a2 2 0 01-2-2V4a2 2 0 012-2h10a2 2 0 012 2v8a2 2 0 01-2 2z"
-  ],
-  check: ["M20 6L9 17l-5-5"],
-  externalLink: [
-    "M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6",
-    "M15 3h6v6",
-    "M10 14L21 3"
-  ],
-  // Users / Accounts
-  users: [
-    "M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2",
-    "M9 11a4 4 0 100-8 4 4 0 000 8z",
-    "M23 21v-2a4 4 0 00-3-3.87",
-    "M16 3.13a4 4 0 010 7.75"
-  ],
-  userPlus: [
-    "M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2",
-    "M8.5 11a4 4 0 100-8 4 4 0 000 8z",
-    "M20 8v6",
-    "M23 11h-6"
-  ],
-  shield: ["M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"]
-};
-
-// src/lib/fileIcons.ts
-var EXT_MAP = {
-  // Word / Documents
-  doc: { category: "doc", label: "Word Document", iconName: "fileDoc", colorLight: "#2563eb", colorDark: "#60a5fa" },
-  docx: { category: "doc", label: "Word Document", iconName: "fileDoc", colorLight: "#2563eb", colorDark: "#60a5fa" },
-  odt: { category: "doc", label: "OpenDocument Text", iconName: "fileDoc", colorLight: "#2563eb", colorDark: "#60a5fa" },
-  rtf: { category: "doc", label: "Rich Text", iconName: "fileDoc", colorLight: "#2563eb", colorDark: "#60a5fa" },
-  dot: { category: "doc", label: "Word Template", iconName: "fileDoc", colorLight: "#2563eb", colorDark: "#60a5fa" },
-  dotx: { category: "doc", label: "Word Template", iconName: "fileDoc", colorLight: "#2563eb", colorDark: "#60a5fa" },
-  // PDF
-  pdf: { category: "pdf", label: "PDF Document", iconName: "filePdf", colorLight: "#dc2626", colorDark: "#f87171" },
-  // Spreadsheets
-  xls: { category: "sheet", label: "Excel Spreadsheet", iconName: "fileSheet", colorLight: "#059669", colorDark: "#34d399" },
-  xlsx: { category: "sheet", label: "Excel Spreadsheet", iconName: "fileSheet", colorLight: "#059669", colorDark: "#34d399" },
-  xlsm: { category: "sheet", label: "Excel Spreadsheet", iconName: "fileSheet", colorLight: "#059669", colorDark: "#34d399" },
-  csv: { category: "sheet", label: "CSV Spreadsheet", iconName: "fileSheet", colorLight: "#059669", colorDark: "#34d399" },
-  tsv: { category: "sheet", label: "TSV Spreadsheet", iconName: "fileSheet", colorLight: "#059669", colorDark: "#34d399" },
-  ods: { category: "sheet", label: "OpenDocument Sheet", iconName: "fileSheet", colorLight: "#059669", colorDark: "#34d399" },
-  numbers: { category: "sheet", label: "Numbers Sheet", iconName: "fileSheet", colorLight: "#059669", colorDark: "#34d399" },
-  // Presentations
-  ppt: { category: "slide", label: "PowerPoint", iconName: "fileSlide", colorLight: "#ea580c", colorDark: "#fb923c" },
-  pptx: { category: "slide", label: "PowerPoint", iconName: "fileSlide", colorLight: "#ea580c", colorDark: "#fb923c" },
-  odp: { category: "slide", label: "OpenDocument Slide", iconName: "fileSlide", colorLight: "#ea580c", colorDark: "#fb923c" },
-  key: { category: "slide", label: "Keynote", iconName: "fileSlide", colorLight: "#ea580c", colorDark: "#fb923c" },
-  // Code & Config
-  json: { category: "code", label: "JSON Data", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
-  js: { category: "code", label: "JavaScript", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
-  jsx: { category: "code", label: "React JSX", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
-  ts: { category: "code", label: "TypeScript", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
-  tsx: { category: "code", label: "React TSX", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
-  html: { category: "code", label: "HTML Document", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
-  htm: { category: "code", label: "HTML Document", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
-  css: { category: "code", label: "CSS Stylesheet", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
-  scss: { category: "code", label: "SCSS Stylesheet", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
-  sass: { category: "code", label: "Sass Stylesheet", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
-  less: { category: "code", label: "Less Stylesheet", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
-  py: { category: "code", label: "Python Script", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
-  rs: { category: "code", label: "Rust Source", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
-  go: { category: "code", label: "Go Source", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
-  java: { category: "code", label: "Java Source", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
-  c: { category: "code", label: "C Source", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
-  cpp: { category: "code", label: "C++ Source", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
-  cs: { category: "code", label: "C# Source", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
-  php: { category: "code", label: "PHP Script", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
-  rb: { category: "code", label: "Ruby Script", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
-  sql: { category: "code", label: "SQL Query", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
-  sh: { category: "code", label: "Shell Script", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
-  bash: { category: "code", label: "Bash Script", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
-  zsh: { category: "code", label: "Zsh Script", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
-  yaml: { category: "code", label: "YAML Config", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
-  yml: { category: "code", label: "YAML Config", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
-  toml: { category: "code", label: "TOML Config", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
-  xml: { category: "code", label: "XML Document", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
-  vue: { category: "code", label: "Vue Component", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
-  svelte: { category: "code", label: "Svelte Component", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
-  graphql: { category: "code", label: "GraphQL Schema", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
-  prisma: { category: "code", label: "Prisma Schema", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
-  dockerfile: { category: "code", label: "Dockerfile", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
-  env: { category: "code", label: "Environment Config", iconName: "fileCode", colorLight: "#0891b2", colorDark: "#38bdf8" },
-  // Text & Notes
-  txt: { category: "text", label: "Plain Text", iconName: "fileText", colorLight: "#475569", colorDark: "#94a3b8" },
-  md: { category: "text", label: "Markdown", iconName: "fileText", colorLight: "#475569", colorDark: "#94a3b8" },
-  markdown: { category: "text", label: "Markdown", iconName: "fileText", colorLight: "#475569", colorDark: "#94a3b8" },
-  log: { category: "text", label: "Log File", iconName: "fileText", colorLight: "#475569", colorDark: "#94a3b8" },
-  ini: { category: "text", label: "Configuration", iconName: "fileText", colorLight: "#475569", colorDark: "#94a3b8" },
-  conf: { category: "text", label: "Configuration", iconName: "fileText", colorLight: "#475569", colorDark: "#94a3b8" },
-  // Images
-  jpg: { category: "image", label: "JPEG Image", iconName: "fileImage", colorLight: "#7c3aed", colorDark: "#a78bfa" },
-  jpeg: { category: "image", label: "JPEG Image", iconName: "fileImage", colorLight: "#7c3aed", colorDark: "#a78bfa" },
-  png: { category: "image", label: "PNG Image", iconName: "fileImage", colorLight: "#7c3aed", colorDark: "#a78bfa" },
-  gif: { category: "image", label: "GIF Animation", iconName: "fileImage", colorLight: "#7c3aed", colorDark: "#a78bfa" },
-  svg: { category: "image", label: "SVG Vector", iconName: "fileImage", colorLight: "#7c3aed", colorDark: "#a78bfa" },
-  webp: { category: "image", label: "WebP Image", iconName: "fileImage", colorLight: "#7c3aed", colorDark: "#a78bfa" },
-  bmp: { category: "image", label: "Bitmap Image", iconName: "fileImage", colorLight: "#7c3aed", colorDark: "#a78bfa" },
-  ico: { category: "image", label: "Icon", iconName: "fileImage", colorLight: "#7c3aed", colorDark: "#a78bfa" },
-  avif: { category: "image", label: "AVIF Image", iconName: "fileImage", colorLight: "#7c3aed", colorDark: "#a78bfa" },
-  tiff: { category: "image", label: "TIFF Image", iconName: "fileImage", colorLight: "#7c3aed", colorDark: "#a78bfa" },
-  // Video
-  mp4: { category: "video", label: "MP4 Video", iconName: "fileVideo", colorLight: "#e11d48", colorDark: "#fb7185" },
-  mov: { category: "video", label: "QuickTime Video", iconName: "fileVideo", colorLight: "#e11d48", colorDark: "#fb7185" },
-  mkv: { category: "video", label: "MKV Video", iconName: "fileVideo", colorLight: "#e11d48", colorDark: "#fb7185" },
-  webm: { category: "video", label: "WebM Video", iconName: "fileVideo", colorLight: "#e11d48", colorDark: "#fb7185" },
-  avi: { category: "video", label: "AVI Video", iconName: "fileVideo", colorLight: "#e11d48", colorDark: "#fb7185" },
-  m4v: { category: "video", label: "M4V Video", iconName: "fileVideo", colorLight: "#e11d48", colorDark: "#fb7185" },
-  // Audio
-  mp3: { category: "audio", label: "MP3 Audio", iconName: "fileAudio", colorLight: "#d97706", colorDark: "#fbbf24" },
-  wav: { category: "audio", label: "WAV Audio", iconName: "fileAudio", colorLight: "#d97706", colorDark: "#fbbf24" },
-  flac: { category: "audio", label: "FLAC Audio", iconName: "fileAudio", colorLight: "#d97706", colorDark: "#fbbf24" },
-  ogg: { category: "audio", label: "OGG Audio", iconName: "fileAudio", colorLight: "#d97706", colorDark: "#fbbf24" },
-  m4a: { category: "audio", label: "M4A Audio", iconName: "fileAudio", colorLight: "#d97706", colorDark: "#fbbf24" },
-  aac: { category: "audio", label: "AAC Audio", iconName: "fileAudio", colorLight: "#d97706", colorDark: "#fbbf24" },
-  // Archives
-  zip: { category: "archive", label: "ZIP Archive", iconName: "fileArchive", colorLight: "#b45309", colorDark: "#f59e0b" },
-  tar: { category: "archive", label: "TAR Archive", iconName: "fileArchive", colorLight: "#b45309", colorDark: "#f59e0b" },
-  gz: { category: "archive", label: "GZIP Archive", iconName: "fileArchive", colorLight: "#b45309", colorDark: "#f59e0b" },
-  rar: { category: "archive", label: "RAR Archive", iconName: "fileArchive", colorLight: "#b45309", colorDark: "#f59e0b" },
-  "7z": { category: "archive", label: "7-Zip Archive", iconName: "fileArchive", colorLight: "#b45309", colorDark: "#f59e0b" },
-  bz2: { category: "archive", label: "BZIP2 Archive", iconName: "fileArchive", colorLight: "#b45309", colorDark: "#f59e0b" },
-  xz: { category: "archive", label: "XZ Archive", iconName: "fileArchive", colorLight: "#b45309", colorDark: "#f59e0b" },
-  iso: { category: "archive", label: "Disc Image", iconName: "fileArchive", colorLight: "#b45309", colorDark: "#f59e0b" },
-  dmg: { category: "archive", label: "Apple Disk Image", iconName: "fileArchive", colorLight: "#b45309", colorDark: "#f59e0b" }
-};
-function getFileTypeInfo(name, isFolder) {
-  if (isFolder) {
-    return {
-      category: "folder",
-      label: "Folder",
-      iconName: "folder",
-      colorLight: "#4f46e5",
-      colorDark: "#818cf8"
-    };
-  }
-  const ext = name.split(".").pop()?.toLowerCase() || "";
-  if (ext && EXT_MAP[ext]) {
-    return EXT_MAP[ext];
-  }
-  return {
-    category: "other",
-    label: ext ? `${ext.toUpperCase()} File` : "File",
-    iconName: "file",
-    colorLight: "#64748b",
-    colorDark: "#94a3b8"
-  };
-}
-
-// server/public-share-style.ts
-var publicShareStyle = `
-* {
-  box-sizing:border-box}
-body {
-  margin:0;
-  background:#f7f8fa;
-  color:#172033;
-  font-family:var(--font);
-  font-size:14px}
-a {
-  color:inherit;
-  text-decoration:none}
-svg {
-  flex-shrink:0;
-  vertical-align:middle}
-.topbar {
-  height:80px;
-  border-bottom:1px solid #e2e6ed;
-  background:#fff;
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  padding:0 max(24px,calc((100vw - 1120px)/2));
-  gap:20px}
-.brand {
-  font-size:26px;
-  font-weight:650;
-  letter-spacing:-1px;
-  display:flex;
-  gap:12px;
-  align-items:center}
-.brand span {
-  font-size:17px;
-  color:var(--accent)}
-.pill {
-  display:inline-flex;
-  align-items:center;
-  gap:7px;
-  border:1px solid #e0e4eb;
-  border-radius:99px;
-  padding:8px 12px;
-  font-size:12px;
-  color:#657086;
-  white-space:nowrap}
-main {
-  max-width:1120px;
-  margin:48px auto;
-  padding:0 24px}
-.intro {
-  display:flex;
-  gap:18px;
-  align-items:center;
-  margin-bottom:28px}
-.hero-icon {
-  padding:18px;
-  border:1px solid #e0e4eb;
-  background:#fff;
-  border-radius:16px;
-  color:var(--accent)}
-h1 {
-  font-size:28px;
-  letter-spacing:-.6px;
-  margin:0 0 8px;
-  overflow-wrap:anywhere}
-.muted {
-  color:#768197;
-  line-height:1.6;
-  margin:0}
-.details {
-  display:grid;
-  grid-template-columns:1.1fr 1fr 1.2fr;
-  gap:20px;
-  background:#fff;
-  border:1px solid #e0e4eb;
-  border-radius:14px;
-  padding:22px;
-  margin-bottom:32px}
-.label {
-  display:block;
-  text-transform:uppercase;
-  font-size:10px;
-  letter-spacing:1px;
-  color:#7a8598;
-  margin-bottom:10px}
-.person {
-  display:flex;
-  align-items:center;
-  gap:10px}
-.avatar {
-  width:34px;
-  height:34px;
-  display:grid;
-  place-items:center;
-  background:color-mix(in srgb,var(--accent) 10%,white);
-  color:var(--accent);
-  border-radius:50%;
-  font-weight:600}
-.value {
-  font-weight:550;
-  overflow-wrap:anywhere}
-.details small {
-  display:block;
-  margin-top:5px;
-  color:#768197;
-  font-size:11px;
-  line-height:1.5}
-nav {
-  display:flex;
-  gap:9px;
-  align-items:center;
-  flex-wrap:wrap;
-  margin:0 0 16px;
-  color:#738097;
-  font-size:13px}
-nav a {
-  color:var(--accent)}
-.list {
-  background:#fff;
-  border:1px solid #e0e4eb;
-  border-radius:12px;
-  overflow:hidden}
-.row {
-  display:grid;
-  grid-template-columns:minmax(0,1fr) 90px 165px 40px;
-  gap:16px;
-  align-items:center;
-  padding:17px 20px;
-  border-bottom:1px solid #edf0f4}
-.row:last-child {
-  border-bottom:0}
-a.row:hover {
-  background:color-mix(in srgb,var(--accent) 4%,white)}
-.row:focus-visible,nav a:focus-visible,.next:focus-visible {
-  outline:2px solid var(--accent);
-  outline-offset:-3px}
-.row.heading {
-  background:#fbfcfd;
-  color:#8490a2;
-  font-size:10px;
-  letter-spacing:1px;
-  text-transform:uppercase;
-  padding-top:12px;
-  padding-bottom:12px}
-.filename {
-  display:flex;
-  gap:12px;
-  align-items:center;
-  min-width:0}
-.filename span {
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap}
-.size,.modified {
-  font-size:12px;
-  color:#8490a2;
-  text-align:right}
-.action {
-  color:var(--accent);
-  text-align:right}
-.empty {
-  padding:48px;
-  text-align:center;
-  color:#768197}
-.footer {
-  display:flex;
-  justify-content:space-between;
-  gap:16px;
-  margin-top:18px;
-  color:#8490a2;
-  font-size:12px}
-.next {
-  color:var(--accent)}
-.notice {
-  margin-top:28px;
-  color:#8490a2;
-  font-size:12px;
-  line-height:1.6}
-time {
-  white-space:normal}
-@media(max-width:640px) {
-  .topbar {
-  height:68px;
-  padding:0 20px}
-.brand {
-  font-size:23px}
-main {
-  margin:28px auto;
-  padding:0 18px}
-.intro {
-  gap:12px}
-h1 {
-  font-size:23px}
-.hero-icon {
-  padding:13px}
-.details {
-  grid-template-columns:1fr;
-  padding:18px;
-  gap:18px}
-.row {
-  grid-template-columns:minmax(0,1fr) 65px 24px;
-  gap:8px;
-  padding:16px 14px}
-.modified {
-  display:none}
-.row.heading .modified {
-  display:none}
-.footer {
-  flex-wrap:wrap}
-.pill {
-  font-size:11px}
-.notice {
-  margin-top:20px}
-}
-
-`;
-
-// server/public-share-page.ts
-var escapeHtml = (value) => value.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
-var icon = (name, size2 = 18, color = "currentColor") => `<svg aria-hidden="true" width="${size2}" height="${size2}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${(ICON_PATHS[name] || ICON_PATHS.file).map((path) => `<path d="${path}"/>`).join("")}</svg>`;
-var date = (value) => new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "UTC" }).format(value) + " UTC";
-var time = (value) => `<time datetime="${value.toISOString()}">${date(value)}</time>`;
-function duration(ms) {
-  const minutes = Math.max(1, Math.ceil(ms / 6e4));
-  if (minutes < 60) return `${minutes} minute${minutes === 1 ? "" : "s"}`;
-  const hours = minutes / 60;
-  if (Number.isInteger(hours)) return `${hours} hour${hours === 1 ? "" : "s"}`;
-  return `${Math.floor(hours)}h ${minutes % 60}m`;
-}
-function size(bytes) {
-  if (bytes === void 0) return "\u2014";
-  if (bytes < 1024) return `${bytes} B`;
-  const unit = Math.min(3, Math.floor(Math.log(bytes) / Math.log(1024)));
-  return `${(bytes / 1024 ** unit).toFixed(1)} ${["B", "KB", "MB", "GB"][unit]}`;
-}
-function renderPublicSharePage({ base, root, requested, folder, sharer, createdAt, expiresAt, entries, nextCursor, preferences }) {
-  const accent = ACCENTS[preferences?.accent || "indigo"]?.light || ACCENTS.indigo.light;
-  const font = FONTS[preferences?.font || "inter"]?.family || FONTS.inter.family;
-  const title = root.split("/").filter(Boolean).pop() || "Shared folder";
-  const href = (key, download = false) => `${base}?key=${encodeURIComponent(key)}${download ? "&amp;download=1" : ""}`;
-  const crumbs = [`<a href="${base}">${escapeHtml(title)}</a>`];
-  if (folder && requested !== root) {
-    let path = root;
-    for (const part of requested.slice(root.length).split("/").filter(Boolean)) {
-      path += part + "/";
-      crumbs.push(`<span>/</span><a href="${href(path)}">${escapeHtml(part)}</a>`);
-    }
-  }
-  const rows = entries.map((entry) => {
-    const name = entry.key.slice(folder && requested.endsWith("/") ? requested.length : 0).split("/").filter(Boolean).pop() || entry.key;
-    const info = getFileTypeInfo(name, entry.folder);
-    return `<a class="row" href="${href(entry.key, !entry.folder)}" aria-label="${escapeHtml((entry.folder ? "Open folder " : "Download file ") + name)}"><div class="filename">${icon(info.iconName, 19, info.colorLight)}<span>${escapeHtml(name)}</span></div><span class="size">${entry.folder ? "Folder" : size(entry.size)}</span><span class="modified">${entry.modified ? time(entry.modified) : "\u2014"}</span><span class="action">${icon(entry.folder ? "chevronRight" : "download", 16)}</span></a>`;
-  }).join("");
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escapeHtml(title)} \xB7 Vault</title><style>:root{--accent:${accent};--font:${font}}${publicShareStyle}</style></head><body><header class="topbar"><div class="brand"><span>\u25C6</span>Vault</div><span class="pill">${icon("link", 14)} Shared with you</span></header><main><section class="intro"><div class="hero-icon">${icon(folder ? "folder" : getFileTypeInfo(title, false).iconName, 30)}</div><div><h1>${escapeHtml(title)}</h1><p class="muted">${folder ? "Shared folder" : "Shared file"} \xB7 View and download access</p></div></section><section class="details" aria-label="Sharing details"><div><span class="label">Shared by</span><div class="person"><span class="avatar">${escapeHtml(Array.from(sharer)[0]?.toUpperCase() || "V")}</span><span class="value">${escapeHtml(sharer)}</span></div></div><div><span class="label">Sharing duration</span><span class="value">${expiresAt ? duration(expiresAt.getTime() - createdAt.getTime()) : "Permanent link"}</span><small>Shared ${time(createdAt)}</small></div><div><span class="label">${expiresAt ? "Available until" : "Availability"}</span><span class="value">${expiresAt ? time(expiresAt) : "Until the owner revokes it"}</span><small>${expiresAt ? `${duration(expiresAt.getTime() - Date.now())} remaining` : "No automatic expiry"}</small></div></section><nav aria-label="Shared folder navigation">${icon("folder", 15)}${crumbs.join("")}</nav><section class="list" aria-label="Shared files"><div class="row heading"><span>Name</span><span class="size">Size</span><span class="modified">Modified</span><span></span></div>${rows || '<div class="empty">This folder is empty.</div>'}</section><div class="footer"><span>${entries.length} item${entries.length === 1 ? "" : "s"}${nextCursor ? " on this page" : ""} \xB7 Read-only</span>${nextCursor ? `<a class="next" href="${href(requested)}&amp;cursor=${encodeURIComponent(nextCursor)}">Next page \u2192</a>` : ""}</div><p class="notice">${folder ? "Open a folder to browse, or select a file to download. This link includes future additions to this folder." : "Select the file to download it."} No Vault account required.</p></main></body></html>`;
-}
-
 // server/bucket-protection.ts
-import { createHash as createHash3, randomUUID as randomUUID2 } from "node:crypto";
+import { createHash as createHash2, randomUUID as randomUUID2 } from "node:crypto";
 import bcrypt3 from "bcryptjs";
 
 // src/lib/bucketProtection.ts
@@ -1143,7 +1138,7 @@ var BucketAccessError = class extends Error {
 function bucketSession(req) {
   const cookie = req.cookies?.vault_session;
   if (typeof cookie !== "string" || !cookie) throw new BucketAccessError(401, "Unauthorized");
-  return createHash3("sha256").update(cookie).digest("hex");
+  return createHash2("sha256").update(cookie).digest("hex");
 }
 function bucketUser(req) {
   const user = req.user;
@@ -1240,7 +1235,66 @@ var BucketProtection = class {
   }
 };
 
+// server/public-preview.ts
+var mediaTypes = { "image/jpeg": "image", "image/png": "image", "image/gif": "image", "image/webp": "image", "image/avif": "image", "audio/mpeg": "audio", "audio/wav": "audio", "audio/ogg": "audio", "audio/mp4": "audio", "video/mp4": "video", "video/webm": "video", "video/ogg": "video", "application/pdf": "pdf" };
+async function renderPublicPreview(s3, bucket, key, base, expiresAt, root) {
+  const object = await s3.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
+  const mime = (object.ContentType || "").split(";")[0].trim().toLowerCase();
+  const kind = mediaTypes[mime];
+  const name = key.split("/").pop() || "File";
+  const back = root.endsWith("/") ? `${base}?key=${encodeURIComponent(key.slice(0, key.lastIndexOf("/") + 1))}` : base;
+  const download = `${base}?key=${encodeURIComponent(key)}&amp;download=1`;
+  let content;
+  if (kind) {
+    const ttl = expiresAt ? Math.min(60, Math.floor((expiresAt.getTime() - Date.now()) / 1e3)) : 60;
+    if (ttl < 1) throw new BucketAccessError(404, "Share unavailable or expired");
+    const url = escapeHtml(await getSignedUrl(s3, new GetObjectCommand({ Bucket: bucket, Key: key, ResponseContentType: mime, ResponseContentDisposition: "inline" }), { expiresIn: ttl }));
+    content = kind === "image" ? `<img src="${url}" alt="${escapeHtml(name)}"/>` : kind === "pdf" ? `<iframe sandbox title="${escapeHtml(name)}" src="${url}"></iframe>` : `<${kind} controls preload="metadata" src="${url}"></${kind}>`;
+  } else if (mime.startsWith("text/") || ["application/json", "application/xml", "application/javascript"].includes(mime)) {
+    const result = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: key, Range: "bytes=0-262143" }));
+    const chunks = [];
+    let bytes = 0;
+    if (result.Body) for await (const chunk of result.Body) {
+      const data = Buffer.from(chunk);
+      chunks.push(data.subarray(0, 262144 - bytes));
+      bytes += data.length;
+      if (bytes >= 262144) break;
+    }
+    content = `<div class="text-preview">${(object.ContentLength || 0) > 262144 ? '<p class="muted">Showing the first 256 KB. Download for the complete file.</p>' : ""}<pre>${escapeHtml(Buffer.concat(chunks).toString("utf8"))}</pre></div>`;
+  } else content = `<div class="empty">${publicIcon("file", 40)}<h2>Preview not available</h2><p>This file type can be downloaded and opened on your device.</p><a class="public-button" href="${download}">Download file</a></div>`;
+  return renderPublicShell(name, `<section class="public-preview" aria-label="File preview"><header class="public-preview__header"><strong>${escapeHtml(name)}</strong><div><a class="icon-button" href="${download}" aria-label="Download file" title="Download">${publicIcon("download")}</a><a class="icon-button" href="${back}" aria-label="Close preview" title="Close preview">${publicIcon("close")}</a></div></header><div class="public-preview__body">${content}</div></section>`);
+}
+
+// server/share-token.ts
+import { createCipheriv, createDecipheriv, createHash as createHash3, randomBytes } from "node:crypto";
+function encryptionKey() {
+  const secret = process.env.SHARE_TOKEN_SECRET || process.env.JWT_SECRET;
+  if (!secret && process.env.NODE_ENV === "production") throw new Error("SHARE_TOKEN_SECRET or JWT_SECRET is required");
+  return createHash3("sha256").update("vault:share-token:v1:").update(secret || "dev-insecure-secret-change-me").digest();
+}
+function encryptShareToken(token) {
+  const iv = randomBytes(12);
+  const cipher = createCipheriv("aes-256-gcm", encryptionKey(), iv);
+  const ciphertext = Buffer.concat([cipher.update(token, "utf8"), cipher.final()]);
+  return Buffer.concat([iv, cipher.getAuthTag(), ciphertext]).toString("base64url");
+}
+function recoverShareToken(encrypted) {
+  if (!encrypted) return void 0;
+  try {
+    const payload = Buffer.from(encrypted, "base64url");
+    const decipher = createDecipheriv("aes-256-gcm", encryptionKey(), payload.subarray(0, 12));
+    decipher.setAuthTag(payload.subarray(12, 28));
+    return Buffer.concat([decipher.update(payload.subarray(28)), decipher.final()]).toString("utf8");
+  } catch {
+    return void 0;
+  }
+}
+
 // server/shares.ts
+import { createHash as createHash4, randomBytes as randomBytes2, randomUUID as randomUUID3 } from "node:crypto";
+import express3 from "express";
+import { HeadObjectCommand as HeadObjectCommand2, ListObjectsV2Command, GetObjectCommand as GetObjectCommand2 } from "@aws-sdk/client-s3";
+import { getSignedUrl as getSignedUrl2 } from "@aws-sdk/s3-request-presigner";
 var collection = () => getDatabase().collection("public_shares");
 var indexes2;
 async function indexedCollection() {
@@ -1294,7 +1348,7 @@ function createShareRouters(s3, protection = new BucketProtection(), store = mon
     if (folder) {
       const result = await s3.send(new ListObjectsV2Command({ Bucket: bucket, Prefix: key, MaxKeys: 1 }));
       if (!result.Contents?.length) throw new BucketAccessError(404, "Folder not found");
-    } else await s3.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
+    } else await s3.send(new HeadObjectCommand2({ Bucket: bucket, Key: key }));
     const profile = await getSharer(bucketUser(req).id);
     const sharerName = profile?.name?.trim() || bucketUser(req).email.split("@")[0];
     const token = randomBytes2(32).toString("base64url");
@@ -1327,7 +1381,7 @@ function createShareRouters(s3, protection = new BucketProtection(), store = mon
   }));
   const publicRouter = express3.Router();
   publicRouter.use((_req, res, next) => {
-    res.set({ "Cache-Control": "no-store", "Referrer-Policy": "no-referrer", "X-Content-Type-Options": "nosniff", "X-Robots-Tag": "noindex, nofollow", "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'" });
+    res.set({ "Cache-Control": "no-store", "Referrer-Policy": "no-referrer", "X-Content-Type-Options": "nosniff", "X-Robots-Tag": "noindex, nofollow", "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; img-src https: http:; media-src https: http:; frame-src https: http:; frame-ancestors 'none'; base-uri 'none'; form-action 'none'" });
     next();
   });
   publicRouter.get("/:token", asyncRoute(async (req, res) => {
@@ -1344,9 +1398,15 @@ function createShareRouters(s3, protection = new BucketProtection(), store = mon
       if (requested.endsWith("/")) throw new BucketAccessError(400, "Choose a file to download");
       const ttl = share.expiresAt ? Math.min(60, Math.floor((share.expiresAt.getTime() - Date.now()) / 1e3)) : 60;
       if (ttl < 1) throw new BucketAccessError(404, "Share unavailable or expired");
+      await s3.send(new HeadObjectCommand2({ Bucket: share.bucket, Key: requested }));
       const filename = encodeURIComponent(requested.split("/").pop() || "download");
-      const url = await getSignedUrl(s3, new GetObjectCommand({ Bucket: share.bucket, Key: requested, ResponseContentDisposition: `attachment; filename="${filename}"; filename*=UTF-8''${filename}`, ResponseContentType: "application/octet-stream" }), { expiresIn: ttl });
+      const url = await getSignedUrl2(s3, new GetObjectCommand2({ Bucket: share.bucket, Key: requested, ResponseContentDisposition: `attachment; filename="${filename}"; filename*=UTF-8''${filename}`, ResponseContentType: "application/octet-stream" }), { expiresIn: ttl });
       res.redirect(303, url);
+      return;
+    }
+    if (req.query.preview === "1") {
+      if (requested.endsWith("/")) throw new BucketAccessError(404, "Item not shared");
+      res.type("html").send(await renderPublicPreview(s3, share.bucket, requested, base, share.expiresAt, share.key));
       return;
     }
     const profile = await getSharer(share.ownerId);
@@ -1357,13 +1417,16 @@ function createShareRouters(s3, protection = new BucketProtection(), store = mon
       const cursor = req.query.cursor;
       if (cursor !== void 0 && (typeof cursor !== "string" || cursor.length > 4096)) throw new BucketAccessError(400, "Invalid page");
       const result = await s3.send(new ListObjectsV2Command({ Bucket: share.bucket, Prefix: requested, Delimiter: "/", MaxKeys: 100, ContinuationToken: cursor }));
+      if (!cursor && !result.Contents?.length && !result.CommonPrefixes?.length) {
+        await s3.send(new HeadObjectCommand2({ Bucket: share.bucket, Key: requested }));
+      }
       entries = [
         ...(result.CommonPrefixes || []).filter((p) => p.Prefix?.startsWith(requested)).map((p) => ({ key: p.Prefix, folder: true })),
         ...(result.Contents || []).filter((o) => o.Key && o.Key !== requested && o.Key.startsWith(requested)).map((o) => ({ key: o.Key, folder: false, size: o.Size, modified: o.LastModified }))
       ];
       nextCursor = result.IsTruncated ? result.NextContinuationToken : void 0;
     } else {
-      const object = await s3.send(new HeadObjectCommand({ Bucket: share.bucket, Key: requested }));
+      const object = await s3.send(new HeadObjectCommand2({ Bucket: share.bucket, Key: requested }));
       entries = [{ key: requested, folder: false, size: object.ContentLength, modified: object.LastModified }];
     }
     res.type("html").send(renderPublicSharePage({
@@ -1391,15 +1454,26 @@ function createShareRouters(s3, protection = new BucketProtection(), store = mon
     next(err);
   };
   management.use(errors);
-  publicRouter.use(errors);
+  publicRouter.use((_req, res) => {
+    res.status(404).type("html").send(renderPublicError(404));
+  });
+  publicRouter.use((err, _req, res, next) => {
+    if (res.headersSent) {
+      next(err);
+      return;
+    }
+    const missing = ["NoSuchKey", "NotFound", "NoSuchBucket"].includes(err?.name);
+    const status = err instanceof BucketAccessError ? err.status : missing ? 404 : 500;
+    res.status(status).type("html").send(renderPublicError(status, status < 500));
+  });
   return { management, publicRouter };
 }
 
 // server/object-metadata.ts
-import { HeadObjectCommand as HeadObjectCommand2, ListObjectsV2Command as ListObjectsV2Command2 } from "@aws-sdk/client-s3";
+import { HeadObjectCommand as HeadObjectCommand3, ListObjectsV2Command as ListObjectsV2Command2 } from "@aws-sdk/client-s3";
 async function getObjectMetadata(s3, bucket, key) {
   if (!key.endsWith("/")) {
-    const object = await s3.send(new HeadObjectCommand2({ Bucket: bucket, Key: key }));
+    const object = await s3.send(new HeadObjectCommand3({ Bucket: bucket, Key: key }));
     return {
       key,
       isFolder: false,
@@ -1445,10 +1519,10 @@ import {
   PutObjectCommand,
   DeleteObjectCommand,
   DeleteObjectsCommand,
-  GetObjectCommand as GetObjectCommand2,
+  GetObjectCommand as GetObjectCommand3,
   HeadBucketCommand
 } from "@aws-sdk/client-s3";
-import { getSignedUrl as getSignedUrl2 } from "@aws-sdk/s3-request-presigner";
+import { getSignedUrl as getSignedUrl3 } from "@aws-sdk/s3-request-presigner";
 import bcrypt4 from "bcryptjs";
 
 // src/lib/buckets.ts
@@ -1500,7 +1574,7 @@ function createStorageClient() {
     forcePathStyle: true
   });
 }
-function createS3Router(protection = new BucketProtection()) {
+function createS3Router(protection = new BucketProtection(), authenticate = (_req, _res, next) => next()) {
   const s3 = createStorageClient();
   const defaultBucket = process.env.MINIO_BUCKET || "fruitms-public-local";
   const privateBucket = process.env.MINIO_PRIVATE_BUCKET || "shared-files";
@@ -1511,10 +1585,10 @@ function createS3Router(protection = new BucketProtection()) {
     res.setHeader("Cache-Control", "no-store");
     next();
   });
-  router.get("/health", (_req, res) => {
+  router.get("/health", authenticate, (_req, res) => {
     res.json({ status: "ok" });
   });
-  router.get("/buckets", wrap(async (req, res) => {
+  router.get("/buckets", authenticate, wrap(async (req, res) => {
     const result = await s3.send(new ListBucketsCommand({}));
     const bucketDetails = await protection.describe(req, result.Buckets?.map((b) => b.Name).filter((n) => !!n) || []);
     const buckets = bucketDetails.map((bucket) => bucket.name);
@@ -1525,7 +1599,7 @@ function createS3Router(protection = new BucketProtection()) {
       privateBucket: buckets.includes(privateBucket) ? privateBucket : ""
     });
   }));
-  router.post("/buckets", express4.json(), wrap(async (req, res) => {
+  router.post("/buckets", authenticate, express4.json(), wrap(async (req, res) => {
     const isPrivate = req.body?.private === true;
     if (!isPrivate && bucketUser(req).role !== "admin") throw new BucketAccessError(403, "Admin access required");
     const name = req.body?.name;
@@ -1554,15 +1628,15 @@ function createS3Router(protection = new BucketProtection()) {
       bucketError(res, err);
     }
   }));
-  router.post("/buckets/:name/unlock", express4.json(), wrap(async (req, res) => {
+  router.post("/buckets/:name/unlock", authenticate, express4.json(), wrap(async (req, res) => {
     res.json({ details: await protection.unlock(req, String(req.params.name), req.body?.password) });
   }));
-  router.post("/buckets/:name/lock", wrap(async (req, res) => {
+  router.post("/buckets/:name/lock", authenticate, wrap(async (req, res) => {
     const bucket = await protection.owned(req, String(req.params.name));
     await protection.store.revoke(bucket._id);
     res.json({ details: { name: bucket._id, label: bucket.label, isPrivate: true, locked: true } });
   }));
-  router.patch("/buckets/:name/password", express4.json(), wrap(async (req, res) => {
+  router.patch("/buckets/:name/password", authenticate, express4.json(), wrap(async (req, res) => {
     const bucket = await protection.owned(req, String(req.params.name));
     const error = validateBucketPassword(req.body?.newPassword);
     if (error) throw new BucketAccessError(400, error);
@@ -1571,7 +1645,7 @@ function createS3Router(protection = new BucketProtection()) {
     if (!changed) throw new BucketAccessError(409, "Bucket changed. Please try again.");
     res.json({ details: { name: bucket._id, label: bucket.label, isPrivate: true, locked: true } });
   }));
-  router.delete("/buckets/:name", express4.json(), wrap(async (req, res) => {
+  router.delete("/buckets/:name", authenticate, express4.json(), wrap(async (req, res) => {
     const name = String(req.params.name);
     const bucket = await protection.authorize(req, name);
     if (!bucket && bucketUser(req).role !== "admin") throw new BucketAccessError(403, "Admin access required");
@@ -1595,19 +1669,25 @@ function createS3Router(protection = new BucketProtection()) {
       next();
       return;
     }
-    void (async () => {
-      const requested = routePath === "/folders" ? req.body?.bucket : req.query.bucket;
-      if (requested !== void 0 && (typeof requested !== "string" || !requested)) throw new BucketAccessError(400, "A valid bucket name is required");
-      const bucket = requested ?? privateBucket;
-      const metadata = await protection.authorize(req, bucket);
-      res.locals.bucket = bucket;
-      res.locals.privateBucket = !!metadata;
-      res.locals.urlTtl = metadata ? Math.max(1, Math.min(
-        PRIVATE_URL_SECONDS,
-        Math.floor(((await protection.grantExpiry(req, metadata))?.getTime() || 0) / 1e3 - Date.now() / 1e3)
-      )) : 900;
-      next();
-    })().catch(next);
+    authenticate(req, res, (authError) => {
+      if (authError) {
+        next(authError);
+        return;
+      }
+      void (async () => {
+        const requested = routePath === "/folders" ? req.body?.bucket : req.query.bucket;
+        if (requested !== void 0 && (typeof requested !== "string" || !requested)) throw new BucketAccessError(400, "A valid bucket name is required");
+        const bucket = requested ?? privateBucket;
+        const metadata = await protection.authorize(req, bucket);
+        res.locals.bucket = bucket;
+        res.locals.privateBucket = !!metadata;
+        res.locals.urlTtl = metadata ? Math.max(1, Math.min(
+          PRIVATE_URL_SECONDS,
+          Math.floor(((await protection.grantExpiry(req, metadata))?.getTime() || 0) / 1e3 - Date.now() / 1e3)
+        )) : 900;
+        next();
+      })().catch(next);
+    });
   });
   router.get("/metadata", wrap(async (req, res) => {
     const key = req.query.key;
@@ -1684,7 +1764,7 @@ function createS3Router(protection = new BucketProtection()) {
       res.status(400).json({ error: 'Query parameter "key" is required' });
       return;
     }
-    const uploadUrl = await getSignedUrl2(
+    const uploadUrl = await getSignedUrl3(
       s3,
       new PutObjectCommand({
         Bucket: bucket,
@@ -1730,9 +1810,9 @@ function createS3Router(protection = new BucketProtection()) {
   router.get("/download", wrap(async (req, res) => {
     const bucket = res.locals.bucket;
     const key = req.query.key || "";
-    const signedUrl = await getSignedUrl2(
+    const signedUrl = await getSignedUrl3(
       s3,
-      new GetObjectCommand2({ Bucket: bucket, Key: key }),
+      new GetObjectCommand3({ Bucket: bucket, Key: key }),
       { expiresIn: res.locals.urlTtl }
     );
     res.json({ url: signedUrl });
@@ -1744,9 +1824,9 @@ function createS3Router(protection = new BucketProtection()) {
     const isMedia = /\.(mp4|webm|mov|mkv|mp3|wav|ogg|m4a|flac|aac)$/i.test(key);
     const shouldRedirect = redirect || Boolean(process.env.VERCEL) && isMedia;
     if (shouldRedirect) {
-      const signedUrl = await getSignedUrl2(
+      const signedUrl = await getSignedUrl3(
         s3,
-        new GetObjectCommand2({ Bucket: bucket, Key: key }),
+        new GetObjectCommand3({ Bucket: bucket, Key: key }),
         { expiresIn: res.locals.urlTtl }
       );
       res.redirect(307, signedUrl);
@@ -1754,7 +1834,7 @@ function createS3Router(protection = new BucketProtection()) {
     }
     const rangeHeader = req.headers.range;
     const object = await s3.send(
-      new GetObjectCommand2({
+      new GetObjectCommand3({
         Bucket: bucket,
         Key: key,
         ...rangeHeader ? { Range: rangeHeader } : {}
@@ -1796,7 +1876,7 @@ function createS3Router(protection = new BucketProtection()) {
     );
     res.json({ success: true });
   }));
-  router.post("/ensure-bucket", requireAdmin, wrap(async (req, res) => {
+  router.post("/ensure-bucket", authenticate, requireAdmin, wrap(async (req, res) => {
     await protection.authorize(req, privateBucket);
     try {
       await s3.send(new HeadBucketCommand({ Bucket: privateBucket }));
@@ -1841,15 +1921,18 @@ app.use("/api/users", requireAuth, requireAdmin, express5.json(), usersRouter);
 var shares = createShareRouters(createStorageClient());
 app.use("/api/public", shares.publicRouter);
 app.use("/api/shares", requireAuth, shares.management);
-app.use("/api", requireAuth, createS3Router());
-app.use("/api", (_req, res) => {
-  res.status(404).json({ error: "Not found" });
-});
+app.use("/api", createS3Router(void 0, requireAuth));
+app.use("/api", notFound);
 app.use((err, req, res, next) => {
   if (!req.path.startsWith("/api")) return next(err);
   const message = err instanceof Error ? err.message : "Internal server error";
   console.error("[vault]", req.method, req.path.startsWith("/api/public/") ? "/api/public/[redacted]" : req.path, "\u2192", message);
   if (res.headersSent) return next(err);
+  if (req.path.startsWith("/api/public")) {
+    res.set({ "Cache-Control": "no-store", "Referrer-Policy": "no-referrer", "X-Content-Type-Options": "nosniff" });
+    res.status(500).type("html").send(renderPublicError(500));
+    return;
+  }
   res.status(500).json({ error: message });
 });
 var app_default = app;

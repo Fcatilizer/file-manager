@@ -1,3 +1,4 @@
+import { Readable } from 'node:stream'
 import assert from 'node:assert/strict'
 import { after, beforeEach, mock, test } from 'node:test'
 import { once } from 'node:events'
@@ -18,8 +19,13 @@ const store: ShareStore = {
 }
 const buckets = new MemoryBucketStore()
 const calls: {name:string; input: Record<string, unknown>}[] = []
+let contentType = 'image/jpeg'
+let storageFailure: Error | undefined
 const stub = mock.method(S3Client.prototype, 'send', async command => {
   calls.push({name:command.constructor.name,input:command.input})
+  if(storageFailure) throw storageFailure
+  if(command.constructor.name === 'HeadObjectCommand') return {ContentType:contentType,ContentLength:100}
+  if(command.constructor.name === 'GetObjectCommand') return {Body:Readable.from(['<script>alert(1)</script>'])}
   return command.constructor.name === 'ListObjectsV2Command' ? { Contents: [{Key:'photos/a.jpg'}], CommonPrefixes:[{Prefix:'photos/nested/'}], IsTruncated:true, NextContinuationToken:'next-page' } : {}
 })
 const s3 = new S3Client({region:'us-east-1',endpoint:'http://localhost:9000',forcePathStyle:true,credentials:{accessKeyId:'test',secretAccessKey:'test'}})
@@ -35,7 +41,7 @@ const addr=server.address(); if(!addr || typeof addr==='string') throw Error('Mi
 const base=`http://127.0.0.1:${addr.port}`
 async function request(path:string,method='GET',body?:unknown,user='owner') { return fetch(base+path,{method,redirect:'manual',headers:{'Content-Type':'application/json','x-user':user,Cookie:'vault_session=test'},body:body===undefined?undefined:JSON.stringify(body)}) }
 async function create(extra:Record<string,unknown>={}) { const res=await request('/api/shares','POST',{bucket:'shared',key:'photos/a.jpg',folder:false,duration:'1h',...extra}); assert.equal(res.status,201);return res.json() }
-beforeEach(()=>{records.clear();buckets.buckets.clear();calls.length=0})
+beforeEach(()=>{records.clear();buckets.buckets.clear();calls.length=0;contentType='image/jpeg';storageFailure=undefined})
 after(async()=>{stub.mock.restore();await new Promise<void>(resolve=>server.close(()=>resolve()))})
 
 test('creates opaque random links, stores no plaintext tokens, and opens without login',async()=>{
@@ -116,4 +122,31 @@ test('owners can retrieve exactly the same public URL; legacy hashes remain nonr
  data=await (await request('/api/shares?bucket=shared&key=photos%2Fa.jpg')).json()
  assert.equal(data.shares[0].path,undefined)
  assert.equal((await request(share.path)).status,200)
+})
+
+test('revoked, expired and malformed links render unavailable pages without file information',async()=>{
+ const share=await create(); await request(`/api/shares/${share.id}`,'DELETE')
+ for(const path of [share.path,share.path+'?preview=1','/api/public/invalid']) {
+  const response=await request(path);assert.equal(response.status,404);assert.match(response.headers.get('content-type')!,/text\/html/)
+  const html=await response.text();assert.match(html,/Files unavailable/);assert.ok(!html.includes('photos/a.jpg'))
+ }
+ const missing=await request('/api/public/unknown/route');assert.equal(missing.status,404);assert.match(await missing.text(),/Page not found/)
+})
+test('preview icons precede download and authorized images use expiring signed URLs',async()=>{
+ const share=await create();const html=await (await request(share.path)).text()
+ assert.ok(html.indexOf('aria-label="Preview ')<html.indexOf('aria-label="Download file '))
+ const response=await request(share.path+'?preview=1');assert.equal(response.status,200)
+ const preview=await response.text();assert.match(preview,/<img src=/);assert.match(preview,/X-Amz-Expires=60/);assert.match(preview,/Close preview/)
+ const outside=await request(share.path+'?preview=1&key=secret');assert.equal(outside.status,404)
+})
+test('active text content is escaped; unsupported files get a download fallback',async()=>{
+ const share=await create();contentType='text/html'
+ const html=await (await request(share.path+'?preview=1')).text();assert.match(html,/&lt;script&gt;/);assert.ok(!html.includes('<script>'))
+ contentType='application/octet-stream';assert.match(await (await request(share.path+'?preview=1')).text(),/Preview not available/)
+})
+test('missing objects and storage failures use safe branded error pages',async()=>{
+ const share=await create();storageFailure=Object.assign(Error('private storage details'),{name:'NoSuchKey'})
+ assert.match(await (await request(share.path+'?preview=1')).text(),/Files unavailable/)
+ storageFailure=Error('private storage details');const res=await request(share.path);assert.equal(res.status,500)
+ const html=await res.text();assert.match(html,/Something went wrong/);assert.ok(!html.includes('private storage details'))
 })

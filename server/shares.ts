@@ -1,10 +1,11 @@
+import { renderPublicPreview } from './public-preview.ts'
 import { encryptShareToken, recoverShareToken } from './share-token.ts'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import express, { type Request, type Response, type NextFunction } from 'express'
 import { S3Client, HeadObjectCommand, ListObjectsV2Command, GetObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { getDatabase, getUserById } from './db.ts'
-import { renderPublicSharePage, type SharedEntry } from './public-share-page.ts'
+import { renderPublicSharePage, renderPublicError, type SharedEntry } from './public-share-page.ts'
 import { BucketProtection, BucketAccessError, bucketUser } from './bucket-protection.ts'
 import { PRIVATE_BUCKET_PREFIX } from '../src/lib/bucketProtection.ts'
 
@@ -89,7 +90,7 @@ export function createShareRouters(s3: S3Client, protection = new BucketProtecti
 
   const publicRouter = express.Router()
   publicRouter.use((_req, res, next) => {
-    res.set({ 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer', 'X-Content-Type-Options': 'nosniff', 'X-Robots-Tag': 'noindex, nofollow', 'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'" })
+    res.set({ 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer', 'X-Content-Type-Options': 'nosniff', 'X-Robots-Tag': 'noindex, nofollow', 'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; img-src https: http:; media-src https: http:; frame-src https: http:; frame-ancestors 'none'; base-uri 'none'; form-action 'none'" })
     next()
   })
   publicRouter.get('/:token', asyncRoute(async (req, res) => {
@@ -108,9 +109,15 @@ export function createShareRouters(s3: S3Client, protection = new BucketProtecti
       if (requested.endsWith('/')) throw new BucketAccessError(400, 'Choose a file to download')
       const ttl = share.expiresAt ? Math.min(60, Math.floor((share.expiresAt.getTime() - Date.now()) / 1000)) : 60
       if (ttl < 1) throw new BucketAccessError(404, 'Share unavailable or expired')
+      await s3.send(new HeadObjectCommand({ Bucket: share.bucket, Key: requested }))
       const filename = encodeURIComponent(requested.split('/').pop() || 'download')
       const url = await getSignedUrl(s3, new GetObjectCommand({ Bucket: share.bucket, Key: requested, ResponseContentDisposition: `attachment; filename="${filename}"; filename*=UTF-8''${filename}`, ResponseContentType: 'application/octet-stream' }), { expiresIn: ttl })
       res.redirect(303, url)
+      return
+    }
+    if (req.query.preview === '1') {
+      if (requested.endsWith('/')) throw new BucketAccessError(404, 'Item not shared')
+      res.type('html').send(await renderPublicPreview(s3, share.bucket, requested, base, share.expiresAt, share.key))
       return
     }
     const profile = await getSharer(share.ownerId)
@@ -121,6 +128,9 @@ export function createShareRouters(s3: S3Client, protection = new BucketProtecti
       const cursor = req.query.cursor
       if (cursor !== undefined && (typeof cursor !== 'string' || cursor.length > 4096)) throw new BucketAccessError(400, 'Invalid page')
       const result = await s3.send(new ListObjectsV2Command({ Bucket: share.bucket, Prefix: requested, Delimiter: '/', MaxKeys: 100, ContinuationToken: cursor as string | undefined }))
+      if (!cursor && !result.Contents?.length && !result.CommonPrefixes?.length) {
+        await s3.send(new HeadObjectCommand({ Bucket: share.bucket, Key: requested }))
+      }
       entries = [
         ...(result.CommonPrefixes || []).filter((p) => p.Prefix?.startsWith(requested)).map((p) => ({ key: p.Prefix!, folder: true })),
         ...(result.Contents || []).filter((o) => o.Key && o.Key !== requested && o.Key.startsWith(requested)).map((o) => ({ key: o.Key!, folder: false, size: o.Size, modified: o.LastModified })),
@@ -138,6 +148,13 @@ export function createShareRouters(s3: S3Client, protection = new BucketProtecti
     if (['NoSuchKey', 'NotFound', 'NoSuchBucket'].includes((err as Error)?.name)) { res.status(404).json({ error: 'Item unavailable' }); return }
     next(err)
   }
-  management.use(errors); publicRouter.use(errors)
+  management.use(errors)
+  publicRouter.use((_req, res) => { res.status(404).type('html').send(renderPublicError(404)) })
+  publicRouter.use((err: unknown, _req: Request, res: Response, next: NextFunction) => {
+    if (res.headersSent) { next(err); return }
+    const missing = ['NoSuchKey', 'NotFound', 'NoSuchBucket'].includes((err as Error)?.name)
+    const status = err instanceof BucketAccessError ? err.status : missing ? 404 : 500
+    res.status(status).type('html').send(renderPublicError(status, status < 500))
+  })
   return { management, publicRouter }
 }

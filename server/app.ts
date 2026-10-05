@@ -1,3 +1,5 @@
+import { notFound } from './not-found.ts'
+import { renderPublicError } from './public-share-page.ts'
 import express from 'express'
 import type { Request, Response, NextFunction } from 'express'
 import cookieParser from 'cookie-parser'
@@ -41,10 +43,8 @@ app.use('/api/public', shares.publicRouter)
 app.use('/api/shares', requireAuth, shares.management)
 
 // ─── Protected file API ──────────────────────────────────────
-app.use('/api', requireAuth, createS3Router())
-app.use('/api', (_req: Request, res: Response) => {
-  res.status(404).json({ error: 'Not found' })
-})
+app.use('/api', createS3Router(undefined, requireAuth))
+app.use('/api', notFound)
 
 // ─── JSON error handler for the API ──────────────────────────
 app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
@@ -52,6 +52,11 @@ app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
   const message = err instanceof Error ? err.message : 'Internal server error'
   console.error('[vault]', req.method, req.path.startsWith('/api/public/') ? '/api/public/[redacted]' : req.path, '→', message)
   if (res.headersSent) return next(err)
+  if (req.path.startsWith('/api/public')) {
+    res.set({ 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer', 'X-Content-Type-Options': 'nosniff' })
+    res.status(500).type('html').send(renderPublicError(500))
+    return
+  }
   res.status(500).json({ error: message })
 })
 

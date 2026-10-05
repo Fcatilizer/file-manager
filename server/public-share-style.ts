@@ -122,7 +122,7 @@ nav a {
   overflow:hidden}
 .row {
   display:grid;
-  grid-template-columns:minmax(0,1fr) 90px 165px 40px;
+  grid-template-columns:minmax(0,1fr) 90px 165px 72px;
   gap:16px;
   align-items:center;
   padding:17px 20px;
@@ -198,7 +198,7 @@ h1 {
   padding:18px;
   gap:18px}
 .row {
-  grid-template-columns:minmax(0,1fr) 65px 24px;
+  grid-template-columns:minmax(0,1fr) 65px 64px;
   gap:8px;
   padding:16px 14px}
 .modified {
@@ -213,4 +213,6 @@ h1 {
   margin-top:20px}
 }
 
+
+.row:hover{background:color-mix(in srgb,var(--accent) 4%,white)}.action{display:flex;justify-content:flex-end;gap:6px}.icon-button{display:inline-flex;align-items:center;justify-content:center;width:30px;height:32px;border-radius:6px;color:var(--accent)}.icon-button:hover{background:color-mix(in srgb,var(--accent) 10%,white)}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}.public-error{max-width:520px;margin:90px auto;background:white;border:1px solid #e0e4eb;border-radius:16px;text-align:center;padding:44px 28px}.public-error>svg{color:var(--accent);margin-bottom:24px}.public-error p{color:#768197;line-height:1.7;margin:18px 0 28px}.public-button{display:inline-flex;padding:11px 18px;background:var(--accent);color:white;border-radius:8px;margin-top:12px}.public-preview{background:#fff;border:1px solid #e0e4eb;border-radius:14px;overflow:hidden}.public-preview__header{display:flex;align-items:center;gap:16px;padding:16px 20px;border-bottom:1px solid #e0e4eb}.public-preview__header strong{flex:1;min-width:0;overflow-wrap:anywhere}.public-preview__header>div{display:flex;gap:8px}.public-preview__body{min-height:55vh;display:grid;place-items:center;padding:20px}.public-preview img,.public-preview video{max-width:100%;max-height:70vh;object-fit:contain}.public-preview audio{max-width:100%}.public-preview iframe{width:100%;height:70vh;border:0}.text-preview{width:100%;overflow:auto;max-height:70vh}pre{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.6;font-size:13px}.empty p{line-height:1.6;margin-top:12px}@media(max-width:640px){.public-error{margin:40px auto;padding:32px 20px}.public-preview__body{padding:12px}.row{gap:6px}}
 `

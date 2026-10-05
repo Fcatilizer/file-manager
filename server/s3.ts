@@ -1,6 +1,6 @@
 import { getObjectMetadata } from './object-metadata.ts'
 import express from 'express'
-import type { Request, Response, NextFunction, Router } from 'express'
+import type { Request, Response, NextFunction, Router, RequestHandler } from 'express'
 import {
   S3Client,
   ListBucketsCommand,
@@ -64,7 +64,7 @@ export function createStorageClient(): S3Client {
 
 }
 
-export function createS3Router(protection = new BucketProtection()): Router {
+export function createS3Router(protection = new BucketProtection(), authenticate: RequestHandler = (_req, _res, next) => next()): Router {
   const s3 = createStorageClient()
   const defaultBucket = process.env.MINIO_BUCKET || 'fruitms-public-local'
   const privateBucket = process.env.MINIO_PRIVATE_BUCKET || 'shared-files'
@@ -76,12 +76,12 @@ export function createS3Router(protection = new BucketProtection()): Router {
   router.use((_req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next() })
 
   // ─── Health ────────────────────────────────────────────
-  router.get('/health', (_req, res) => {
+  router.get('/health', authenticate, (_req, res) => {
     res.json({ status: 'ok' })
   })
 
   // ─── List Buckets ──────────────────────────────────────
-  router.get('/buckets', wrap(async (req, res) => {
+  router.get('/buckets', authenticate, wrap(async (req, res) => {
     const result = await s3.send(new ListBucketsCommand({}))
     const bucketDetails = await protection.describe(req, result.Buckets?.map((b) => b.Name).filter((n): n is string => !!n) || [])
     const buckets = bucketDetails.map((bucket) => bucket.name)
@@ -91,7 +91,7 @@ export function createS3Router(protection = new BucketProtection()): Router {
     })
   }))
 
-  router.post('/buckets', express.json(), wrap(async (req, res) => {
+  router.post('/buckets', authenticate, express.json(), wrap(async (req, res) => {
     const isPrivate = req.body?.private === true
     if (!isPrivate && bucketUser(req).role !== 'admin') throw new BucketAccessError(403, 'Admin access required')
     const name: unknown = req.body?.name
@@ -121,15 +121,15 @@ export function createS3Router(protection = new BucketProtection()): Router {
     } catch (err) { bucketError(res, err) }
   }))
 
-  router.post('/buckets/:name/unlock', express.json(), wrap(async (req, res) => {
+  router.post('/buckets/:name/unlock', authenticate, express.json(), wrap(async (req, res) => {
     res.json({ details: await protection.unlock(req, String(req.params.name), req.body?.password) })
   }))
-  router.post('/buckets/:name/lock', wrap(async (req, res) => {
+  router.post('/buckets/:name/lock', authenticate, wrap(async (req, res) => {
     const bucket = await protection.owned(req, String(req.params.name))
     await protection.store.revoke(bucket._id)
     res.json({ details: { name: bucket._id, label: bucket.label, isPrivate: true, locked: true } })
   }))
-  router.patch('/buckets/:name/password', express.json(), wrap(async (req, res) => {
+  router.patch('/buckets/:name/password', authenticate, express.json(), wrap(async (req, res) => {
     const bucket = await protection.owned(req, String(req.params.name))
     const error = validateBucketPassword(req.body?.newPassword)
     if (error) throw new BucketAccessError(400, error)
@@ -140,7 +140,7 @@ export function createS3Router(protection = new BucketProtection()): Router {
   }))
 
   // DeleteBucket refuses non-empty storage; this never empties a bucket.
-  router.delete('/buckets/:name', express.json(), wrap(async (req, res) => {
+  router.delete('/buckets/:name', authenticate, express.json(), wrap(async (req, res) => {
     const name = String(req.params.name)
     const bucket = await protection.authorize(req, name)
     if (!bucket && bucketUser(req).role !== 'admin') throw new BucketAccessError(403, 'Admin access required')
@@ -161,6 +161,8 @@ export function createS3Router(protection = new BucketProtection()): Router {
   router.use((req, res, next) => {
     const routePath = req.path.toLowerCase().replace(/\/+$/, '')
     if (!filePaths.has(routePath)) { next(); return }
+    authenticate(req, res, (authError?: unknown) => {
+    if (authError) { next(authError); return }
     void (async () => {
       const requested = routePath === '/folders' ? req.body?.bucket : req.query.bucket
       if (requested !== undefined && (typeof requested !== 'string' || !requested)) throw new BucketAccessError(400, 'A valid bucket name is required')
@@ -172,6 +174,7 @@ export function createS3Router(protection = new BucketProtection()): Router {
         Math.floor(((await protection.grantExpiry(req, metadata))?.getTime() || 0) / 1000 - Date.now() / 1000))) : 900
       next()
     })().catch(next)
+    })
   })
 
   router.get('/metadata', wrap(async (req, res) => {
@@ -395,7 +398,7 @@ export function createS3Router(protection = new BucketProtection()): Router {
   }))
 
   // ─── Ensure Private Bucket Exists ──────────────────────
-  router.post('/ensure-bucket', requireAdmin, wrap(async (req, res) => {
+  router.post('/ensure-bucket', authenticate, requireAdmin, wrap(async (req, res) => {
     await protection.authorize(req, privateBucket)
     try {
       await s3.send(new HeadBucketCommand({ Bucket: privateBucket }))

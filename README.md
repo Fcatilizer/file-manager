@@ -234,3 +234,10 @@ include exact size, MIME type, modified time, ETag, storage class, version (when
 available), and custom metadata. Folder details scan nested contents across
 pages, up to 10,000 entries; capped scans are explicitly partial. Original
 creation and last-opened timestamps are not available from object storage.
+
+Public shares show a Vault-styled unavailable page for expired/revoked links and
+missing items, plus not-found and server-error pages. File rows include preview
+and download controls. Public previews support raster images, PDF, common
+audio/video formats, and escaped text (first 256 KB); other types offer download.
+Media preview URLs expire within 60 seconds, bounded by the share expiry.
+Already-loaded previews and active streams cannot be recalled after revocation.
