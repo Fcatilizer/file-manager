@@ -1,4 +1,5 @@
-import { UploadProgressBar, UploadError } from './UploadStatus'
+import { UploadProgressBar, UploadError, type UploadStatus } from './UploadStatus'
+import { UploadControl } from '../lib/uploadControl'
 import ItemDetailsDialog from './ItemDetailsDialog'
 import ShareDialog from './ShareDialog'
 import CreateBucketDialog from './buckets/CreateBucketDialog'
@@ -87,9 +88,10 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
   const [files, setFiles] = useState<FileItem[]>([])
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
-  const [uploadProgress, setUploadProgress] = useState({ done: 0, total: 0, loaded: 0, bytes: 0, name: '', phase: 'uploading' })
+  const [uploadProgress, setUploadProgress] = useState<UploadStatus>({ done: 0, total: 0, loaded: 0, bytes: 0, name: '', phase: 'uploading', bytesPerSecond: 0, etaSeconds: null })
   const [uploadError, setUploadError] = useState('')
   const uploadController = useRef<AbortController | null>(null)
+  const uploadControl = useRef<UploadControl | null>(null)
   useEffect(() => () => uploadController.current?.abort(), [])
   const [dragActive, setDragActive] = useState(false)
   const [toast, setToast] = useState<ToastData | null>(null)
@@ -297,19 +299,28 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
       setUploadError('')
       const controller = new AbortController()
       uploadController.current = controller
+      const control = new UploadControl()
+      uploadControl.current = control
+      let remainingBytes = selectedFiles.reduce((sum, file) => sum + file.size, 0)
       setUploading(true)
       let ok = 0
       let failed = 0
       try {
         for (let i = 0; i < selectedFiles.length && !controller.signal.aborted; i++) {
           const file = selectedFiles[i]
-          setUploadProgress({ done: i, total: selectedFiles.length, loaded: 0, bytes: file.size, name: file.name, phase: 'uploading' })
+          setUploadProgress({ done: i, total: selectedFiles.length, loaded: 0, bytes: file.size, name: file.name, phase: control.paused ? 'paused' : 'uploading', bytesPerSecond: 0, etaSeconds: null })
           try {
             await uploadFile(activeBucket, prefix + file.name, file, {
               signal: controller.signal,
-              onProgress: ({ loaded, total, phase }) => setUploadProgress({ done: i, total: selectedFiles.length, loaded, bytes: total, name: file.name, phase }),
+              control,
+              onProgress: ({ loaded, total, phase, bytesPerSecond }) => {
+                if (controller.signal.aborted) return
+                setUploadProgress({ done: i, total: selectedFiles.length, loaded, bytes: total, name: file.name, phase, bytesPerSecond,
+                  etaSeconds: bytesPerSecond > 0 ? Math.max(0, remainingBytes - loaded) / bytesPerSecond : null })
+              },
             })
             ok++
+            remainingBytes -= file.size
           } catch (err) {
             if (controller.signal.aborted) break
             failed++
@@ -324,6 +335,7 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
       } finally {
         setUploading(false)
         uploadController.current = null
+        uploadControl.current = null
       }
     },
     [activeBucket, activeLocked, prefix, uploading, showToast, loadFiles],
@@ -751,7 +763,14 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
       {detailsItem && <ItemDetailsDialog key={detailsItem.key} bucket={activeBucket} bucketLabel={activeDetails?.label || activeBucket} item={detailsItem} onClose={() => setDetailsItem(null)} />}
       {shareItem && <ShareDialog bucket={activeBucket} item={shareItem} isPrivate={!!activeDetails?.isPrivate} onClose={() => setShareItem(null)} />}
 
-      {uploading && <UploadProgressBar progress={uploadProgress} onCancel={() => uploadController.current?.abort()} />}
+      {uploading && <UploadProgressBar progress={uploadProgress}
+        onPause={() => uploadControl.current?.pause()}
+        onResume={() => uploadControl.current?.resume()}
+        onCancel={() => {
+          setUploadProgress(current => ({ ...current, phase: 'cancelling', bytesPerSecond: 0, etaSeconds: null }))
+          uploadController.current?.abort()
+        }} />}
+
 
       {/* Drop Overlay */}
       {dragActive && (

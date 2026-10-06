@@ -1,11 +1,14 @@
 import assert from 'node:assert/strict'
 import { after, beforeEach, test } from 'node:test'
 import { uploadDirect } from '../src/lib/upload.ts'
+import { UploadControl } from '../src/lib/uploadControl.ts'
+import { UploadMetrics } from '../src/lib/uploadMetrics.ts'
 import { UPLOAD_CHUNK_BYTES as chunk } from '../src/lib/uploadPolicy.ts'
 
 const originals = { xhr: Object.getOwnPropertyDescriptor(globalThis, 'XMLHttpRequest'), location: Object.getOwnPropertyDescriptor(globalThis, 'location') }
 let outcome: (url: string, attempt: number) => number = () => 200
 let delay = 5, inFlight = 0, maxInFlight = 0
+let onSend: (part: string, xhr: FakeXHR, blob: Blob) => void = () => {}
 const attempts = new Map<string, number>()
 const blobs: { url: string; blob: Blob; status: number }[] = []
 const controls: { url: string; body?: any }[] = []
@@ -27,6 +30,7 @@ class FakeXHR {
       blobs.push({ url: this.url, blob, status: this.status })
       if (this.status === 0) this.onerror?.(); else this.onload?.()
     }, delay)
+    onSend(part, this, blob)
   }
   abort() { if (this.stopped) return; this.stopped = true; clearTimeout(this.timer); inFlight--; this.onabort?.() }
 }
@@ -40,7 +44,7 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
   if (url.startsWith('/api/upload-url?')) return { uploadUrl: 'https://storage.example.test/single' } as T
   return { success: true } as T
 }
-beforeEach(() => { outcome = () => 200; delay = 5; inFlight = 0; maxInFlight = 0; attempts.clear(); blobs.length = 0; controls.length = 0 })
+beforeEach(() => { onSend = () => {}; outcome = () => 200; delay = 5; inFlight = 0; maxInFlight = 0; attempts.clear(); blobs.length = 0; controls.length = 0 })
 after(() => {
   for (const [name, descriptor] of [['XMLHttpRequest', originals.xhr], ['location', originals.location]] as const) {
     if (descriptor) Object.defineProperty(globalThis, name, descriptor); else Reflect.deleteProperty(globalThis, name)
@@ -96,4 +100,96 @@ test('empty files still use direct PUT', async () => {
   await uploadDirect(request, 'shared', 'empty.txt', new File([], 'empty.txt'))
   assert.equal(blobs.length, 1); assert.equal(blobs[0].blob.size, 0)
   assert.ok(controls.every(c => c.url.startsWith('/api/upload-url?')))
+})
+
+const settle = () => new Promise(resolve => setTimeout(resolve, 20))
+
+test('pause stops active PUTs, retains completed chunks, and resumes with fresh URLs', async () => {
+  const control = new UploadControl()
+  const progress: { loaded: number; phase: string; bytesPerSecond: number; etaSeconds: number | null }[] = []
+  let paused!: () => void
+  const pausedOnce = new Promise<void>(resolve => { paused = resolve })
+  let didPause = false
+  onSend = (part, xhr, blob) => {
+    if (part === '4' && !didPause) {
+      didPause = true
+      xhr.upload.onprogress?.({ loaded: blob.size / 2 })
+      control.pause(); paused()
+    }
+  }
+  const upload = uploadDirect(request, 'shared', 'test.bin', new File([new Uint8Array(chunk * 4)], 'test.bin'), { control, onProgress: p => progress.push(p) })
+  await pausedOnce; await settle()
+  assert.equal(inFlight, 0)
+  const requestCount = controls.length
+  assert.ok(!controls.some(c => c.url === '/api/uploads/abort' || c.url === '/api/uploads/complete'))
+  assert.equal(progress.at(-1)?.phase, 'paused')
+  assert.equal(progress.at(-1)?.bytesPerSecond, 0)
+  assert.equal(progress.at(-1)?.etaSeconds, null)
+  const completeBeforePause = blobs.filter(b => b.status === 200).map(b => new URL(b.url).searchParams.get('part')!)
+  assert.ok(completeBeforePause.includes('1'))
+  assert.equal(progress.at(-1)?.loaded, completeBeforePause.length * chunk)
+  await settle(); assert.equal(controls.length, requestCount)
+  control.resume(); await upload
+  for (const part of completeBeforePause) assert.equal(attempts.get(part), 1)
+  assert.equal(attempts.get('4'), 2)
+  const signedFourth = controls.filter(c => c.url === '/api/uploads/part' && c.body.partNumber === 4)
+  assert.equal(signedFourth.length, 2)
+  assert.equal(controls.at(-1)?.url, '/api/uploads/complete')
+  assert.equal(progress.at(-1)?.loaded, chunk * 4)
+})
+
+test('cancel while paused rejects promptly and cleans up multipart state', async () => {
+  const control = new UploadControl(), cancel = new AbortController()
+  let paused!: () => void
+  const pausedOnce = new Promise<void>(resolve => { paused = resolve })
+  onSend = () => { control.pause(); paused() }
+  const upload = uploadDirect(request, 'shared', 'test.bin', new File([new Uint8Array(chunk * 2)], 'test.bin'), { control, signal: cancel.signal })
+  await pausedOnce; await settle()
+  cancel.abort()
+  await assert.rejects(upload, { name: 'AbortError' })
+  assert.equal(inFlight, 0)
+  assert.equal(controls.at(-1)?.url, '/api/uploads/abort')
+  assert.ok(!controls.some(c => c.url === '/api/uploads/complete'))
+})
+
+test('repeated small-file pauses do not exhaust retries, and a paused queue sends nothing', async () => {
+  const control = new UploadControl()
+  control.pause()
+  let pauses = 0
+  onSend = () => {
+    if (pauses++ < 4) { control.pause(); setTimeout(() => control.resume(), 1) }
+  }
+  const upload = uploadDirect(request, 'shared', 'tiny.txt', new File(['hello'], 'tiny.txt'), { control })
+  await settle(); assert.equal(controls.length, 0)
+  control.resume(); await upload
+  assert.equal(attempts.get('single'), 5)
+  assert.equal(blobs.filter(b => b.status === 200).length, 1)
+})
+
+test('pause during URL signing never starts a PUT with the stale URL', async () => {
+  const control = new UploadControl()
+  let signing = 0
+  const pausedRequest = async <T>(url: string, init?: RequestInit): Promise<T> => {
+    const result = await request<T>(url, init)
+    if (url.startsWith('/api/upload-url?') && signing++ === 0) {
+      control.pause()
+      setTimeout(() => control.resume(), 5)
+    }
+    return result
+  }
+  await uploadDirect(pausedRequest, 'shared', 'tiny.txt', new File(['hello'], 'tiny.txt'), { control })
+  assert.equal(signing, 2)
+  assert.equal(attempts.get('single'), 1)
+})
+
+test('rolling speed and ETA exclude paused time and decay to zero on a stalled connection', () => {
+  const metrics = new UploadMetrics(0)
+  metrics.addBytes(1024)
+  assert.deepEqual(metrics.measure(3072, 1000), { bytesPerSecond: 1024, etaSeconds: 3 })
+  metrics.reset(61000)
+  assert.deepEqual(metrics.measure(3072, 61000), { bytesPerSecond: 0, etaSeconds: null })
+  metrics.addBytes(2048)
+  assert.deepEqual(metrics.measure(1024, 62000), { bytesPerSecond: 2048, etaSeconds: 0.5 })
+  metrics.measure(1024, 65000)
+  assert.deepEqual(metrics.measure(1024, 68000), { bytesPerSecond: 0, etaSeconds: null })
 })
