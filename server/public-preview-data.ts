@@ -5,7 +5,7 @@ import { fileKind, extOf } from '../src/lib/filetype.ts'
 import { BucketAccessError } from './bucket-protection.ts'
 import type { ShareRecord } from './shares.ts'
 
-const mediaMime: Record<string, string> = { jpg:'image/jpeg', jpeg:'image/jpeg', png:'image/png', gif:'image/gif', webp:'image/webp', avif:'image/avif', bmp:'image/bmp', ico:'image/x-icon', mp4:'video/mp4', webm:'video/webm', mov:'video/quicktime', m4v:'video/mp4', mp3:'audio/mpeg', wav:'audio/wav', ogg:'audio/ogg', oga:'audio/ogg', ogv:'video/ogg', m4a:'audio/mp4', flac:'audio/flac', aac:'audio/aac', pdf:'application/pdf' }
+import { mediaMime } from './media-types.ts'
 
 /** Called only AFTER public share authorization; no separate rendering system. */
 export async function publicPreviewData(s3: S3Client, share: ShareRecord, key: string, req: Request, res: Response) {

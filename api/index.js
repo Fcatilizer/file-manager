@@ -641,18 +641,31 @@ import jwt from "jsonwebtoken";
 import bcrypt2 from "bcryptjs";
 import { rateLimit } from "express-rate-limit";
 var SESSION_COOKIE = "vault_session";
-var AUTH_RATE_WINDOW_MS = Number(process.env.AUTH_RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1e3;
-var AUTH_RATE_LIMIT_MAX = Number(process.env.AUTH_RATE_LIMIT_MAX) || 10;
-var authRateLimiter = rateLimit({
-  windowMs: AUTH_RATE_WINDOW_MS,
-  limit: AUTH_RATE_LIMIT_MAX,
-  standardHeaders: "draft-7",
-  legacyHeaders: false,
-  skipSuccessfulRequests: true,
-  message: { error: "Too many login attempts. Please try again in 15 minutes." },
-  statusCode: 429,
-  skip: (req) => process.env.NODE_ENV === "test" && !req.headers["x-test-rate-limit"]
-});
+function positiveInteger(value, fallback) {
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) && parsed > 0 && parsed <= 2147483647 ? parsed : fallback;
+}
+var AUTH_RATE_WINDOW_MS = positiveInteger(process.env.AUTH_RATE_LIMIT_WINDOW_MS, 15 * 60 * 1e3);
+var AUTH_RATE_LIMIT_MAX = positiveInteger(process.env.AUTH_RATE_LIMIT_MAX, 10);
+function createAuthRateLimiter(action) {
+  return rateLimit({
+    windowMs: AUTH_RATE_WINDOW_MS,
+    limit: AUTH_RATE_LIMIT_MAX,
+    standardHeaders: "draft-7",
+    legacyHeaders: false,
+    skipSuccessfulRequests: true,
+    handler: (_req, res) => {
+      const retryAfterSeconds = Number(res.getHeader("Retry-After")) || Math.ceil(AUTH_RATE_WINDOW_MS / 1e3);
+      const minutes = Math.ceil(retryAfterSeconds / 60);
+      res.status(429).json({
+        error: `Too many ${action} attempts. Please try again in ${minutes} minute${minutes === 1 ? "" : "s"}.`,
+        retryAfterSeconds
+      });
+    }
+  });
+}
+var authRateLimiter = createAuthRateLimiter("login");
+var setupRateLimiter = createAuthRateLimiter("setup");
 function getSecret() {
   const secret = process.env.JWT_SECRET;
   if (!secret) {
@@ -726,7 +739,7 @@ authRouter.get("/status", async (_req, res) => {
     setupTokenRequired: Boolean(process.env.SETUP_TOKEN)
   });
 });
-authRouter.post("/setup", authRateLimiter, async (req, res) => {
+authRouter.post("/setup", setupRateLimiter, async (req, res) => {
   const total = await countUsers();
   if (total > 0) {
     res.status(403).json({ error: "Setup has already been completed" });
@@ -916,7 +929,7 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 // src/lib/filetype.ts
 var IMAGE_EXT = ["jpg", "jpeg", "png", "gif", "svg", "webp", "bmp", "ico", "avif"];
-var VIDEO_EXT = ["mp4", "mov", "webm", "m4v", "ogv"];
+var VIDEO_EXT = ["mp4", "mov", "webm", "m4v", "ogv", "mkv"];
 var AUDIO_EXT = ["mp3", "wav", "flac", "ogg", "oga", "aac", "m4a"];
 var WORD_EXT = ["docx", "doc", "odt", "rtf", "dot", "dotx"];
 var EXCEL_EXT = ["xlsx", "xls", "xlsm", "xlsb", "ods"];
@@ -1123,8 +1136,10 @@ var BucketProtection = class {
   }
 };
 
+// server/media-types.ts
+var mediaMime = { jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", gif: "image/gif", webp: "image/webp", avif: "image/avif", bmp: "image/bmp", ico: "image/x-icon", mp4: "video/mp4", webm: "video/webm", mov: "video/quicktime", m4v: "video/mp4", mkv: "video/x-matroska", mp3: "audio/mpeg", wav: "audio/wav", ogg: "audio/ogg", oga: "audio/ogg", ogv: "video/ogg", m4a: "audio/mp4", flac: "audio/flac", aac: "audio/aac", pdf: "application/pdf" };
+
 // server/public-preview-data.ts
-var mediaMime = { jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", gif: "image/gif", webp: "image/webp", avif: "image/avif", bmp: "image/bmp", ico: "image/x-icon", mp4: "video/mp4", webm: "video/webm", mov: "video/quicktime", m4v: "video/mp4", mp3: "audio/mpeg", wav: "audio/wav", ogg: "audio/ogg", oga: "audio/ogg", ogv: "video/ogg", m4a: "audio/mp4", flac: "audio/flac", aac: "audio/aac", pdf: "application/pdf" };
 async function publicPreviewData(s3, share, key, req, res) {
   if (key.endsWith("/")) throw new BucketAccessError(404, "Item not shared");
   const object = await s3.send(new HeadObjectCommand({ Bucket: share.bucket, Key: key }));
@@ -1830,12 +1845,13 @@ function createS3Router(protection = new BucketProtection(), authenticate = (_re
     const bucket = res.locals.bucket;
     const key = req.query.key || "";
     const redirect = req.query.redirect === "true";
-    const isMedia = /\.(mp4|webm|mov|mkv|mp3|wav|ogg|m4a|flac|aac)$/i.test(key);
+    const mediaType = mediaMime[key.split(".").pop()?.toLowerCase() || ""];
+    const isMedia = /^(audio|video)\//.test(mediaType || "");
     const shouldRedirect = redirect || Boolean(process.env.VERCEL) && isMedia;
     if (shouldRedirect) {
       const signedUrl = await getSignedUrl4(
         s3,
-        new GetObjectCommand3({ Bucket: bucket, Key: key }),
+        new GetObjectCommand3({ Bucket: bucket, Key: key, ...mediaType ? { ResponseContentType: mediaType, ResponseContentDisposition: "inline" } : {} }),
         { expiresIn: res.locals.urlTtl }
       );
       res.redirect(307, signedUrl);
@@ -1851,8 +1867,12 @@ function createS3Router(protection = new BucketProtection(), authenticate = (_re
     );
     const filename = key.split("/").pop() || "file";
     const isPartial = !!rangeHeader && !!object.ContentRange;
+    let mimeType = object.ContentType || "application/octet-stream";
+    if (mediaType && mimeType === "application/octet-stream") {
+      mimeType = mediaType;
+    }
     const headers = {
-      "Content-Type": object.ContentType || "application/octet-stream",
+      "Content-Type": mimeType,
       "Accept-Ranges": "bytes",
       "Content-Disposition": `inline; filename="${encodeURIComponent(filename)}"`,
       "Cache-Control": "no-store",

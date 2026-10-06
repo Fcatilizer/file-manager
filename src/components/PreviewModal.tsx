@@ -4,7 +4,9 @@ import { Icon } from './Icon'
 import Modal, { ModalCloseButton } from './Modal'
 import DocxPreview from './DocxPreview'
 import SheetPreview from './SheetPreview'
+import VideoPreview from './VideoPreview'
 import { rawUrl, fetchTextContent, type FileItem } from '../lib/api'
+import { loadAudioMetadata, revokeAudioMetadata, type AudioMetadata } from '../lib/audioMetadata'
 import { fileKind, extOf } from '../lib/filetype'
 import { getFileTypeInfo } from '../lib/fileIcons'
 
@@ -107,6 +109,25 @@ export default function PreviewModal({
   const [revealed, setRevealed] = useState(false)
   const [copiedAll, setCopiedAll] = useState(false)
   const [copiedKey, setCopiedKey] = useState<number | null>(null)
+  const [audioResult, setAudioResult] = useState<{ src: string; meta: AudioMetadata } | null>(null)
+  const audioMeta = audioResult?.src === src ? audioResult.meta : null
+
+  // ─── Load audio cover art & metadata ────────────────────
+  useEffect(() => {
+    if (kind !== 'audio') return
+
+    const controller = new AbortController()
+    let metadata: AudioMetadata | undefined
+    void loadAudioMetadata(src, { signal: controller.signal, size: file.size, extension: extOf(file.name) }).then((meta) => {
+      metadata = meta
+      if (controller.signal.aborted) revokeAudioMetadata(meta)
+      else setAudioResult({ src, meta })
+    })
+    return () => {
+      controller.abort()
+      revokeAudioMetadata(metadata)
+    }
+  }, [kind, file.size, file.name, src])
 
   // ─── Load text content ──────────────────────────────────
   useEffect(() => {
@@ -183,32 +204,50 @@ export default function PreviewModal({
         )
 
       case 'video':
-        return (
-          <div className="preview__stage">
-            <video className="preview__video" src={src} controls autoPlay playsInline />
-          </div>
-        )
+        return <VideoPreview key={src} src={src} onDownload={() => onDownload(file.key, file.name)} />
 
-      case 'audio':
+      case 'audio': {
+        const hasCover = Boolean(audioMeta?.coverUrl)
+        const displayTitle = audioMeta?.title || file.name
         return (
           <div className="preview__stage preview__stage--audio">
-            <div
-              className="preview__audio-art"
-              style={{
-                color: activeColor,
-                backgroundColor: `${activeColor}15`,
-                borderColor: `${activeColor}30`,
-              }}
-            >
-              <Icon name="fileAudio" size={52} color={activeColor} />
+            {hasCover ? (
+              <div className="preview__audio-cover-wrap">
+                <img
+                  className="preview__audio-cover"
+                  src={audioMeta!.coverUrl}
+                  alt={displayTitle}
+                />
+              </div>
+            ) : (
+              <div
+                className="preview__audio-art"
+                style={{
+                  color: activeColor,
+                  backgroundColor: `${activeColor}15`,
+                  borderColor: `${activeColor}30`,
+                }}
+              >
+                <Icon name="fileAudio" size={52} color={activeColor} />
+              </div>
+            )}
+            <div className="preview__audio-name" title={displayTitle}>
+              {displayTitle}
             </div>
-            <div className="preview__audio-name">{file.name}</div>
+            {audioMeta?.artist && (
+              <div className="preview__audio-artist">
+                {audioMeta.artist}
+                {audioMeta.album ? ` • ${audioMeta.album}` : ''}
+              </div>
+            )}
             <div className="preview__audio-sub">
               {fileInfo.label} • {formatSize(file.size)}
+              {audioMeta?.year ? ` • ${audioMeta.year}` : ''}
             </div>
-            <audio className="preview__audio" src={src} controls autoPlay />
+            <audio key={file.key} className="preview__audio" src={src} controls autoPlay />
           </div>
         )
+      }
 
       case 'pdf':
         return <iframe className="preview__frame" src={src} title={file.name} />

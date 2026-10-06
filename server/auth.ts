@@ -26,19 +26,36 @@ export interface AuthUser {
   role: UserRole
 }
 
-const AUTH_RATE_WINDOW_MS = Number(process.env.AUTH_RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000
-const AUTH_RATE_LIMIT_MAX = Number(process.env.AUTH_RATE_LIMIT_MAX) || 10
+function positiveInteger(value: string | undefined, fallback: number): number {
+  const parsed = Number(value)
+  return Number.isSafeInteger(parsed) && parsed > 0 && parsed <= 2_147_483_647 ? parsed : fallback
+}
 
-export const authRateLimiter = rateLimit({
-  windowMs: AUTH_RATE_WINDOW_MS,
-  limit: AUTH_RATE_LIMIT_MAX,
-  standardHeaders: 'draft-7',
-  legacyHeaders: false,
-  skipSuccessfulRequests: true,
-  message: { error: 'Too many login attempts. Please try again in 15 minutes.' },
-  statusCode: 429,
-  skip: (req) => process.env.NODE_ENV === 'test' && !req.headers['x-test-rate-limit'],
-})
+const AUTH_RATE_WINDOW_MS = positiveInteger(process.env.AUTH_RATE_LIMIT_WINDOW_MS, 15 * 60 * 1000)
+const AUTH_RATE_LIMIT_MAX = positiveInteger(process.env.AUTH_RATE_LIMIT_MAX, 10)
+
+// MemoryStore is per process. A shared store is required for a global limit on
+// multi-instance/serverless deployments (including Vercel).
+function createAuthRateLimiter(action: string) {
+  return rateLimit({
+    windowMs: AUTH_RATE_WINDOW_MS,
+    limit: AUTH_RATE_LIMIT_MAX,
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+    skipSuccessfulRequests: true,
+    handler: (_req, res) => {
+      const retryAfterSeconds = Number(res.getHeader('Retry-After')) || Math.ceil(AUTH_RATE_WINDOW_MS / 1000)
+      const minutes = Math.ceil(retryAfterSeconds / 60)
+      res.status(429).json({
+        error: `Too many ${action} attempts. Please try again in ${minutes} minute${minutes === 1 ? '' : 's'}.`,
+        retryAfterSeconds,
+      })
+    },
+  })
+}
+
+export const authRateLimiter = createAuthRateLimiter('login')
+const setupRateLimiter = createAuthRateLimiter('setup')
 
 /** Request augmented with the resolved user (set by requireAuth). */
 export interface AuthedRequest extends Request {
@@ -132,7 +149,7 @@ authRouter.get('/status', async (_req: Request, res: Response) => {
 })
 
 // ─── First-run admin creation (public, only when empty) ──
-authRouter.post('/setup', authRateLimiter, async (req: Request, res: Response) => {
+authRouter.post('/setup', setupRateLimiter, async (req: Request, res: Response) => {
   const total = await countUsers()
   if (total > 0) {
     res.status(403).json({ error: 'Setup has already been completed' })

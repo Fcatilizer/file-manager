@@ -1,3 +1,4 @@
+import { mediaMime } from './media-types.ts'
 import { createUploadRouter, validUploadKey } from './uploads.ts'
 import { getObjectMetadata } from './object-metadata.ts'
 import express from 'express'
@@ -325,13 +326,14 @@ export function createS3Router(protection = new BucketProtection(), authenticate
 
     // Serverless (Vercel) timeout protection: redirect large media files
     // directly to presigned S3 URLs so browser native players stream smoothly
-    const isMedia = /\.(mp4|webm|mov|mkv|mp3|wav|ogg|m4a|flac|aac)$/i.test(key)
+    const mediaType = mediaMime[key.split('.').pop()?.toLowerCase() || '']
+    const isMedia = /^(audio|video)\//.test(mediaType || '')
     const shouldRedirect = redirect || (Boolean(process.env.VERCEL) && isMedia)
 
     if (shouldRedirect) {
       const signedUrl = await getSignedUrl(
         s3,
-        new GetObjectCommand({ Bucket: bucket, Key: key }),
+        new GetObjectCommand({ Bucket: bucket, Key: key, ...(mediaType ? { ResponseContentType: mediaType, ResponseContentDisposition: 'inline' } : {}) }),
         { expiresIn: res.locals.urlTtl },
       )
       res.redirect(307, signedUrl)
@@ -351,8 +353,13 @@ export function createS3Router(protection = new BucketProtection(), authenticate
     const filename = key.split('/').pop() || 'file'
     const isPartial = !!rangeHeader && !!object.ContentRange
 
+    let mimeType = object.ContentType || 'application/octet-stream'
+    if (mediaType && mimeType === 'application/octet-stream') {
+      mimeType = mediaType
+    }
+
     const headers: Record<string, string> = {
-      'Content-Type': object.ContentType || 'application/octet-stream',
+      'Content-Type': mimeType,
       'Accept-Ranges': 'bytes',
       'Content-Disposition': `inline; filename="${encodeURIComponent(filename)}"`,
       'Cache-Control': 'no-store',

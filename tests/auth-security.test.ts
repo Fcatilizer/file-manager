@@ -12,6 +12,8 @@ import cookieParser from 'cookie-parser'
 import bcrypt from 'bcryptjs'
 
 const { MongoClient, ObjectId } = await import('mongodb')
+process.env.AUTH_RATE_LIMIT_WINDOW_MS = '900000'
+process.env.AUTH_RATE_LIMIT_MAX = '10'
 const { connectDB } = await import('../server/db.ts')
 const { authRouter } = await import('../server/auth.ts')
 const { app } = await import('../server/app.ts')
@@ -111,4 +113,46 @@ test('app responds with global security headers (SEC-09)', async () => {
   } finally {
     await new Promise<void>((resolve) => mainServer.close(() => resolve()))
   }
+})
+
+function login(ip: string, password = 'wrong-password') {
+  return fetch(`${base}/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Forwarded-For': ip },
+    body: JSON.stringify({ email: userDoc.email, password }),
+  })
+}
+
+test('login unlocks at 15 minutes; blocked retries do not extend the window', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: Date.now() })
+  const ip = '203.0.113.21'
+  for (let i = 0; i < 10; i++) assert.equal((await login(ip)).status, 401)
+  const blocked = await login(ip, 'correct-password-123')
+  assert.equal(blocked.status, 429)
+  assert.equal(blocked.headers.get('retry-after'), '900')
+  t.mock.timers.tick(14 * 60_000)
+  const stillBlocked = await login(ip)
+  assert.equal(stillBlocked.status, 429)
+  assert.equal(stillBlocked.headers.get('retry-after'), '60')
+  assert.equal((await stillBlocked.json()).retryAfterSeconds, 60)
+  t.mock.timers.tick(60_000)
+  const allowed = await login(ip, 'correct-password-123')
+  assert.equal(allowed.status, 200)
+  assert.ok(allowed.headers.get('set-cookie')?.includes('vault_session='))
+})
+
+test('successful logins do not consume the failure allowance and clients have separate limits', async () => {
+  const ip = '203.0.113.22'
+  for (let i = 0; i < 12; i++) assert.equal((await login(ip, 'correct-password-123')).status, 200)
+  for (let i = 0; i < 10; i++) assert.equal((await login(ip)).status, 401)
+  assert.equal((await login(ip)).status, 429)
+  assert.equal((await login('203.0.113.23', 'correct-password-123')).status, 200)
+})
+
+test('setup attempts do not exhaust the login allowance', async () => {
+  const ip = '203.0.113.24'
+  for (let i = 0; i < 10; i++) {
+    assert.equal((await fetch(`${base}/setup`, { method: 'POST', headers: { 'X-Forwarded-For': ip } })).status, 403)
+  }
+  assert.equal((await login(ip, 'correct-password-123')).status, 200)
 })

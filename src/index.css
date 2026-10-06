@@ -825,6 +825,33 @@ body {
   border: 1px solid var(--border);
 }
 
+.preview__audio-cover-wrap {
+  position: relative;
+  width: 180px;
+  height: 180px;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 12px 28px -6px rgba(0, 0, 0, 0.35), 0 6px 12px -4px rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border);
+  background: var(--bg-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.preview__audio-cover-wrap:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 32px -6px rgba(0, 0, 0, 0.4), 0 8px 16px -4px rgba(0, 0, 0, 0.25);
+}
+
+.preview__audio-cover {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
 .preview__audio-name {
   font-size: 14px;
   font-weight: 500;
@@ -836,8 +863,28 @@ body {
   white-space: nowrap;
 }
 
+.preview__audio-artist {
+  font-size: 13px;
+  color: var(--text-2);
+  text-align: center;
+  max-width: 85%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .preview__audio {
   width: min(460px, 90%);
+}
+
+.preview__video-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 32px 20px;
+  text-align: center;
 }
 
 /* PDF */
@@ -1052,6 +1099,11 @@ body {
   .preview__audio-art {
     width: 110px;
     height: 110px;
+  }
+
+  .preview__audio-cover-wrap {
+    width: 130px;
+    height: 130px;
   }
 }
 
@@ -2276,3 +2328,5 @@ body {
 
 .user-chip__profile { display: flex; align-items: center; gap: 8px; border: 0; background: transparent; font: inherit; cursor: pointer; padding: 0; border-radius: 999px; min-width: 0; }
 .user-chip__profile:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+.preview__video-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.75rem; }

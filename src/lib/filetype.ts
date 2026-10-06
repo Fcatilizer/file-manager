@@ -1,7 +1,7 @@
 export type FileKind = 'image' | 'video' | 'audio' | 'pdf' | 'text' | 'env' | 'word' | 'excel' | 'other'
 
 const IMAGE_EXT = ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp', 'bmp', 'ico', 'avif']
-const VIDEO_EXT = ['mp4', 'mov', 'webm', 'm4v', 'ogv']
+const VIDEO_EXT = ['mp4', 'mov', 'webm', 'm4v', 'ogv', 'mkv']
 const AUDIO_EXT = ['mp3', 'wav', 'flac', 'ogg', 'oga', 'aac', 'm4a']
 const WORD_EXT = ['docx', 'doc', 'odt', 'rtf', 'dot', 'dotx']
 const EXCEL_EXT = ['xlsx', 'xls', 'xlsm', 'xlsb', 'ods']
