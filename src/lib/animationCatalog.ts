@@ -1,13 +1,17 @@
 import type { AnimationAppearance, AnimationLimits } from './animationSettings.ts'
 import { DEFAULT_RAIN, isRainSettings, RAIN_LIMITS } from './rain.ts'
 import { DEFAULT_LEAVES, isLeafSettings, LEAF_LIMITS } from './leaves.ts'
+import { DEFAULT_STARFIELD, isStarfieldSettings, STARFIELD_LIMITS, STARFIELD_EXTRA_LIMITS } from './starfield.ts'
 import { DEFAULT_AUTUMN, isAutumnSettings, AUTUMN_LIMITS } from './autumn.ts'
 
+type NumberKey<T> = { [K in keyof T]: T[K] extends number ? K : never }[keyof T] & string
 type BooleanKey<T> = { [K in keyof T]: T[K] extends boolean ? K : never }[keyof T] & string
 export type AnimationDefinition<S extends AnimationAppearance> = {
   label: string; description: string; particle: string
   defaults: S; limits: AnimationLimits; validate: (value: unknown) => value is S
   switches: readonly { key: BooleanKey<S>; label: string; description: string }[]
+  controls?: { direction?: boolean; speedLabel?: string; uniformSize?: boolean }
+  ranges?: readonly { key: NumberKey<S>; label: string; min: number; max: number; step: number; unit?: string; enabledBy?: BooleanKey<S> }[]
   hint?: string
 }
 function defineAnimation<S extends AnimationAppearance>(definition: AnimationDefinition<S>) { return definition }
@@ -32,6 +36,18 @@ export const ANIMATION_CATALOG = {
       { key: 'breeze', label: 'Wind sweep', description: 'An occasional swirl clears the pile, making room for new leaves.' },
     ],
     hint: 'With wind off, the pile fills and stays. Previews cycle faster so you can see the sweep.',
+  }),
+  starfield: defineAnimation({
+    label: 'Starfield', description: 'Twinkling stars and passing meteors', particle: 'Star',
+    defaults: DEFAULT_STARFIELD, limits: STARFIELD_LIMITS, validate: isStarfieldSettings,
+    controls: { direction: false, speedLabel: 'Twinkle speed', uniformSize: true },
+    switches: [{ key: 'shootingStars', label: 'Shooting stars', description: 'Occasional diagonal meteors with softly fading trails.' }],
+    ranges: [
+      { key: 'parallax', label: 'Parallax strength', ...STARFIELD_EXTRA_LIMITS.parallax, unit: '×' },
+      { key: 'meteorFrequency', label: 'Meteor frequency', ...STARFIELD_EXTRA_LIMITS.meteorFrequency, unit: '/min', enabledBy: 'shootingStars' },
+      { key: 'meteorSpeed', label: 'Meteor speed', ...STARFIELD_EXTRA_LIMITS.meteorSpeed, unit: '×', enabledBy: 'shootingStars' },
+    ],
+    hint: 'Parallax follows scrolling. Meteor timing varies; previews show them more often. Set parallax to zero for a still starfield.',
   }),
 }
 export type AnimationEffect = keyof typeof ANIMATION_CATALOG

@@ -1,0 +1,46 @@
+/* Scoped star layers: opacity-only twinkling, scroll-driven depth, one transient meteor. */
+.starfield-scene {
+  --starfield-scroll: 0px;
+  --star-depth-scale: 1;
+  position: absolute; inset: 0; contain: strict; container-type: size;
+  overflow: hidden; pointer-events: none; user-select: none;
+  color: var(--starfield-color);
+  background: radial-gradient(ellipse at 75% 20%, color-mix(in srgb, var(--starfield-color) 5%, transparent), transparent 65%);
+}
+.starfield-background { position: fixed; z-index: -1; }
+.starfield-layer {
+  position: absolute; inset: -72px 0;
+  transform: translate3d(0, calc(var(--starfield-scroll) * var(--star-depth) * var(--star-depth-scale)), 0);
+}
+.starfield-star {
+  position: absolute; border-radius: 50%; background: currentColor;
+  box-shadow: 0 0 4px color-mix(in srgb, currentColor 45%, transparent);
+  animation: starfield-twinkle var(--star-duration) var(--star-delay) ease-in-out infinite alternate;
+}
+.starfield-scene--preview { --star-depth-scale: .2; }
+.starfield-scene--preview .starfield-layer { inset: -16px 0; }
+.starfield-meteor { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.starfield-meteor__trail {
+  position: absolute; right: 0; width: clamp(70px, 15cqw, 200px); height: 1.5px;
+  transform: rotate(var(--meteor-angle, 32deg)); transform-origin: right center;
+  border-radius: 100%; background: linear-gradient(to right, transparent, currentColor);
+  box-shadow: 0 0 5px color-mix(in srgb, currentColor 25%, transparent);
+}
+.starfield-meteor__trail::after {
+  content: ''; position: absolute; right: -1px; top: -1px; width: 3px; height: 3px;
+  background: currentColor; border-radius: 50%; box-shadow: 0 0 6px currentColor;
+}
+@keyframes starfield-twinkle {
+  0%, 12% { opacity: .22; }
+  65%, 100% { opacity: .8; }
+}
+[data-theme="light"] .starfield-star { box-shadow: none; }
+.starfield-scene--paused .starfield-star { animation-play-state: paused; }
+@media (max-width: 640px) {
+  .starfield-background .starfield-star:nth-child(even) { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .starfield-background { display: none; }
+  .starfield-star { animation-play-state: paused; }
+  .starfield-meteor { display: none; }
+}

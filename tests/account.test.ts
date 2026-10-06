@@ -138,3 +138,16 @@ test('canonical animation preferences are stored without legacy fields', async (
   assert.deepEqual(account.preferences, preferences)
   assert.equal('rain' in (account.preferences as object), false)
 })
+
+test('Starfield options save and reload; invalid frequency is rejected before DB writes', async () => {
+  const preferences = { ...DEFAULT_PREFERENCES, animations: { ...DEFAULT_PREFERENCES.animations, type: 'starfield', settings: {
+    ...DEFAULT_PREFERENCES.animations.settings,
+    starfield: { ...DEFAULT_PREFERENCES.animations.settings.starfield, parallax: 1.2, meteorFrequency: 8, shootingStars: false },
+  } } }
+  assert.equal((await call('/me', 'PATCH', { preferences })).status, 200)
+  assert.deepEqual((await (await call('/me', 'GET')).json()).user.preferences, preferences)
+  const before = updates.length
+  preferences.animations.settings.starfield.meteorFrequency = 500
+  assert.equal((await call('/me', 'PATCH', { preferences })).status, 400)
+  assert.equal(updates.length, before)
+})

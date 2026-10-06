@@ -2,8 +2,14 @@
 .animation-picker { border: 0; min-width: 0; padding: 0; }
 .animation-picker legend { font-size: 14px; font-weight: 600; color: var(--text-1); }
 .animation-settings__intro { font-size: 12px; line-height: 1.6; color: var(--text-2); margin: 6px 0 14px; }
-.animation-picker__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-.animation-card { position: relative; min-width: 0; cursor: pointer; }
+.animation-picker__catalog {
+  display: flex; gap: 12px; overflow-x: auto; overflow-y: hidden;
+  padding: 6px 5px 14px; margin: -5px; scroll-padding-inline: 5px;
+  scroll-snap-type: x proximity; overscroll-behavior-x: contain;
+  scrollbar-width: thin; scrollbar-color: var(--border) transparent;
+}
+.animation-picker__catalog:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: var(--radius); }
+.animation-card { position: relative; min-width: 0; flex: 0 0 164px; scroll-snap-align: start; cursor: pointer; }
 .animation-card > input { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .animation-card__surface { display: flex; flex-direction: column; height: 100%; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: var(--bg-2); transition: border-color 160ms, background 160ms; }
 .animation-card:hover .animation-card__surface { border-color: var(--text-3); }
@@ -28,7 +34,8 @@
 .animation-settings__color input { width: 44px; height: 32px; border: 1px solid var(--border); padding: 2px; background: var(--bg-2); border-radius: var(--radius-sm); cursor: pointer; }
 .animation-settings__color span { font-family: var(--font-mono); font-size: 11px; }
 @media (max-width: 400px) {
-  .animation-picker__grid { gap: 8px; }
+  .animation-picker__catalog { gap: 10px; }
+  .animation-card { flex-basis: 148px; }
   .animation-card__preview { height: 90px; }
   .animation-card__label { font-size: 11px; padding: 8px 6px 4px; }
   .animation-card__description { padding: 0 6px 10px; }

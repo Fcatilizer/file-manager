@@ -3,19 +3,21 @@ import { ANIMATION_DENSITIES, ANIMATION_DIRECTIONS, type AnimationAppearance, ty
 import { ChoiceChips, RangeSetting } from './SettingsControls'
 
 /** Shared controls; each effect owns its dimensions, defaults, and extra toggle. */
-export default function ParticleSettingsControls({ value, limits, particle, themeColor, disabled, onChange, children }: {
+export default function ParticleSettingsControls({ value, limits, particle, themeColor, disabled, onChange, children, controls }: {
   value: AnimationAppearance; limits: AnimationLimits; particle: string; themeColor: string; disabled: boolean
+  controls?: { direction?: boolean; speedLabel?: string; uniformSize?: boolean }
   onChange: (patch: Partial<AnimationAppearance>) => void; children: ReactNode
 }) {
   return <>
-    <ChoiceChips label="Direction" value={value.direction} options={ANIMATION_DIRECTIONS} disabled={disabled} onChange={direction => onChange({ direction })} />
+    {controls?.direction !== false && <ChoiceChips label="Direction" value={value.direction} options={ANIMATION_DIRECTIONS} disabled={disabled} onChange={direction => onChange({ direction })} />}
     <ChoiceChips label="Density" value={value.density} options={ANIMATION_DENSITIES} disabled={disabled} onChange={density => onChange({ density })} />
     <p className="animation-settings__hint">Light uses fewer particles. Smaller screens use fewer automatically.</p>
-    <RangeSetting label="Speed" value={value.speed} {...limits.speed} unit="×" disabled={disabled} onChange={speed => onChange({ speed })} />
-    <div className="animation-settings__dimensions">
+    <RangeSetting label={controls?.speedLabel || "Speed"} value={value.speed} {...limits.speed} unit="×" disabled={disabled} onChange={speed => onChange({ speed })} />
+    {controls?.uniformSize ? <RangeSetting label={`${particle} size`} value={value.width} {...limits.width} unit=" px" disabled={disabled}
+      onChange={size => onChange({ width: size, height: size })} /> : <div className="animation-settings__dimensions">
       <RangeSetting label={`${particle} height`} value={value.height} {...limits.height} unit=" px" disabled={disabled} onChange={height => onChange({ height })} />
       <RangeSetting label={`${particle} width`} value={value.width} {...limits.width} unit=" px" disabled={disabled} onChange={width => onChange({ width })} />
-    </div>
+    </div>}
     {children}
     <ChoiceChips label="Animation color" value={value.color === 'theme' ? 'theme' : 'custom'} disabled={disabled}
       options={[{ value: 'theme', label: 'Theme color' }, { value: 'custom', label: 'Custom color' }]}

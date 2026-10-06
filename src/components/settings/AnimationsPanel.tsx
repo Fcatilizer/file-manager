@@ -4,7 +4,7 @@ import { ANIMATION_CATALOG } from '../../lib/animationCatalog'
 import type { AnimationAppearance } from '../../lib/animationSettings'
 import AnimationBackground from '../AnimationBackground'
 import ParticleSettingsControls from './ParticleSettingsControls'
-import { SwitchSetting } from './SettingsControls'
+import { RangeSetting, SwitchSetting } from './SettingsControls'
 import '../../styles/animation-settings.css'
 
 export default function AnimationsPanel({ value, disabled, onChange }: { value: Preferences; disabled: boolean; onChange: (value: Preferences) => void }) {
@@ -20,8 +20,8 @@ export default function AnimationsPanel({ value, disabled, onChange }: { value: 
   return <section className="animation-settings" aria-label="Animations">
     <fieldset className="animation-picker" disabled={disabled}>
       <legend>Animations</legend>
-      <p className="animation-settings__intro">Choose a little atmosphere. Preview each style, or keep things still.</p>
-      <div className="animation-picker__grid">
+      <p className="animation-settings__intro">Choose a little atmosphere. Scroll to explore the previews, or keep things still.</p>
+      <div className="animation-picker__catalog" role="region" aria-label="Animation catalog" tabIndex={0}>
         {ANIMATIONS.map(option => <label className="animation-card" key={option.value}>
           <input type="radio" name={name} value={option.value} checked={selected === option.value}
             aria-label={option.label} onChange={() => onChange({ ...value, animations: { ...value.animations, type: option.value } })} />
@@ -46,9 +46,13 @@ export default function AnimationsPanel({ value, disabled, onChange }: { value: 
         <AnimationBackground preferences={value} preview />
         <span>Live preview</span>
       </div>
-      <ParticleSettingsControls value={settings} limits={effect.limits} particle={effect.particle} themeColor={themeColor} disabled={disabled} onChange={updateSettings}>
+      <ParticleSettingsControls value={settings} controls={effect.controls} limits={effect.limits} particle={effect.particle} themeColor={themeColor} disabled={disabled} onChange={updateSettings}>
         {effect.switches.map(option => <SwitchSetting key={option.key} label={option.label} checked={Reflect.get(settings, option.key) === true} disabled={disabled}
           description={option.description} onChange={checked => updateSettings({ [option.key]: checked })} />)}
+        {effect.ranges?.map(option => <RangeSetting key={option.key} label={option.label} value={Number(Reflect.get(settings, option.key))}
+          min={option.min} max={option.max} step={option.step} unit={option.unit}
+          disabled={disabled || !!(option.enabledBy && !Reflect.get(settings, option.enabledBy))}
+          onChange={number => updateSettings({ [option.key]: number })} />)}
         {effect.hint && <p className="animation-settings__hint">{effect.hint}</p>}
       </ParticleSettingsControls>
     </div>}

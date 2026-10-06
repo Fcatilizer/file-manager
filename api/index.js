@@ -344,6 +344,35 @@ function isLeafSettings(value) {
   return Object.keys(settings).every((key) => Object.hasOwn(DEFAULT_LEAVES, key)) && isAnimationAppearance(settings, LEAF_LIMITS) && typeof settings.breeze === "boolean";
 }
 
+// src/lib/starfield.ts
+var STARFIELD_LIMITS = {
+  speed: { min: 0.5, max: 2, step: 0.1 },
+  height: { min: 1, max: 4, step: 0.25 },
+  width: { min: 1, max: 4, step: 0.25 }
+};
+var STARFIELD_EXTRA_LIMITS = {
+  parallax: { min: 0, max: 2, step: 0.1 },
+  meteorFrequency: { min: 1, max: 12, step: 1 },
+  meteorSpeed: { min: 0.5, max: 2, step: 0.1 }
+};
+var DEFAULT_STARFIELD = {
+  direction: "down-right",
+  density: "balanced",
+  speed: 1,
+  height: 2,
+  width: 2,
+  color: "theme",
+  parallax: 0.7,
+  shootingStars: true,
+  meteorFrequency: 4,
+  meteorSpeed: 1
+};
+function isStarfieldSettings(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const settings = value;
+  return Object.keys(settings).every((key) => Object.hasOwn(DEFAULT_STARFIELD, key)) && isAnimationAppearance(settings, STARFIELD_LIMITS) && typeof settings.shootingStars === "boolean" && Object.entries(STARFIELD_EXTRA_LIMITS).every(([key, range]) => typeof settings[key] === "number" && Number.isFinite(settings[key]) && settings[key] >= range.min && settings[key] <= range.max);
+}
+
 // src/lib/autumn.ts
 var AUTUMN_LIMITS = {
   speed: { min: 0.5, max: 2, step: 0.1 },
@@ -401,6 +430,22 @@ var ANIMATION_CATALOG = {
       { key: "breeze", label: "Wind sweep", description: "An occasional swirl clears the pile, making room for new leaves." }
     ],
     hint: "With wind off, the pile fills and stays. Previews cycle faster so you can see the sweep."
+  }),
+  starfield: defineAnimation({
+    label: "Starfield",
+    description: "Twinkling stars and passing meteors",
+    particle: "Star",
+    defaults: DEFAULT_STARFIELD,
+    limits: STARFIELD_LIMITS,
+    validate: isStarfieldSettings,
+    controls: { direction: false, speedLabel: "Twinkle speed", uniformSize: true },
+    switches: [{ key: "shootingStars", label: "Shooting stars", description: "Occasional diagonal meteors with softly fading trails." }],
+    ranges: [
+      { key: "parallax", label: "Parallax strength", ...STARFIELD_EXTRA_LIMITS.parallax, unit: "\xD7" },
+      { key: "meteorFrequency", label: "Meteor frequency", ...STARFIELD_EXTRA_LIMITS.meteorFrequency, unit: "/min", enabledBy: "shootingStars" },
+      { key: "meteorSpeed", label: "Meteor speed", ...STARFIELD_EXTRA_LIMITS.meteorSpeed, unit: "\xD7", enabledBy: "shootingStars" }
+    ],
+    hint: "Parallax follows scrolling. Meteor timing varies; previews show them more often. Set parallax to zero for a still starfield."
   })
 };
 var ANIMATION_EFFECTS = Object.keys(ANIMATION_CATALOG);
