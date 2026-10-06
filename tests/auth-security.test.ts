@@ -105,11 +105,13 @@ test('app responds with global security headers (SEC-09)', async () => {
     const res = await fetch(`http://127.0.0.1:${mainAddr.port}/healthz`)
     assert.equal(res.status, 200)
     assert.equal(res.headers.get('x-content-type-options'), 'nosniff')
-    assert.equal(res.headers.get('x-frame-options'), 'SAMEORIGIN')
+    assert.equal(res.headers.get('x-frame-options'), null) // CSP frame-ancestors supplies framing protection.
     assert.equal(res.headers.get('referrer-policy'), 'strict-origin-when-cross-origin')
     assert.equal(res.headers.get('permissions-policy'), 'camera=(), microphone=(), geolocation=(), payment=()')
     assert.match(res.headers.get('content-security-policy') || '', /frame-ancestors 'self'/)
     assert.match(res.headers.get('content-security-policy') || '', /default-src 'self'/)
+    assert.match(res.headers.get('content-security-policy') || '', /worker-src 'self' blob:/)
+    assert.match(res.headers.get('content-security-policy') || '', /font-src 'self' blob: data:/)
   } finally {
     await new Promise<void>((resolve) => mainServer.close(() => resolve()))
   }

@@ -6,11 +6,13 @@ import { defineConfig } from 'vite'
 export default defineConfig({
   plugins: [react(), pdfAssets()],
   build: {
-    rollupOptions: {
+    rolldownOptions: {
       output: {
-        manualChunks(id) {
-          if (id.includes('highlight.js')) return 'highlight'
-          if (id.includes('pdfjs-dist')) return 'pdfjs'
+        codeSplitting: {
+          groups: [
+            { name: 'highlight', test: /node_modules[\\/]highlight\.js/ },
+            { name: 'pdfjs', test: /node_modules[\\/]pdfjs-dist/ },
+          ],
         },
       },
     },

@@ -16,7 +16,7 @@ runs Vite in middleware mode; in production it serves `dist/` and the `/api/*` r
 ## Local development
 
 ```bash
-npm install
+npm ci                # Node.js 24 LTS
 cp .env.example .env   # then fill in the values
 npm run dev            # http://localhost:3000
 ```

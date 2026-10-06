@@ -2115,6 +2115,7 @@ var DEFAULT_CSP = [
   "font-src 'self' blob: data: https://fonts.gstatic.com",
   "img-src 'self' data: blob: https: http:",
   "media-src 'self' blob: https: http:",
+  "worker-src 'self' blob:",
   "frame-src 'self' blob:",
   "frame-ancestors 'self'",
   "connect-src 'self' https: http: ws: wss:",
@@ -2124,7 +2125,6 @@ var DEFAULT_CSP = [
 ].join("; ");
 app.use((_req, res, next) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
-  res.setHeader("X-Frame-Options", "SAMEORIGIN");
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
   res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()");
   res.setHeader("Content-Security-Policy", DEFAULT_CSP);
