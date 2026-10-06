@@ -91,18 +91,119 @@ var ICON_PATHS = {
     "M9 18a3 3 0 11-6 0 3 3 0 016 0z",
     "M21 16a3 3 0 11-6 0 3 3 0 016 0z"
   ],
-  // Archive (.zip, .tar, .rar)
+  // Archive (.zip, .tar, .rar, .7z) - Document with zipper
   fileArchive: [
-    "M21 8v13H3V8",
-    "M1 3h22v5H1z",
-    "M10 12h4",
-    "M12 11v6"
+    "M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z",
+    "M14 2v6h6",
+    "M10 7.5h2",
+    "M10.5 9.5h2",
+    "M10 11.5h2",
+    "M10.5 13.5h2",
+    "M10 15.5h3v2.5h-3z",
+    "M11.5 18v2.5"
   ],
   archive: [
-    "M21 8v13H3V8",
-    "M1 3h22v5H1z",
-    "M10 12h4",
-    "M12 11v6"
+    "M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z",
+    "M14 2v6h6",
+    "M10 7.5h2",
+    "M10.5 9.5h2",
+    "M10 11.5h2",
+    "M10.5 13.5h2",
+    "M10 15.5h3v2.5h-3z",
+    "M11.5 18v2.5"
+  ],
+  fileZip: [
+    "M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z",
+    "M14 2v6h6",
+    "M10 7.5h2",
+    "M10.5 9.5h2",
+    "M10 11.5h2",
+    "M10.5 13.5h2",
+    "M10 15.5h3v2.5h-3z",
+    "M11.5 18v2.5"
+  ],
+  // Disc Image / ISO (.iso, .img, .bin)
+  fileIso: [
+    "M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z",
+    "M12 14a2 2 0 100-4 2 2 0 000 4z",
+    "M12 18a6 6 0 006-6",
+    "M6 12a6 6 0 006 6"
+  ],
+  disc: [
+    "M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z",
+    "M12 14a2 2 0 100-4 2 2 0 000 4z",
+    "M12 18a6 6 0 006-6",
+    "M6 12a6 6 0 006 6"
+  ],
+  // Android Package / App Bundle (.apk, .aab)
+  fileApk: [
+    "M5 12.5a7 7 0 0114 0H5z",
+    "M7.5 7L5.5 3.5",
+    "M16.5 7l2-3.5",
+    "M8.5 9.5h.01",
+    "M15.5 9.5h.01",
+    "M5.5 14.5v4a2 2 0 002 2h9a2 2 0 002-2v-4",
+    "M3 15v3",
+    "M21 15v3"
+  ],
+  // iOS App Package (.ipa)
+  fileIpa: [
+    "M7 2h10a5 5 0 015 5v10a5 5 0 01-5 5H7a5 5 0 01-5-5V7a5 5 0 015-5z",
+    "M8.5 17l3.5-9 3.5 9",
+    "M9.5 13.5h5"
+  ],
+  // Windows Executable / Installer (.exe, .msi)
+  fileExe: [
+    "M3 4h18a2 2 0 012 2v12a2 2 0 01-2 2H3a2 2 0 01-2-2V6a2 2 0 012-2z",
+    "M3 8.5h18",
+    "M6 6.5h.01",
+    "M9 6.5h.01",
+    "M7 13l2.5 2-2.5 2",
+    "M12.5 17h4.5"
+  ],
+  // Apple Disk Image / macOS Package (.dmg, .pkg)
+  fileDmg: [
+    "M4 5h16a2 2 0 012 2v10a2 2 0 01-2 2H4a2 2 0 01-2-2V7a2 2 0 012-2z",
+    "M4 14.5h16",
+    "M18 17.5h.01",
+    "M12 8.5v3.5",
+    "M9.5 10.5l2.5 2 2.5-2"
+  ],
+  // Linux AppImage (.AppImage)
+  fileAppImage: [
+    "M12 2L3 7v10l9 5 9-5V7l-9-5z",
+    "M12 22V12",
+    "M21 7l-9 5-9-5",
+    "M10.5 9.5l3.5 2.5-3.5 2.5z"
+  ],
+  // Debian Package (.deb)
+  fileDeb: [
+    "M12 2L3 7v10l9 5 9-5V7l-9-5z",
+    "M12 22V12",
+    "M21 7l-9 5-9-5",
+    "M12 7a2.5 2.5 0 00-2.5-2.5C8 4.5 7 6 9 7",
+    "M12 7a2.5 2.5 0 012.5-2.5C16 4.5 17 6 15 7"
+  ],
+  // RPM Package (.rpm)
+  fileRpm: [
+    "M12 2L3 7v10l9 5 9-5V7l-9-5z",
+    "M12 22V12",
+    "M21 7l-9 5-9-5",
+    "M12 9v6",
+    "M9 12h6"
+  ],
+  // Packages general
+  package: [
+    "M16.5 9.4l-9-5.19",
+    "M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z",
+    "M3.27 6.96L12 12.01l8.73-5.05",
+    "M12 22.08V12"
+  ],
+  filePackage: [
+    "M16.5 9.4l-9-5.19",
+    "M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z",
+    "M3.27 6.96L12 12.01l8.73-5.05",
+    "M12 22.08V12"
   ],
   rain: ["M7 14H6a4 4 0 110-8 6 6 0 0111.6-1A4.5 4.5 0 1120 14h-1", "M9 14l-2 4", "M14 14l-2 4", "M19 14l-2 4", "M10 20l-1 2"],
   // Actions & Controls
@@ -171,17 +272,22 @@ var ICON_PATHS = {
   shield: ["M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"]
 };
 
-// src/lib/rain.ts
-var RAIN_DIRECTIONS = [
+// src/lib/animationSettings.ts
+var ANIMATION_DIRECTIONS = [
   { value: "down-right", label: "\u2198 Right" },
   { value: "down", label: "\u2193 Down" },
   { value: "down-left", label: "\u2199 Left" }
 ];
-var RAIN_DENSITIES = [
-  { value: "light", label: "Light", count: 16 },
-  { value: "balanced", label: "Balanced", count: 32 },
-  { value: "full", label: "Full", count: 56 }
+var ANIMATION_DENSITIES = [
+  { value: "light", label: "Light" },
+  { value: "balanced", label: "Balanced" },
+  { value: "full", label: "Full" }
 ];
+function isAnimationAppearance(settings, limits) {
+  return ANIMATION_DIRECTIONS.some((option) => option.value === settings.direction) && ANIMATION_DENSITIES.some((option) => option.value === settings.density) && Object.entries(limits).every(([key, range]) => typeof settings[key] === "number" && Number.isFinite(settings[key]) && settings[key] >= range.min && settings[key] <= range.max) && typeof settings.color === "string" && (settings.color === "theme" || /^#[0-9a-f]{6}$/i.test(settings.color));
+}
+
+// src/lib/rain.ts
 var RAIN_LIMITS = {
   speed: { min: 0.5, max: 2, step: 0.1 },
   height: { min: 12, max: 120, step: 1 },
@@ -199,10 +305,36 @@ var DEFAULT_RAIN = {
 function isRainSettings(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const settings = value;
-  return Object.keys(settings).every((key) => Object.hasOwn(DEFAULT_RAIN, key)) && RAIN_DIRECTIONS.some((option) => option.value === settings.direction) && RAIN_DENSITIES.some((option) => option.value === settings.density) && Object.entries(RAIN_LIMITS).every(([key, range]) => typeof settings[key] === "number" && Number.isFinite(settings[key]) && settings[key] >= range.min && settings[key] <= range.max) && typeof settings.splash === "boolean" && typeof settings.color === "string" && (settings.color === "theme" || /^#[0-9a-f]{6}$/i.test(settings.color));
+  return Object.keys(settings).every((key) => Object.hasOwn(DEFAULT_RAIN, key)) && isAnimationAppearance(settings, RAIN_LIMITS) && typeof settings.splash === "boolean";
+}
+
+// src/lib/leaves.ts
+var LEAF_LIMITS = {
+  speed: { min: 0.5, max: 2, step: 0.1 },
+  height: { min: 12, max: 40, step: 1 },
+  width: { min: 8, max: 28, step: 1 }
+};
+var DEFAULT_LEAVES = {
+  direction: "down-right",
+  density: "balanced",
+  speed: 1,
+  height: 24,
+  width: 14,
+  breeze: true,
+  color: "theme"
+};
+function isLeafSettings(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const settings = value;
+  return Object.keys(settings).every((key) => Object.hasOwn(DEFAULT_LEAVES, key)) && isAnimationAppearance(settings, LEAF_LIMITS) && typeof settings.breeze === "boolean";
 }
 
 // src/lib/preferences.ts
+var ANIMATIONS = [
+  { value: "none", label: "Off", description: "A quiet background" },
+  { value: "rain", label: "Rain", description: "Soft, flowing streaks" },
+  { value: "leaves", label: "Falling leaves", description: "Leaves on a gentle breeze" }
+];
 var FONTS = {
   inter: { label: "Inter", family: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" },
   system: { label: "System", family: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" },
@@ -220,12 +352,13 @@ var ACCENTS = {
 function isPreferences(value) {
   if (!value || typeof value !== "object") return false;
   const p = value;
-  return (p.theme === "light" || p.theme === "dark") && typeof p.font === "string" && Object.hasOwn(FONTS, p.font) && typeof p.accent === "string" && Object.hasOwn(ACCENTS, p.accent) && typeof p.rain === "boolean" && (!("rainSettings" in p) || isRainSettings(p.rainSettings)) && Object.keys(p).every((key) => ["theme", "font", "accent", "rain", "rainSettings"].includes(key));
+  return (p.theme === "light" || p.theme === "dark") && typeof p.font === "string" && Object.hasOwn(FONTS, p.font) && typeof p.accent === "string" && Object.hasOwn(ACCENTS, p.accent) && typeof p.rain === "boolean" && (!("rainSettings" in p) || isRainSettings(p.rainSettings)) && (!("animation" in p) || ANIMATIONS.some((option) => option.value === p.animation)) && (!("leafSettings" in p) || isLeafSettings(p.leafSettings)) && Object.keys(p).every((key) => ["theme", "font", "accent", "rain", "rainSettings", "animation", "leafSettings"].includes(key));
 }
 
 // src/lib/publicShareStyle.ts
 var publicShareStyle = `
-.public-share-preview .modal-overlay {
+.public-share-preview .modal-overlay,
+.public-share-details .modal-overlay {
   --drop-bg: rgba(15, 23, 42, 0.28);
   backdrop-filter: blur(2px);
   -webkit-backdrop-filter: blur(2px);
@@ -248,13 +381,25 @@ var publicShareStyle = `
   align-items:center;
   justify-content:space-between;
   padding:0 max(24px,calc((100vw - 1120px)/2));
-  gap:20px}:where(.public-share) .brand {
+  gap:20px}:where(.public-share) .brand, :where(.public-share) .vault-brand-btn--public {
   font-size:26px;
   font-weight:650;
   letter-spacing:-1px;
-  display:flex;
+  display:inline-flex;
   gap:12px;
-  align-items:center}:where(.public-share) .brand span {
+  align-items:center;
+  color:#172033;
+  font-family:inherit;
+  background:transparent;
+  border:0;
+  padding:6px 10px;
+  margin-left:-10px;
+  border-radius:8px;
+  cursor:pointer;
+  transition:background-color 0.15s ease}:where(.public-share) .vault-brand-btn--public:hover {
+  background:#f1f3f7}:where(.public-share) .vault-brand-btn--public:focus-visible {
+  outline:2px solid var(--accent);
+  outline-offset:2px}:where(.public-share) .brand span {
   font-size:17px;
   color:var(--accent)}:where(.public-share) .pill {
   display:inline-flex;
@@ -330,7 +475,7 @@ var publicShareStyle = `
   border-radius:12px;
   overflow:hidden}:where(.public-share) .row {
   display:grid;
-  grid-template-columns:minmax(0,1fr) 90px 165px 72px;
+  grid-template-columns:minmax(0,1fr) 90px 165px 108px;
   gap:16px;
   align-items:center;
   padding:17px 20px;
@@ -374,8 +519,11 @@ var publicShareStyle = `
   line-height:1.6}:where(.public-share) time {
   white-space:normal}@media(max-width:640px) {:where(.public-share) .topbar {
   height:68px;
-  padding:0 20px}:where(.public-share) .brand {
-  font-size:23px}:where(.public-share) main {
+  padding:0 20px}:where(.public-share) .brand, :where(.public-share) .vault-brand-btn--public {
+  font-size:23px;
+  padding:4px 8px;
+  margin-left:-8px;
+  gap:10px}:where(.public-share) main {
   margin:28px auto;
   padding:0 18px}:where(.public-share) .intro {
   gap:12px}:where(.public-share) h1 {
@@ -384,7 +532,7 @@ var publicShareStyle = `
   grid-template-columns:1fr;
   padding:18px;
   gap:18px}:where(.public-share) .row {
-  grid-template-columns:minmax(0,1fr) 65px 64px;
+  grid-template-columns:minmax(0,1fr) 65px 104px;
   gap:8px;
   padding:16px 14px}:where(.public-share) .modified {
   display:none}:where(.public-share) .row.heading .modified {

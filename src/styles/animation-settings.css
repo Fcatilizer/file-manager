@@ -1,0 +1,41 @@
+.animation-settings { margin-top: 24px; border-top: 1px solid var(--border); padding-top: 20px; }
+.animation-picker { border: 0; min-width: 0; padding: 0; }
+.animation-picker legend { font-size: 14px; font-weight: 600; color: var(--text-1); }
+.animation-settings__intro { font-size: 12px; line-height: 1.6; color: var(--text-2); margin: 6px 0 14px; }
+.animation-picker__grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.animation-card { position: relative; min-width: 0; cursor: pointer; }
+.animation-card > input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.animation-card__surface { display: flex; flex-direction: column; height: 100%; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: var(--bg-2); transition: border-color 160ms, background 160ms; }
+.animation-card:hover .animation-card__surface { border-color: var(--text-3); }
+.animation-card > input:checked + .animation-card__surface { border-color: var(--accent); background: var(--accent-soft); box-shadow: 0 0 0 1px var(--accent); }
+.animation-card > input:focus-visible + .animation-card__surface { outline: 2px solid var(--accent); outline-offset: 4px; }
+.animation-card > input:disabled + .animation-card__surface { opacity: .55; cursor: default; }
+.animation-card__preview { display: block; position: relative; isolation: isolate; height: 110px; overflow: hidden; background: radial-gradient(ellipse at top right, var(--accent-soft), transparent 75%), var(--bg-1); }
+.animation-card__horizon { position: absolute; width: 140%; height: 40px; border: 1px solid var(--border); border-radius: 50%; left: -20%; bottom: -24px; opacity: .7; }
+.animation-card__still { position: absolute; inset: 0; display: grid; place-items: center; color: var(--text-3); font-size: 16px; }
+.animation-card__label { display: flex; align-items: center; justify-content: space-between; gap: 4px; padding: 10px 10px 4px; color: var(--text-1); font-size: 12px; font-weight: 600; }
+.animation-card__check { visibility: hidden; color: var(--accent); }
+.animation-card > input:checked + .animation-card__surface .animation-card__check { visibility: visible; }
+.animation-card__description { display: block; padding: 0 10px 12px; font-size: 10px; line-height: 1.5; color: var(--text-2); }
+.animation-settings__motion, .animation-settings__reduced, .animation-settings__hint { font-size: 11px; line-height: 1.6; color: var(--text-2); }
+.animation-settings__motion { margin: 12px 0 0; }
+.animation-settings__reduced { display: none; margin-top: 8px; color: var(--accent); }
+.animation-settings__hint { margin-top: -8px; }
+.animation-settings__preview { position: relative; height: 160px; margin: 18px 0; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-1); overflow: hidden; }
+.animation-settings__preview > span { position: absolute; bottom: 12px; left: 12px; font-size: 11px; color: var(--text-2); }
+.animation-settings__dimensions { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.animation-settings__color { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; font-size: 12px; color: var(--text-2); }
+.animation-settings__color input { width: 44px; height: 32px; border: 1px solid var(--border); padding: 2px; background: var(--bg-2); border-radius: var(--radius-sm); cursor: pointer; }
+.animation-settings__color span { font-family: var(--font-mono); font-size: 11px; }
+@media (max-width: 400px) {
+  .animation-picker__grid { gap: 8px; }
+  .animation-card__preview { height: 90px; }
+  .animation-card__label { font-size: 11px; padding: 8px 6px 4px; }
+  .animation-card__description { padding: 0 6px 10px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .animation-settings__reduced { display: block; }
+  .animation-card__surface { transition: none; }
+  .animation-settings__preview > span { font-size: 0; }
+  .animation-settings__preview > span::after { content: 'Still preview · Reduced motion'; font-size: 11px; }
+}

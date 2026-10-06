@@ -83,6 +83,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .rain-scene { display: none; }
-  .rain-drop, .rain-splash { animation: none; }
+  .rain-background { display: none; }
+  .rain-drop, .rain-splash { animation-play-state: paused; }
 }

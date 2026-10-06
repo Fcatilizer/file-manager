@@ -1,4 +1,5 @@
-import { useEffect, useState, type CSSProperties } from 'react'
+import type { CSSProperties } from 'react'
+import { useDocumentHidden } from './animations/useDocumentHidden'
 import { DEFAULT_RAIN, RAIN_DENSITIES, type RainSettings } from '../lib/rain'
 import '../styles/rain-animation.css'
 
@@ -6,13 +7,7 @@ type Props = { enabled: boolean; settings?: RainSettings; preview?: boolean }
 
 /** CSS-only animation: no frame loop, canvas, timers or third-party engine. */
 export default function RainBackground({ enabled, settings = DEFAULT_RAIN, preview = false }: Props) {
-  const [hidden, setHidden] = useState(() => document.hidden)
-
-  useEffect(() => {
-    const onVisibilityChange = () => setHidden(document.hidden)
-    document.addEventListener('visibilitychange', onVisibilityChange)
-    return () => document.removeEventListener('visibilitychange', onVisibilityChange)
-  }, [])
+  const hidden = useDocumentHidden()
 
   if (!enabled) return null
   const density = RAIN_DENSITIES.find((option) => option.value === settings.density)!

@@ -9,7 +9,7 @@ import {
   UNAUTHORIZED_EVENT,
   type SessionUser,
 } from './lib/api'
-import RainBackground from './components/RainBackground'
+import AnimationBackground from './components/AnimationBackground'
 import Login from './components/Login'
 import Setup from './components/Setup'
 import FileManager from './components/FileManager'
@@ -123,5 +123,5 @@ export default function App() {
     )
   }
 
-  return <><RainBackground enabled={preferences.rain} settings={preferences.rainSettings} />{content}{appearanceError && <div className="toast toast--error" role="alert" onClick={() => setAppearanceError('')}>{appearanceError}</div>}</>
+  return <><AnimationBackground preferences={preferences} />{content}{appearanceError && <div className="toast toast--error" role="alert" onClick={() => setAppearanceError('')}>{appearanceError}</div>}</>
 }

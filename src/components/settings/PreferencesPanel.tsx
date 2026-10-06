@@ -1,6 +1,6 @@
 import { ACCENTS, FONTS, type Preferences } from '../../lib/preferences'
 import { ChoiceChips } from './SettingsControls'
-import RainSettingsPanel from './RainSettingsPanel'
+import AnimationsPanel from './AnimationsPanel'
 
 type Props = { value: Preferences; onChange: (value: Preferences) => void; disabled: boolean }
 
@@ -27,10 +27,7 @@ export default function PreferencesPanel({ value, onChange, disabled }: Props) {
           </label>
         ))}
       </fieldset>
-      <RainSettingsPanel enabled={value.rain} value={value.rainSettings}
-        themeColor={ACCENTS[value.accent][value.theme]} disabled={disabled}
-        onToggle={(rain) => onChange({ ...value, rain })}
-        onChange={(rainSettings) => onChange({ ...value, rainSettings })} />
+      <AnimationsPanel value={value} disabled={disabled} onChange={onChange} />
     </>
   )
 }

@@ -111,3 +111,18 @@ test('invalid rain options are rejected before writing to MongoDB', async () => 
   }
   assert.equal(updates.length, 0)
 })
+
+test('falling leaves and breeze preferences persist through the account API', async () => {
+  const preferences = { ...DEFAULT_PREFERENCES, animation: 'leaves', leafSettings: {
+    direction: 'down-left', density: 'light', speed: 0.7, height: 20, width: 12, breeze: true, color: '#aabbcc',
+  } }
+  assert.equal((await call('/me', 'PATCH', { preferences })).status, 200)
+  assert.deepEqual((await (await call('/me', 'GET')).json()).user.preferences, preferences)
+})
+
+test('invalid animation choices and leaf settings never reach the database', async () => {
+  for (const extra of [{ animation: 'unknown' }, { leafSettings: {} }, { animation: 'leaves', leafSettings: { breeze: 'true' } }]) {
+    assert.equal((await call('/me', 'PATCH', { preferences: { ...DEFAULT_PREFERENCES, ...extra } })).status, 400)
+  }
+  assert.equal(updates.length, 0)
+})

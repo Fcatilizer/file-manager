@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import PreviewModal from './PreviewModal'
+import ItemDetailsDialog from './ItemDetailsDialog'
+import VaultBrandButton from './VaultBrandButton'
 import { Icon } from './Icon'
 import { getFileTypeInfo } from '../lib/fileIcons'
 import { applyPreferences } from '../lib/appearance'
@@ -26,6 +28,8 @@ export default function PublicSharePage() {
   const [error, setError] = useState('')
   const [now, setNow] = useState(() => Date.now())
   const [preview, setPreview] = useState<FileItem | null>(null)
+  const [detailsItem, setDetailsItem] = useState<FileItem | null>(null)
+  const [refreshKey, setRefreshKey] = useState(0)
   const opener = useRef<HTMLElement | null>(null)
   const initialPreview = useRef(initial.get('preview') === '1' || location.pathname === '/shared-preview')
   const requestId = useRef(0)
@@ -35,7 +39,7 @@ export default function PublicSharePage() {
     const read = async (key: string) => {
       const response = await fetch(rawUrl(key), { credentials: 'omit', referrerPolicy: 'no-referrer' })
       if (!response.ok) {
-        if (response.status === 404) { setError('Files unavailable'); setPreview(null) }
+        if (response.status === 404) { setError('Files unavailable'); setPreview(null); setDetailsItem(null) }
         throw Error('File unavailable')
       }
       return response
@@ -72,29 +76,38 @@ export default function PublicSharePage() {
       })
       .catch(err => { if (!controller.signal.aborted && requestId.current === id) { setError(err.message); setLoading(false) } })
     return () => controller.abort()
-  }, [base, navigation, initial])
+  }, [base, navigation, initial, refreshKey])
 
   useEffect(() => {
     if (!view?.expiresAt) return
     const expiry = new Date(view.expiresAt).getTime()
-    const timer = setInterval(() => { const time = Date.now(); setNow(time); if (time >= expiry) { setPreview(null); setError('Files unavailable') } }, 1000)
+    const timer = setInterval(() => { const time = Date.now(); setNow(time); if (time >= expiry) { setPreview(null); setDetailsItem(null); setError('Files unavailable') } }, 1000)
     return () => clearInterval(timer)
   }, [view?.expiresAt])
 
   const navigate = useCallback((key: string, cursor = '') => {
-    setLoading(true); setNavigation({ key, cursor }); setPreview(null)
+    setLoading(true); setNavigation({ key, cursor }); setPreview(null); setDetailsItem(null)
     history.pushState(null, '', `/share#${new URLSearchParams({ token, key, ...(cursor ? { cursor } : {}) })}`)
   }, [token])
   useEffect(() => {
     const back = () => {
       const params = new URLSearchParams(location.hash.slice(1))
-      setLoading(true); setPreview(null); setNavigation({ key: params.get('key') || '', cursor: params.get('cursor') || '' })
+      setLoading(true); setPreview(null); setDetailsItem(null); setNavigation({ key: params.get('key') || '', cursor: params.get('cursor') || '' })
     }
     addEventListener('popstate', back)
     return () => removeEventListener('popstate', back)
   }, [])
   const openPreview = (item: FileItem) => { opener.current = document.activeElement as HTMLElement; setPreview(item) }
   const closePreview = () => { setPreview(null); requestAnimationFrame(() => opener.current?.focus({ preventScroll: true })) }
+  const openDetails = (item: FileItem) => { opener.current = document.activeElement as HTMLElement; setDetailsItem(item) }
+  const closeDetails = () => { setDetailsItem(null); requestAnimationFrame(() => opener.current?.focus({ preventScroll: true })) }
+  const handleRefresh = useCallback(() => {
+    setLoading(true)
+    setError('')
+    setPreview(null)
+    setDetailsItem(null)
+    setRefreshKey((k) => k + 1)
+  }, [])
   const downloadUrl = (key: string) => `${base}?${new URLSearchParams({ key, download: '1' })}`
   const download = (key: string) => {
     // Attachment response leaves the current document mounted.
@@ -103,6 +116,7 @@ export default function PublicSharePage() {
   const files = view?.entries.filter(item => !item.isFolder) || []
   const index = files.findIndex(item => item.key === preview?.key)
   const title = view?.root.split('/').filter(Boolean).pop() || 'Shared files'
+  const rootInfo = view ? getFileTypeInfo(title, view.folder) : null
   const crumbs = view ? [{ label: title, key: view.root }] : []
   if (view?.folder) {
     let path = view.root
@@ -112,16 +126,28 @@ export default function PublicSharePage() {
   }
   return <><div className="public-share">
     <style>{publicShareStyle}</style>
-    <header className="topbar"><div className="brand"><span>◆</span>Vault</div><span className="pill"><Icon name="link" size={14} /> Shared with you</span></header>
+    <header className="topbar">
+      <VaultBrandButton
+        className="vault-brand-btn--public"
+        diamondSize={17}
+        onRefresh={handleRefresh}
+        title="Refresh shared files"
+        ariaLabel="Refresh shared files"
+      />
+      <span className="pill"><Icon name="link" size={14} /> Shared with you</span>
+    </header>
     <main>
       {error ? <section className="public-error"><Icon name="lock" size={44} /><h1>{error}</h1><p>This link may have expired, been revoked, or the files removed. Ask the sender for a new link.</p><a className="public-button" href="/">Go to Vault</a></section> : !view ? <div className="empty" role="status">Loading shared files…</div> : <>
-        <section className="intro"><div className="hero-icon"><Icon name={getFileTypeInfo(title, view.folder).iconName} size={30} /></div><div><h1>{title}</h1><p className="muted">Shared {view.folder ? 'folder' : 'file'} · View and download access</p></div></section>
+        <section className="intro"><div className="hero-icon"><Icon name={rootInfo ? rootInfo.iconName : 'folder'} size={30} /></div><div><h1>{title}</h1><p className="muted">Shared {view.folder ? 'folder' : 'file'} · View and download access</p></div></section>
         <section className="details" aria-label="Sharing details">
           <div><span className="label">Shared by</span><div className="person"><span className="avatar">{Array.from(view.sharer)[0]?.toUpperCase()}</span><span className="value">{view.sharer}</span></div></div>
           <div><span className="label">Sharing duration</span><span className="value">{view.expiresAt ? shareDuration(new Date(view.expiresAt).getTime() - new Date(view.createdAt).getTime()) : 'Permanent link'}</span><small>Shared {date(view.createdAt)}</small></div>
           <div><span className="label">{view.expiresAt ? 'Available until' : 'Availability'}</span><span className="value">{view.expiresAt ? date(view.expiresAt) : 'Until the owner revokes it'}</span><small>{view.expiresAt ? `${shareDuration(new Date(view.expiresAt).getTime() - now)} remaining · Local time` : 'No automatic expiry'}</small></div>
         </section>
-        <nav aria-label="Shared folder navigation"><Icon name="folder" size={15} />{crumbs.map((crumb, i) => <span key={crumb.key}>{i > 0 && ' / '}<button className="public-text-button" onClick={() => navigate(crumb.key)} disabled={loading}>{crumb.label}</button></span>)}</nav>
+        <nav aria-label={view.folder ? 'Shared folder navigation' : 'Shared file navigation'}>
+          <Icon name={view.folder ? 'folder' : (rootInfo?.iconName || 'fileDoc')} size={15} color={view.folder ? undefined : rootInfo?.colorLight} />
+          {crumbs.map((crumb, i) => <span key={crumb.key}>{i > 0 && ' / '}<button className="public-text-button" onClick={() => navigate(crumb.key)} disabled={loading}>{crumb.label}</button></span>)}
+        </nav>
         <section className="list" aria-label="Shared files" aria-busy={loading}>
           <div className="row heading"><span>Name</span><span className="size">Size</span><span className="modified">Modified</span><span /></div>
           {loading ? <div className="empty" role="status">Loading folder…</div> : view.entries.map(item => {
@@ -129,7 +155,20 @@ export default function PublicSharePage() {
             return <div className="row" key={item.key}>
               <button className="filename public-text-button" onClick={() => item.isFolder ? navigate(item.key) : openPreview(item)} aria-label={`${item.isFolder ? 'Open folder' : 'Open file'} ${item.name}`}><Icon name={info.iconName} color={info.colorLight} size={19} /><span>{item.name}</span></button>
               <span className="size">{item.isFolder ? 'Folder' : size(item.size)}</span><span className="modified">{item.lastModified ? date(item.lastModified) : '—'}</span>
-              <span className="action">{item.isFolder ? <button className="icon-button" aria-label={`Browse ${item.name}`} onClick={() => navigate(item.key)}><Icon name="chevronRight" size={16} /></button> : <><button className="icon-button" aria-label={`Preview ${item.name}`} onClick={() => openPreview(item)}><Icon name="eye" size={16} /></button><a className="icon-button" aria-label={`Download file ${item.name}`} href={downloadUrl(item.key)}><Icon name="download" size={16} /></a></>}</span>
+              <span className="action">
+                {item.isFolder ? (
+                  <>
+                    <button className="icon-button" title="Details" aria-label={`Details for ${item.name}`} onClick={() => openDetails(item)}><Icon name="info" size={16} /></button>
+                    <button className="icon-button" title="Browse folder" aria-label={`Browse ${item.name}`} onClick={() => navigate(item.key)}><Icon name="chevronRight" size={16} /></button>
+                  </>
+                ) : (
+                  <>
+                    <button className="icon-button" title="Details" aria-label={`Details for ${item.name}`} onClick={() => openDetails(item)}><Icon name="info" size={16} /></button>
+                    <button className="icon-button" title="Preview" aria-label={`Preview ${item.name}`} onClick={() => openPreview(item)}><Icon name="eye" size={16} /></button>
+                    <a className="icon-button" title="Download" aria-label={`Download file ${item.name}`} href={downloadUrl(item.key)}><Icon name="download" size={16} /></a>
+                  </>
+                )}
+              </span>
             </div>
           })}
           {!loading && view.entries.length === 0 && <div className="empty">This folder is empty.</div>}
@@ -140,5 +179,6 @@ export default function PublicSharePage() {
     </main>
   </div>
     {preview && !error && <div className="public-share-preview"><PreviewModal key={preview.key} file={preview} bucket="" source={source} theme="light" hasPrev={index > 0} hasNext={index >= 0 && index < files.length - 1} onPrev={() => setPreview(files[index - 1])} onNext={() => setPreview(files[index + 1])} onClose={closePreview} onDownload={download} /></div>}
+    {detailsItem && !error && <div className="public-share-details"><ItemDetailsDialog key={detailsItem.key} item={detailsItem} onClose={closeDetails} /></div>}
   </>
 }

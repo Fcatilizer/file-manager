@@ -11,6 +11,7 @@ export type FileCategory =
   | 'video'
   | 'audio'
   | 'archive'
+  | 'package'
   | 'other'
 
 export interface FileTypeInfo {
@@ -122,14 +123,38 @@ const EXT_MAP: Record<string, { category: FileCategory; label: string; iconName:
 
   // Archives
   zip: { category: 'archive', label: 'ZIP Archive', iconName: 'fileArchive', colorLight: '#b45309', colorDark: '#f59e0b' },
+  rar: { category: 'archive', label: 'RAR Archive', iconName: 'fileArchive', colorLight: '#b45309', colorDark: '#f59e0b' },
   tar: { category: 'archive', label: 'TAR Archive', iconName: 'fileArchive', colorLight: '#b45309', colorDark: '#f59e0b' },
   gz: { category: 'archive', label: 'GZIP Archive', iconName: 'fileArchive', colorLight: '#b45309', colorDark: '#f59e0b' },
-  rar: { category: 'archive', label: 'RAR Archive', iconName: 'fileArchive', colorLight: '#b45309', colorDark: '#f59e0b' },
+  tgz: { category: 'archive', label: 'TAR GZip Archive', iconName: 'fileArchive', colorLight: '#b45309', colorDark: '#f59e0b' },
   '7z': { category: 'archive', label: '7-Zip Archive', iconName: 'fileArchive', colorLight: '#b45309', colorDark: '#f59e0b' },
   bz2: { category: 'archive', label: 'BZIP2 Archive', iconName: 'fileArchive', colorLight: '#b45309', colorDark: '#f59e0b' },
+  tbz2: { category: 'archive', label: 'TAR BZip2 Archive', iconName: 'fileArchive', colorLight: '#b45309', colorDark: '#f59e0b' },
   xz: { category: 'archive', label: 'XZ Archive', iconName: 'fileArchive', colorLight: '#b45309', colorDark: '#f59e0b' },
-  iso: { category: 'archive', label: 'Disc Image', iconName: 'fileArchive', colorLight: '#b45309', colorDark: '#f59e0b' },
-  dmg: { category: 'archive', label: 'Apple Disk Image', iconName: 'fileArchive', colorLight: '#b45309', colorDark: '#f59e0b' },
+  txz: { category: 'archive', label: 'TAR XZ Archive', iconName: 'fileArchive', colorLight: '#b45309', colorDark: '#f59e0b' },
+  zst: { category: 'archive', label: 'Zstandard Archive', iconName: 'fileArchive', colorLight: '#b45309', colorDark: '#f59e0b' },
+  cab: { category: 'archive', label: 'Cabinet Archive', iconName: 'fileArchive', colorLight: '#b45309', colorDark: '#f59e0b' },
+
+  // Disc Images & ISO
+  iso: { category: 'package', label: 'ISO Disc Image', iconName: 'fileIso', colorLight: '#0284c7', colorDark: '#38bdf8' },
+  img: { category: 'package', label: 'Disk Image', iconName: 'fileIso', colorLight: '#0284c7', colorDark: '#38bdf8' },
+  bin: { category: 'package', label: 'Binary Disk Image', iconName: 'fileIso', colorLight: '#0284c7', colorDark: '#38bdf8' },
+  cue: { category: 'package', label: 'Cue Sheet', iconName: 'fileIso', colorLight: '#0284c7', colorDark: '#38bdf8' },
+  vdi: { category: 'package', label: 'VirtualBox Disk Image', iconName: 'fileIso', colorLight: '#0284c7', colorDark: '#38bdf8' },
+
+  // Mobile Applications & Bundles
+  apk: { category: 'package', label: 'Android Package', iconName: 'fileApk', colorLight: '#16a34a', colorDark: '#4ade80' },
+  aab: { category: 'package', label: 'Android App Bundle', iconName: 'fileApk', colorLight: '#16a34a', colorDark: '#4ade80' },
+  ipa: { category: 'package', label: 'iOS App Package', iconName: 'fileIpa', colorLight: '#0284c7', colorDark: '#38bdf8' },
+
+  // Executables & Installers
+  exe: { category: 'package', label: 'Windows Executable', iconName: 'fileExe', colorLight: '#2563eb', colorDark: '#60a5fa' },
+  msi: { category: 'package', label: 'Windows Installer', iconName: 'fileExe', colorLight: '#2563eb', colorDark: '#60a5fa' },
+  dmg: { category: 'package', label: 'Apple Disk Image', iconName: 'fileDmg', colorLight: '#475569', colorDark: '#94a3b8' },
+  pkg: { category: 'package', label: 'macOS Package', iconName: 'fileDmg', colorLight: '#475569', colorDark: '#94a3b8' },
+  appimage: { category: 'package', label: 'AppImage Application', iconName: 'fileAppImage', colorLight: '#0284c7', colorDark: '#38bdf8' },
+  deb: { category: 'package', label: 'Debian Package', iconName: 'fileDeb', colorLight: '#d91438', colorDark: '#fb7185' },
+  rpm: { category: 'package', label: 'RPM Package', iconName: 'fileRpm', colorLight: '#cc0000', colorDark: '#f87171' },
 }
 
 export function getFileTypeInfo(name: string, isFolder: boolean): FileTypeInfo {
@@ -144,6 +169,11 @@ export function getFileTypeInfo(name: string, isFolder: boolean): FileTypeInfo {
   }
 
   if (isEnvFile(name)) return EXT_MAP.env
+
+  const lower = name.toLowerCase()
+  if (lower.endsWith('.tar.gz')) return { category: 'archive', label: 'TAR GZip Archive', iconName: 'fileArchive', colorLight: '#b45309', colorDark: '#f59e0b' }
+  if (lower.endsWith('.tar.bz2')) return { category: 'archive', label: 'TAR BZip2 Archive', iconName: 'fileArchive', colorLight: '#b45309', colorDark: '#f59e0b' }
+  if (lower.endsWith('.tar.xz')) return { category: 'archive', label: 'TAR XZ Archive', iconName: 'fileArchive', colorLight: '#b45309', colorDark: '#f59e0b' }
 
   const ext = name.split('.').pop()?.toLowerCase() || ''
   if (ext && EXT_MAP[ext]) {
@@ -180,6 +210,7 @@ export const CATEGORY_META: Record<FileCategory, CategoryInfo> = {
   video: { label: 'Video', iconName: 'fileVideo', colorLight: '#e11d48', colorDark: '#fb7185' },
   audio: { label: 'Audio', iconName: 'fileAudio', colorLight: '#d97706', colorDark: '#fbbf24' },
   archive: { label: 'Archives', iconName: 'fileArchive', colorLight: '#b45309', colorDark: '#f59e0b' },
+  package: { label: 'Packages', iconName: 'package', colorLight: '#0284c7', colorDark: '#38bdf8' },
   other: { label: 'Other', iconName: 'file', colorLight: '#64748b', colorDark: '#94a3b8' },
 }
 
@@ -195,6 +226,7 @@ export const CATEGORY_ORDER: FileCategory[] = [
   'video',
   'audio',
   'archive',
+  'package',
   'other',
 ]
 

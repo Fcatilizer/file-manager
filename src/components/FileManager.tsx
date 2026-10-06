@@ -5,6 +5,7 @@ import ShareDialog from './ShareDialog'
 import CreateBucketDialog from './buckets/CreateBucketDialog'
 import BucketPasswordDialog from './buckets/BucketPasswordDialog'
 import AppearanceControls from './AppearanceControls'
+import VaultBrandButton from './VaultBrandButton'
 import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef, Fragment, type DragEvent } from 'react'
 import {
   fetchBuckets,
@@ -290,6 +291,17 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
     setPrefix('')
   }, [activeBucket])
 
+  // ─── Refresh / Reload via Brand Logo ────────────────────
+  const handleRefreshVault = useCallback(() => {
+    setQuery('')
+    setActiveCategory(null)
+    setPreviewIndex(null)
+    setDetailsItem(null)
+
+    void refreshBuckets()
+    void loadFiles()
+  }, [refreshBuckets, loadFiles])
+
   // ─── Upload ─────────────────────────────────────────────
 
   const handleUpload = useCallback(
@@ -506,7 +518,11 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
       {/* Header */}
       <header className="header">
         <h1 className="header__title">
-          <span>◆</span> Vault
+          <VaultBrandButton
+            onRefresh={handleRefreshVault}
+            title="Refresh Vault (Reload files & buckets)"
+            ariaLabel="Refresh Vault"
+          />
         </h1>
         <div className="header__controls">
           <BucketDropdown

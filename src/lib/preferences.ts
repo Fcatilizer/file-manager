@@ -1,4 +1,11 @@
 import { isRainSettings, type RainSettings } from './rain.ts'
+import { isLeafSettings, type LeafSettings } from './leaves.ts'
+export const ANIMATIONS = [
+  { value: 'none', label: 'Off', description: 'A quiet background' },
+  { value: 'rain', label: 'Rain', description: 'Soft, flowing streaks' },
+  { value: 'leaves', label: 'Falling leaves', description: 'Leaves on a gentle breeze' },
+] as const
+export type AnimationKind = typeof ANIMATIONS[number]['value']
 /** Central source for appearance options, defaults, font stacks and accent colors. */
 export const FONTS = {
   inter: { label: 'Inter', family: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" },
@@ -22,6 +29,12 @@ export type Preferences = {
   accent: keyof typeof ACCENTS
   rain: boolean
   rainSettings?: RainSettings
+  animation?: AnimationKind
+  leafSettings?: LeafSettings
+}
+/** Old saved rain preferences continue working without a database migration. */
+export function selectedAnimation(preferences: Preferences): AnimationKind {
+  return preferences.animation ?? (preferences.rain ? 'rain' : 'none')
 }
 export const DEFAULT_PREFERENCES: Preferences = { theme: 'dark', font: 'inter', accent: 'indigo', rain: false }
 export function isPreferences(value: unknown): value is Preferences {
@@ -30,5 +43,7 @@ export function isPreferences(value: unknown): value is Preferences {
   return (p.theme === 'light' || p.theme === 'dark') && typeof p.font === 'string' && Object.hasOwn(FONTS, p.font)
     && typeof p.accent === 'string' && Object.hasOwn(ACCENTS, p.accent) && typeof p.rain === 'boolean'
     && (!('rainSettings' in p) || isRainSettings(p.rainSettings))
-    && Object.keys(p).every((key) => ['theme', 'font', 'accent', 'rain', 'rainSettings'].includes(key))
+    && (!('animation' in p) || ANIMATIONS.some(option => option.value === p.animation))
+    && (!('leafSettings' in p) || isLeafSettings(p.leafSettings))
+    && Object.keys(p).every((key) => ['theme', 'font', 'accent', 'rain', 'rainSettings', 'animation', 'leafSettings'].includes(key))
 }

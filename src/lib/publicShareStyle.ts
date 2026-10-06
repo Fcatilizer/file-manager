@@ -1,6 +1,7 @@
 /** Shared browser and server error-page styles, scoped away from preview modals. */
 export const publicShareStyle = `
-.public-share-preview .modal-overlay {
+.public-share-preview .modal-overlay,
+.public-share-details .modal-overlay {
   --drop-bg: rgba(15, 23, 42, 0.28);
   backdrop-filter: blur(2px);
   -webkit-backdrop-filter: blur(2px);
@@ -23,13 +24,25 @@ export const publicShareStyle = `
   align-items:center;
   justify-content:space-between;
   padding:0 max(24px,calc((100vw - 1120px)/2));
-  gap:20px}:where(.public-share) .brand {
+  gap:20px}:where(.public-share) .brand, :where(.public-share) .vault-brand-btn--public {
   font-size:26px;
   font-weight:650;
   letter-spacing:-1px;
-  display:flex;
+  display:inline-flex;
   gap:12px;
-  align-items:center}:where(.public-share) .brand span {
+  align-items:center;
+  color:#172033;
+  font-family:inherit;
+  background:transparent;
+  border:0;
+  padding:6px 10px;
+  margin-left:-10px;
+  border-radius:8px;
+  cursor:pointer;
+  transition:background-color 0.15s ease}:where(.public-share) .vault-brand-btn--public:hover {
+  background:#f1f3f7}:where(.public-share) .vault-brand-btn--public:focus-visible {
+  outline:2px solid var(--accent);
+  outline-offset:2px}:where(.public-share) .brand span {
   font-size:17px;
   color:var(--accent)}:where(.public-share) .pill {
   display:inline-flex;
@@ -105,7 +118,7 @@ export const publicShareStyle = `
   border-radius:12px;
   overflow:hidden}:where(.public-share) .row {
   display:grid;
-  grid-template-columns:minmax(0,1fr) 90px 165px 72px;
+  grid-template-columns:minmax(0,1fr) 90px 165px 108px;
   gap:16px;
   align-items:center;
   padding:17px 20px;
@@ -149,8 +162,11 @@ export const publicShareStyle = `
   line-height:1.6}:where(.public-share) time {
   white-space:normal}@media(max-width:640px) {:where(.public-share) .topbar {
   height:68px;
-  padding:0 20px}:where(.public-share) .brand {
-  font-size:23px}:where(.public-share) main {
+  padding:0 20px}:where(.public-share) .brand, :where(.public-share) .vault-brand-btn--public {
+  font-size:23px;
+  padding:4px 8px;
+  margin-left:-8px;
+  gap:10px}:where(.public-share) main {
   margin:28px auto;
   padding:0 18px}:where(.public-share) .intro {
   gap:12px}:where(.public-share) h1 {
@@ -159,7 +175,7 @@ export const publicShareStyle = `
   grid-template-columns:1fr;
   padding:18px;
   gap:18px}:where(.public-share) .row {
-  grid-template-columns:minmax(0,1fr) 65px 64px;
+  grid-template-columns:minmax(0,1fr) 65px 104px;
   gap:8px;
   padding:16px 14px}:where(.public-share) .modified {
   display:none}:where(.public-share) .row.heading .modified {

@@ -1,5 +1,6 @@
 import PasswordInput from './PasswordInput'
 import AppearanceControls from './AppearanceControls'
+import VaultBrandButton from './VaultBrandButton'
 import { useState, type FormEvent } from 'react'
 import { Icon } from './Icon'
 import { login, type SessionUser } from '../lib/api'
@@ -38,7 +39,13 @@ export default function Login({ theme, onToggleTheme, onSuccess }: Props) {
 
       <form className="auth__card" onSubmit={handleSubmit}>
         <div className="auth__brand">
-          <span className="auth__logo">◆</span> Vault
+          <VaultBrandButton
+            className="auth__brand-btn"
+            diamondSize={18}
+            title="Vault"
+            ariaLabel="Vault"
+            onRefresh={() => setError(null)}
+          />
         </div>
         <p className="auth__tagline">Sign in to access your files</p>
 
