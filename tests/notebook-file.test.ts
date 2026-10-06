@@ -5,7 +5,7 @@ import { getFileTypeInfo } from '../src/lib/fileIcons.ts'
 import { ICON_PATHS } from '../src/lib/iconPaths.ts'
 import { isEnvFile } from '../src/lib/filetype.ts'
 
-test('notebook supports extensions: txt, md, env, json, html, xml with valid mimes', () => {
+test('notebook supports extensions: txt, md, env, json, html, xml, sh, bat, cmd with valid mimes', () => {
   const exts = SUPPORTED_EXTENSIONS.map((s) => s.ext)
   assert.ok(exts.includes('txt'))
   assert.ok(exts.includes('md'))
@@ -13,6 +13,9 @@ test('notebook supports extensions: txt, md, env, json, html, xml with valid mim
   assert.ok(exts.includes('json'))
   assert.ok(exts.includes('html'))
   assert.ok(exts.includes('xml'))
+  assert.ok(exts.includes('sh'))
+  assert.ok(exts.includes('bat'))
+  assert.ok(exts.includes('cmd'))
 
   const expectedMimes: Record<string, string> = {
     txt: 'text/plain',
@@ -21,6 +24,9 @@ test('notebook supports extensions: txt, md, env, json, html, xml with valid mim
     html: 'text/html',
     xml: 'application/xml',
     json: 'application/json',
+    sh: 'application/x-sh',
+    bat: 'application/x-bat',
+    cmd: 'application/cmd',
   }
 
   for (const item of SUPPORTED_EXTENSIONS) {
@@ -80,6 +86,10 @@ test('parseFileNameAndExt accurately parses filenames for notebook edit mode', a
   assert.deepEqual(parseFileNameAndExt('app.test.tsx'), { baseName: 'app.test', ext: 'tsx' })
   assert.deepEqual(parseFileNameAndExt('script.py'), { baseName: 'script', ext: 'py' })
 
+  assert.deepEqual(parseFileNameAndExt('setup.sh'), { baseName: 'setup', ext: 'sh' })
+  assert.deepEqual(parseFileNameAndExt('build.bat'), { baseName: 'build', ext: 'bat' })
+  assert.deepEqual(parseFileNameAndExt('run.cmd'), { baseName: 'run', ext: 'cmd' })
+
   // Files without extension default to txt
   assert.deepEqual(parseFileNameAndExt('notes'), { baseName: 'notes', ext: 'txt' })
 
@@ -89,12 +99,18 @@ test('parseFileNameAndExt accurately parses filenames for notebook edit mode', a
   assert.equal(getMimeForExtension('py'), 'text/x-python')
   assert.equal(getMimeForExtension('js'), 'application/javascript')
   assert.equal(getMimeForExtension('ts'), 'application/typescript')
+  assert.equal(getMimeForExtension('sh'), 'application/x-sh')
+  assert.equal(getMimeForExtension('bat'), 'application/x-bat')
+  assert.equal(getMimeForExtension('cmd'), 'application/cmd')
 
   // isEditableFile checks
   assert.equal(isEditableFile('.env'), true)
   assert.equal(isEditableFile('base.html'), true)
   assert.equal(isEditableFile('notes.md'), true)
   assert.equal(isEditableFile('config.json'), true)
+  assert.equal(isEditableFile('setup.sh'), true)
+  assert.equal(isEditableFile('build.bat'), true)
+  assert.equal(isEditableFile('run.cmd'), true)
   assert.equal(isEditableFile('photo.png'), false)
   assert.equal(isEditableFile('document.docx'), false)
   assert.equal(isEditableFile('archive.zip'), false)

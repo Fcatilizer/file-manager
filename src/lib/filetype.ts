@@ -8,7 +8,7 @@ const EXCEL_EXT = ['xlsx', 'xls', 'xlsm', 'xlsb', 'ods']
 const TEXT_EXT = [
   'txt', 'md', 'markdown', 'json', 'js', 'jsx', 'ts', 'tsx', 'css', 'scss', 'sass',
   'less', 'html', 'htm', 'xml', 'yaml', 'yml', 'csv', 'tsv', 'log', 'sh', 'bash',
-  'zsh', 'py', 'rb', 'go', 'rs', 'java', 'c', 'h', 'cpp', 'hpp', 'cs', 'php', 'sql',
+  'zsh', 'bat', 'cmd', 'py', 'rb', 'go', 'rs', 'java', 'c', 'h', 'cpp', 'hpp', 'cs', 'php', 'sql',
   'toml', 'ini', 'env', 'conf', 'cfg', 'gitignore', 'editorconfig', 'lock', 'map',
   'vue', 'svelte', 'graphql', 'prisma', 'properties', 'gradle', 'tf', 'proto',
 ]

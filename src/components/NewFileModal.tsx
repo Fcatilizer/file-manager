@@ -350,6 +350,10 @@ export default function NewFileModal({
             placeholder={
               extension === 'env'
                 ? '# Environment variables (KEY=value)\nPORT=3000\nAPI_SECRET=my-secret-key\nNODE_ENV=production'
+                : extension === 'sh'
+                ? '#!/bin/bash\n\necho "Hello from Vault!"'
+                : extension === 'bat' || extension === 'cmd'
+                ? '@echo off\r\necho Hello from Vault!'
                 : 'Start typing your notes, markdown, code, or data here…'
             }
             spellCheck="false"

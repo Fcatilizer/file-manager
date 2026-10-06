@@ -1,4 +1,4 @@
-export type SupportedExtension = 'txt' | 'md' | 'env' | 'html' | 'xml' | 'json'
+export type SupportedExtension = 'txt' | 'md' | 'env' | 'html' | 'xml' | 'json' | 'sh' | 'bat' | 'cmd'
 
 export interface ExtensionOption {
   ext: SupportedExtension | string
@@ -15,6 +15,9 @@ export const SUPPORTED_EXTENSIONS: ExtensionOption[] = [
   { ext: 'json', label: 'JSON', extLabel: '.json', mime: 'application/json', desc: 'Structured data document' },
   { ext: 'html', label: 'HTML', extLabel: '.html', mime: 'text/html', desc: 'Web markup page' },
   { ext: 'xml', label: 'XML', extLabel: '.xml', mime: 'application/xml', desc: 'Extensible markup data' },
+  { ext: 'sh', label: 'Shell Script', extLabel: '.sh', mime: 'application/x-sh', desc: 'Unix / Linux shell script' },
+  { ext: 'bat', label: 'Batch Script', extLabel: '.bat', mime: 'application/x-bat', desc: 'Windows batch script' },
+  { ext: 'cmd', label: 'Command Script', extLabel: '.cmd', mime: 'application/cmd', desc: 'Windows command script' },
 ]
 
 /**
@@ -36,6 +39,8 @@ export function getMimeForExtension(ext: string): string {
     sh: 'application/x-sh',
     bash: 'application/x-sh',
     zsh: 'application/x-sh',
+    bat: 'application/x-bat',
+    cmd: 'application/cmd',
     yaml: 'text/yaml',
     yml: 'text/yaml',
     sql: 'application/sql',

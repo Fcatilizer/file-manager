@@ -1140,6 +1140,8 @@ var TEXT_EXT = [
   "sh",
   "bash",
   "zsh",
+  "bat",
+  "cmd",
   "py",
   "rb",
   "go",

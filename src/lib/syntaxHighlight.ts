@@ -5,6 +5,8 @@ const EXT_TO_LANG: Record<string, string> = {
   sh: 'bash',
   bash: 'bash',
   zsh: 'bash',
+  bat: 'bat',
+  cmd: 'bat',
   js: 'javascript',
   mjs: 'javascript',
   cjs: 'javascript',

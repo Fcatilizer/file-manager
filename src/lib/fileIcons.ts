@@ -74,6 +74,8 @@ const EXT_MAP: Record<string, { category: FileCategory; label: string; iconName:
   sh: { category: 'code', label: 'Shell Script', iconName: 'fileCode', colorLight: '#0891b2', colorDark: '#38bdf8' },
   bash: { category: 'code', label: 'Bash Script', iconName: 'fileCode', colorLight: '#0891b2', colorDark: '#38bdf8' },
   zsh: { category: 'code', label: 'Zsh Script', iconName: 'fileCode', colorLight: '#0891b2', colorDark: '#38bdf8' },
+  bat: { category: 'code', label: 'Batch Script', iconName: 'fileCode', colorLight: '#0891b2', colorDark: '#38bdf8' },
+  cmd: { category: 'code', label: 'Command Script', iconName: 'fileCode', colorLight: '#0891b2', colorDark: '#38bdf8' },
   yaml: { category: 'code', label: 'YAML Config', iconName: 'fileCode', colorLight: '#0891b2', colorDark: '#38bdf8' },
   yml: { category: 'code', label: 'YAML Config', iconName: 'fileCode', colorLight: '#0891b2', colorDark: '#38bdf8' },
   toml: { category: 'code', label: 'TOML Config', iconName: 'fileCode', colorLight: '#0891b2', colorDark: '#38bdf8' },

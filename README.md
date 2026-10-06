@@ -15,7 +15,7 @@
 [![Tests Passing](https://img.shields.io/badge/Tests-122%20Passing-10b981?style=flat-square&logo=checkmarx&logoColor=white)](tests/)
 [![Deploy on Vercel](https://img.shields.io/badge/Vercel-Serverless%20Ready-000000?style=flat-square&logo=vercel&logoColor=white)](https://vercel.com/)
 
-[**Features**](#key-features) • [**Live Showcase**](#product-tour--live-showcase) • [**Installation**](#installation--quickstart) • [**Customizations**](#appearance--customizations) • [**Deployment**](#deployment-options) • [**Environment**](#environment-variables-reference)
+[**Features**](#key-features) • [**Installation**](#installation--quickstart) • [**Customizations**](#appearance--customizations) • [**Deployment**](#deployment-options) • [**Environment**](#environment-variables-reference)
 
 ---
 
@@ -43,6 +43,8 @@ Most S3 file managers are clunky administrative consoles built for devops, or sl
 <div align="center">
   <img src="docs/assets/dashboard.png" alt="Vault Command Center and File Manager" width="92%" />
 </div>
+
+> Custom File Type Icons for different types of files
 
 ---
 
@@ -331,6 +333,14 @@ npm run build
 > Vault does not guarantee encryption of files and folders at the hardware level. The person hosting the storage may still be able to read all bucket contents directly from the drives.
 
 Vault is intended for managing your own files in a bucket you host yourself, shared among family and friends.
+
+> [!TIP]
+> This is a work in progress. Features are added and removed frequently.Suggestion for improvents are appreceated.
+
+> [Developer Note]
+> This project i've started to be able to share files with my family and friends. I wanted to have full control over my data and also have full control over who can access my data. I think this project achieves both of these goals.
+
+> This project was based on an idea of simple file manager + modern UI and some extra features that i wanted to have in a file manager.
 
 ---
 
