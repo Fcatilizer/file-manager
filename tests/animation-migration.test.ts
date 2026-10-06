@@ -9,7 +9,7 @@ import { DEFAULT_LEAVES } from '../src/lib/leaves.ts'
 type Record = { _id: ObjectId; preferences: any }
 function fixture(records: Record[], conflict = false) {
   return {
-    find() { return (async function* () { for (const record of records) if (!record.preferences.animations) yield { _id: record._id, preferences: structuredClone(record.preferences) } })() },
+    find() { return (async function* () { for (const record of records) yield { _id: record._id, preferences: structuredClone(record.preferences) } })() },
     async updateOne(filter: Record, update: any) {
       const record = records.find(r => r._id.toString() === new ObjectId(filter._id).toString())
       if (!record || conflict || JSON.stringify(record.preferences) !== JSON.stringify(filter.preferences)) return { modifiedCount: 0 }
@@ -39,4 +39,18 @@ test('migration does not replace preferences changed concurrently', async () => 
   const records = [{ _id: new ObjectId(), preferences: legacy() }]
   assert.deepEqual(await migrateAnimationPreferences(fixture(records, true)), { scanned: 1, migrated: 0, skipped: 0, conflicts: 1 })
   assert.equal(records[0].preferences.animation, 'leaves')
+})
+
+
+test('migration backfills a new animation without changing the selected effect or its settings', async () => {
+  const older = { ...DEFAULT_PREFERENCES, animations: { type: 'leaves', settings: { rain: DEFAULT_RAIN, leaves: { ...DEFAULT_LEAVES, width: 23, speed: 1.7 } } } }
+  const records = [{ _id: new ObjectId(), preferences: older }]
+  const users = fixture(records)
+  assert.equal((await migrateAnimationPreferences(users)).migrated, 1)
+  const updated = records[0].preferences as any
+  assert.equal(updated.animations.type, 'leaves')
+  assert.equal(updated.animations.settings.leaves.width, 23)
+  assert.equal(updated.animations.settings.leaves.speed, 1.7)
+  assert.equal(updated.animations.settings.autumn.pile, true)
+  assert.equal((await migrateAnimationPreferences(users)).migrated, 0)
 })

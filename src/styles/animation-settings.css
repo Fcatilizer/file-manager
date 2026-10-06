@@ -2,7 +2,7 @@
 .animation-picker { border: 0; min-width: 0; padding: 0; }
 .animation-picker legend { font-size: 14px; font-weight: 600; color: var(--text-1); }
 .animation-settings__intro { font-size: 12px; line-height: 1.6; color: var(--text-2); margin: 6px 0 14px; }
-.animation-picker__grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.animation-picker__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .animation-card { position: relative; min-width: 0; cursor: pointer; }
 .animation-card > input { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .animation-card__surface { display: flex; flex-direction: column; height: 100%; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: var(--bg-2); transition: border-color 160ms, background 160ms; }
@@ -22,7 +22,7 @@
 .animation-settings__reduced { display: none; margin-top: 8px; color: var(--accent); }
 .animation-settings__hint { margin-top: -8px; }
 .animation-settings__preview { position: relative; height: 160px; margin: 18px 0; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-1); overflow: hidden; }
-.animation-settings__preview > span { position: absolute; bottom: 12px; left: 12px; font-size: 11px; color: var(--text-2); }
+.animation-settings__preview > span { position: absolute; top: 10px; left: 10px; padding: 3px 6px; border-radius: 4px; background: var(--bg-1); font-size: 11px; color: var(--text-2); }
 .animation-settings__dimensions { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
 .animation-settings__color { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; font-size: 12px; color: var(--text-2); }
 .animation-settings__color input { width: 44px; height: 32px; border: 1px solid var(--border); padding: 2px; background: var(--bg-2); border-radius: var(--radius-sm); cursor: pointer; }

@@ -344,12 +344,88 @@ function isLeafSettings(value) {
   return Object.keys(settings).every((key) => Object.hasOwn(DEFAULT_LEAVES, key)) && isAnimationAppearance(settings, LEAF_LIMITS) && typeof settings.breeze === "boolean";
 }
 
-// src/lib/preferences.ts
+// src/lib/autumn.ts
+var AUTUMN_LIMITS = {
+  speed: { min: 0.5, max: 2, step: 0.1 },
+  height: { min: 14, max: 48, step: 1 },
+  width: { min: 14, max: 48, step: 1 }
+};
+var DEFAULT_AUTUMN = {
+  direction: "down-right",
+  density: "balanced",
+  speed: 1,
+  height: 26,
+  width: 28,
+  breeze: true,
+  pile: true,
+  color: "#c98236"
+};
+function isAutumnSettings(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const settings = value;
+  return Object.keys(settings).every((key) => Object.hasOwn(DEFAULT_AUTUMN, key)) && isAnimationAppearance(settings, AUTUMN_LIMITS) && typeof settings.breeze === "boolean" && typeof settings.pile === "boolean";
+}
+
+// src/lib/animationCatalog.ts
+function defineAnimation(definition) {
+  return definition;
+}
+var ANIMATION_CATALOG = {
+  rain: defineAnimation({
+    label: "Rain",
+    description: "Soft, flowing streaks",
+    particle: "Drop",
+    defaults: DEFAULT_RAIN,
+    limits: RAIN_LIMITS,
+    validate: isRainSettings,
+    switches: [{ key: "splash", label: "Splash", description: "Small ripples where drops meet the bottom edge." }]
+  }),
+  leaves: defineAnimation({
+    label: "Falling leaves",
+    description: "Leaves on a gentle breeze",
+    particle: "Leaf",
+    defaults: DEFAULT_LEAVES,
+    limits: LEAF_LIMITS,
+    validate: isLeafSettings,
+    switches: [{ key: "breeze", label: "Breeze", description: "Delicate wind trails drift between the falling leaves." }]
+  }),
+  autumn: defineAnimation({
+    label: "Autumn",
+    description: "Maple leaves, a soft pile, a sweeping wind",
+    particle: "Leaf",
+    defaults: DEFAULT_AUTUMN,
+    limits: AUTUMN_LIMITS,
+    validate: isAutumnSettings,
+    switches: [
+      { key: "pile", label: "Leaf pile", description: "Leaves gradually gather along the bottom edge." },
+      { key: "breeze", label: "Wind sweep", description: "An occasional swirl clears the pile, making room for new leaves." }
+    ],
+    hint: "With wind off, the pile fills and stays. Previews cycle faster so you can see the sweep."
+  })
+};
+var ANIMATION_EFFECTS = Object.keys(ANIMATION_CATALOG);
 var ANIMATIONS = [
   { value: "none", label: "Off", description: "A quiet background" },
-  { value: "rain", label: "Rain", description: "Soft, flowing streaks" },
-  { value: "leaves", label: "Falling leaves", description: "Leaves on a gentle breeze" }
+  ...ANIMATION_EFFECTS.map((value) => ({ value, label: ANIMATION_CATALOG[value].label, description: ANIMATION_CATALOG[value].description }))
 ];
+function defaultAnimationSettings() {
+  return Object.fromEntries(ANIMATION_EFFECTS.map((kind) => [kind, { ...ANIMATION_CATALOG[kind].defaults }]));
+}
+function normalizeAnimationSettings(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return void 0;
+  const settings = value;
+  if (Object.keys(settings).some((key) => !Object.hasOwn(ANIMATION_CATALOG, key))) return void 0;
+  for (const kind of ANIMATION_EFFECTS) {
+    if (Object.hasOwn(settings, kind) && !ANIMATION_CATALOG[kind].validate(settings[kind])) return void 0;
+  }
+  return { ...defaultAnimationSettings(), ...settings };
+}
+function isAnimationSettingsMap(value) {
+  const normalized = normalizeAnimationSettings(value);
+  return !!normalized && ANIMATION_EFFECTS.every((kind) => Object.hasOwn(value, kind));
+}
+
+// src/lib/preferences.ts
 var FONTS = {
   inter: { label: "Inter", family: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" },
   system: { label: "System", family: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" },
@@ -364,6 +440,10 @@ var ACCENTS = {
   rose: { label: "Rose", light: "#be123c", dark: "#fb7185" },
   amber: { label: "Amber", light: "#92400e", dark: "#fbbf24" }
 };
+var DEFAULT_ANIMATIONS = {
+  type: "none",
+  settings: defaultAnimationSettings()
+};
 function record(value) {
   return !!value && typeof value === "object" && !Array.isArray(value);
 }
@@ -373,10 +453,20 @@ function appearanceValid(p) {
 function isPreferences(value) {
   if (!record(value) || !appearanceValid(value)) return false;
   const a = value.animations;
-  return Object.keys(value).every((key) => ["theme", "font", "accent", "animations"].includes(key)) && record(a) && Object.keys(a).every((key) => ["type", "settings"].includes(key)) && ANIMATIONS.some((option) => option.value === a.type) && record(a.settings) && Object.keys(a.settings).every((key) => ["rain", "leaves"].includes(key)) && isRainSettings(a.settings.rain) && isLeafSettings(a.settings.leaves);
+  return Object.keys(value).every((key) => ["theme", "font", "accent", "animations"].includes(key)) && record(a) && Object.keys(a).every((key) => ["type", "settings"].includes(key)) && ANIMATIONS.some((option) => option.value === a.type) && isAnimationSettingsMap(a.settings);
 }
 function normalizePreferences(value) {
   if (isPreferences(value)) return value;
+  const animations = record(value) ? value.animations : void 0;
+  if (record(value) && appearanceValid(value) && record(animations) && Object.keys(value).every((key) => ["theme", "font", "accent", "animations"].includes(key)) && Object.keys(animations).every((key) => ["type", "settings"].includes(key)) && ANIMATIONS.some((option) => option.value === animations.type)) {
+    const settings = normalizeAnimationSettings(animations.settings);
+    if (settings) return {
+      theme: value.theme,
+      font: value.font,
+      accent: value.accent,
+      animations: { type: animations.type, settings }
+    };
+  }
   if (!record(value) || !appearanceValid(value) || typeof value.rain !== "boolean" || !Object.keys(value).every((key) => ["theme", "font", "accent", "rain", "rainSettings", "animation", "leafSettings"].includes(key)) || "rainSettings" in value && !isRainSettings(value.rainSettings) || "leafSettings" in value && !isLeafSettings(value.leafSettings) || "animation" in value && !ANIMATIONS.some((option) => option.value === value.animation)) return void 0;
   return {
     theme: value.theme,
@@ -384,7 +474,7 @@ function normalizePreferences(value) {
     accent: value.accent,
     animations: {
       type: value.animation ?? (value.rain ? "rain" : "none"),
-      settings: { rain: value.rainSettings || { ...DEFAULT_RAIN }, leaves: value.leafSettings || { ...DEFAULT_LEAVES } }
+      settings: { ...defaultAnimationSettings(), rain: value.rainSettings || { ...DEFAULT_RAIN }, leaves: value.leafSettings || { ...DEFAULT_LEAVES } }
     }
   };
 }

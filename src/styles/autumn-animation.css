@@ -1,0 +1,82 @@
+/* All movement is scoped to Autumn; the pile has a fixed, density-bounded size. */
+.autumn-scene {
+  --autumn-travel: calc(100cqh + 80px);
+  --autumn-drift: calc(var(--autumn-travel) * .35);
+  --autumn-sweep: calc(100cqw + 240px);
+  position: absolute; inset: 0; contain: strict; container-type: size;
+  overflow: hidden; pointer-events: none; user-select: none; color: var(--autumn-color);
+}
+.autumn-background { position: fixed; z-index: -1; }
+.autumn-scene[data-direction="down"] { --autumn-drift: 0px; }
+.autumn-scene[data-direction="down-left"] { --autumn-drift: calc(var(--autumn-travel) * -.35); --autumn-sweep: calc(-100cqw - 240px); }
+.autumn-leaf { display: block; width: var(--autumn-width); height: var(--autumn-height); overflow: visible; transform: rotate(var(--autumn-turn, 0deg)) scale(var(--autumn-size, 1)); }
+.autumn-falling {
+  position: absolute; top: -60px;
+  left: calc(var(--autumn-position) * (100cqw + var(--autumn-travel) * .35) - var(--autumn-travel) * .35);
+  animation: autumn-fall var(--autumn-fall-duration) var(--autumn-fall-delay) linear infinite;
+}
+.autumn-scene[data-direction="down"] .autumn-falling { left: calc(var(--autumn-position) * 100cqw); }
+.autumn-scene[data-direction="down-left"] .autumn-falling { left: calc(var(--autumn-position) * (100cqw + var(--autumn-travel) * .35)); }
+.autumn-flutter { display: block; animation: autumn-flutter var(--autumn-flutter) var(--autumn-fall-delay) ease-in-out infinite alternate; }
+.autumn-pile {
+  position: absolute; bottom: 0; left: 0; width: 100%; height: calc(var(--autumn-height) * 2);
+  animation: autumn-grow var(--autumn-cycle) var(--autumn-cycle-delay) linear infinite;
+}
+.autumn-pile-piece {
+  position: absolute; opacity: .65;
+  animation: autumn-sweep var(--autumn-cycle) var(--autumn-cycle-delay) linear infinite;
+}
+.autumn-gust {
+  position: absolute; left: -340px; bottom: 12px; width: clamp(180px, 38cqw, 440px);
+  animation: autumn-gust var(--autumn-cycle) var(--autumn-cycle-delay) linear infinite;
+}
+.autumn-gust svg { display: block; width: 100%; overflow: visible; }
+.autumn-scene[data-direction="down-left"] .autumn-gust { left: auto; right: -340px; }
+.autumn-scene[data-direction="down-left"] .autumn-gust svg { transform: scaleX(-1); }
+/* Without wind the bounded pile grows once, then remains at rest. */
+.autumn-scene[data-breeze="false"] .autumn-pile { animation-name: autumn-grow-still; animation-iteration-count: 1; animation-fill-mode: forwards; }
+.autumn-scene[data-breeze="false"] .autumn-pile-piece { animation: none; }
+@keyframes autumn-fall {
+  0% { transform: translate3d(0, 0, 0); opacity: 0; }
+  10%, 85% { opacity: .58; }
+  100% { transform: translate3d(var(--autumn-drift), var(--autumn-travel), 0); opacity: 0; }
+}
+@keyframes autumn-flutter {
+  from { transform: translateX(-18px) rotate(-24deg) scaleX(.65); }
+  to { transform: translateX(20px) rotate(30deg) scaleX(1); }
+}
+@keyframes autumn-grow {
+  0%, 4% { clip-path: inset(100% -60px 0); }
+  22% { clip-path: inset(65% -60px 0); }
+  48% { clip-path: inset(32% -60px 0); }
+  76% { clip-path: inset(0 -60px 0); }
+  80%, 98% { clip-path: inset(-240px -150cqw 0); }
+  100% { clip-path: inset(100% -60px 0); }
+}
+@keyframes autumn-grow-still {
+  from { clip-path: inset(100% -60px 0); }
+  to { clip-path: inset(0 -60px 0); }
+}
+@keyframes autumn-sweep {
+  0%, 80% { transform: translate3d(0, 0, 0) rotate(0); opacity: .65; }
+  87% { transform: translate3d(calc(var(--autumn-sweep) * .12), var(--autumn-lift), 0) rotate(calc(var(--autumn-spin) * .25)); opacity: .6; }
+  97%, 100% { transform: translate3d(var(--autumn-sweep), calc(var(--autumn-lift) * 1.4), 0) rotate(var(--autumn-spin)); opacity: 0; }
+}
+@keyframes autumn-gust {
+  0%, 77% { transform: translate3d(0, 0, 0) rotate(-8deg); opacity: 0; }
+  83% { opacity: .45; }
+  92% { opacity: .35; }
+  98%, 100% { transform: translate3d(var(--autumn-sweep), -48px, 0) rotate(8deg); opacity: 0; }
+}
+.autumn-scene--paused .autumn-falling,
+.autumn-scene--paused .autumn-flutter,
+.autumn-scene--paused .autumn-pile,
+.autumn-scene--paused .autumn-pile-piece,
+.autumn-scene--paused .autumn-gust { animation-play-state: paused; }
+@media (max-width: 640px) {
+  .autumn-background .autumn-falling:nth-child(even), .autumn-background .autumn-pile-piece:nth-child(even) { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .autumn-background { display: none; }
+  .autumn-falling, .autumn-flutter, .autumn-pile, .autumn-pile-piece, .autumn-gust { animation-play-state: paused; }
+}

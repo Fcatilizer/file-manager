@@ -1,11 +1,7 @@
 import { DEFAULT_RAIN, isRainSettings, type RainSettings } from './rain.ts'
 import { DEFAULT_LEAVES, isLeafSettings, type LeafSettings } from './leaves.ts'
-export const ANIMATIONS = [
-  { value: 'none', label: 'Off', description: 'A quiet background' },
-  { value: 'rain', label: 'Rain', description: 'Soft, flowing streaks' },
-  { value: 'leaves', label: 'Falling leaves', description: 'Leaves on a gentle breeze' },
-] as const
-export type AnimationKind = typeof ANIMATIONS[number]['value']
+import { ANIMATIONS, defaultAnimationSettings, isAnimationSettingsMap, normalizeAnimationSettings, type AnimationKind, type AnimationSettingsMap } from './animationCatalog.ts'
+export { ANIMATIONS, type AnimationKind } from './animationCatalog.ts'
 /** Central source for appearance options, defaults, font stacks and accent colors. */
 export const FONTS = {
   inter: { label: 'Inter', family: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" },
@@ -25,7 +21,7 @@ export const ACCENTS = {
 } as const
 export type AnimationPreferences = {
   type: AnimationKind
-  settings: { rain: RainSettings; leaves: LeafSettings }
+  settings: AnimationSettingsMap
 }
 export type Preferences = {
   theme: 'light' | 'dark'
@@ -34,7 +30,7 @@ export type Preferences = {
   animations: AnimationPreferences
 }
 export const DEFAULT_ANIMATIONS: AnimationPreferences = {
-  type: 'none', settings: { rain: DEFAULT_RAIN, leaves: DEFAULT_LEAVES },
+  type: 'none', settings: defaultAnimationSettings(),
 }
 export const DEFAULT_PREFERENCES: Preferences = { theme: 'dark', font: 'inter', accent: 'indigo', animations: DEFAULT_ANIMATIONS }
 export function selectedAnimation(preferences: Preferences): AnimationKind { return preferences.animations.type }
@@ -52,13 +48,24 @@ export function isPreferences(value: unknown): value is Preferences {
   return Object.keys(value).every(key => ['theme', 'font', 'accent', 'animations'].includes(key))
     && record(a) && Object.keys(a).every(key => ['type', 'settings'].includes(key))
     && ANIMATIONS.some(option => option.value === a.type)
-    && record(a.settings) && Object.keys(a.settings).every(key => ['rain', 'leaves'].includes(key))
-    && isRainSettings(a.settings.rain) && isLeafSettings(a.settings.leaves)
+    && isAnimationSettingsMap(a.settings)
 }
 
 /** Read legacy preferences at the API/cache boundary; write only the new schema. */
 export function normalizePreferences(value: unknown): Preferences | undefined {
   if (isPreferences(value)) return value
+  const animations = record(value) ? value.animations : undefined
+  // Current schema from an older release: add defaults for newly registered effects.
+  if (record(value) && appearanceValid(value) && record(animations)
+    && Object.keys(value).every(key => ['theme', 'font', 'accent', 'animations'].includes(key))
+    && Object.keys(animations).every(key => ['type', 'settings'].includes(key))
+    && ANIMATIONS.some(option => option.value === animations.type)) {
+    const settings = normalizeAnimationSettings(animations.settings)
+    if (settings) return {
+      theme: value.theme as Preferences['theme'], font: value.font as Preferences['font'], accent: value.accent as Preferences['accent'],
+      animations: { type: animations.type as AnimationKind, settings },
+    }
+  }
   if (!record(value) || !appearanceValid(value) || typeof value.rain !== 'boolean'
     || !Object.keys(value).every(key => ['theme', 'font', 'accent', 'rain', 'rainSettings', 'animation', 'leafSettings'].includes(key))
     || ('rainSettings' in value && !isRainSettings(value.rainSettings))
@@ -68,7 +75,7 @@ export function normalizePreferences(value: unknown): Preferences | undefined {
     theme: value.theme as Preferences['theme'], font: value.font as Preferences['font'], accent: value.accent as Preferences['accent'],
     animations: {
       type: value.animation as AnimationKind | undefined ?? (value.rain ? 'rain' : 'none'),
-      settings: { rain: value.rainSettings as RainSettings || { ...DEFAULT_RAIN }, leaves: value.leafSettings as LeafSettings || { ...DEFAULT_LEAVES } },
+      settings: { ...defaultAnimationSettings(), rain: value.rainSettings as RainSettings || { ...DEFAULT_RAIN }, leaves: value.leafSettings as LeafSettings || { ...DEFAULT_LEAVES } },
     },
   }
 }

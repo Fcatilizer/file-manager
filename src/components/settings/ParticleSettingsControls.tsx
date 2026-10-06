@@ -4,7 +4,7 @@ import { ChoiceChips, RangeSetting } from './SettingsControls'
 
 /** Shared controls; each effect owns its dimensions, defaults, and extra toggle. */
 export default function ParticleSettingsControls({ value, limits, particle, themeColor, disabled, onChange, children }: {
-  value: AnimationAppearance; limits: AnimationLimits; particle: 'Drop' | 'Leaf'; themeColor: string; disabled: boolean
+  value: AnimationAppearance; limits: AnimationLimits; particle: string; themeColor: string; disabled: boolean
   onChange: (patch: Partial<AnimationAppearance>) => void; children: ReactNode
 }) {
   return <>
