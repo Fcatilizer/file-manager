@@ -298,3 +298,36 @@ of the account API. Text previews retain the 1 MB limit and office previews the
 public links enter `/share` with the token in the URL fragment. The shared browser stays mounted while the existing Vault preview modal opens and closes through local state; folder browsing also uses client-side navigation. Legacy `/shared-preview` links open the same browser with the preview overlaid.
 Media preview URLs expire within 60 seconds, bounded by the share expiry.
 Already-loaded previews and active streams cannot be recalled after revocation.
+
+## Animation preferences migration
+
+Appearance preferences use `preferences.animations.type` (`none`, `rain`, or
+`leaves`) and `preferences.animations.settings` for each effect's settings.
+Rain and leaves retain independent dimensions, speed, direction, density, color,
+and splash/breeze options. The Preferences panel labels these **Default animation
+settings**. Animation rendering and styles remain in separate modules.
+
+For an existing database, run these commands with that deployment's `MONGO_URI`
+and optional `MONGO_DB` configured (the script also reads `.env`):
+
+```sh
+npm run migrate:animations -- --dry-run
+npm run migrate:animations
+```
+
+The migration preserves appearance and effect choices, only updates preferences,
+can be rerun, and skips invalid records or concurrent changes. Inspect the printed
+counts for skipped/conflicting records. API reads and browser cache reads also
+accept legacy `rain`/`rainSettings`/`animation`/`leafSettings` preferences; new saves
+write the canonical schema. Run the migration again after retiring old deployments
+if an old server has subsequently written legacy preferences.
+
+## Custom PDF reader
+
+Vault and public shares use the same PDF.js canvas reader with zoom, fit to width,
+continuous scrolling, and single-page navigation. Canvas and page container sizes
+stay matched so contents are not clipped. Fitted pages adapt to viewport resizing;
+high-DPI bitmaps are bounded and render tasks cancel before their canvas is reused.
+The browser-native viewer remains an optional desktop fallback. PDF.js fonts,
+character maps and WASM assets are served locally from `pdfjs-assets/`, populated
+by the Vite build plugin, rather than depending on a third-party CDN at preview time.

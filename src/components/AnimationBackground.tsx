@@ -6,7 +6,7 @@ import LeafBackground from './LeafBackground'
 export default function AnimationBackground({ preferences, kind = selectedAnimation(preferences), preview = false }: {
   preferences: Preferences; kind?: AnimationKind; preview?: boolean
 }) {
-  if (kind === 'rain') return <RainBackground enabled settings={preferences.rainSettings} preview={preview} />
-  if (kind === 'leaves') return <LeafBackground settings={preferences.leafSettings} preview={preview} />
+  if (kind === 'rain') return <RainBackground enabled settings={preferences.animations.settings.rain} preview={preview} />
+  if (kind === 'leaves') return <LeafBackground settings={preferences.animations.settings.leaves} preview={preview} />
   return null
 }

@@ -8,7 +8,7 @@ import bcrypt from 'bcryptjs'
 import { MongoClient, ObjectId } from 'mongodb'
 import { connectDB } from '../server/db.ts'
 import { authRouter } from '../server/auth.ts'
-import { DEFAULT_PREFERENCES } from '../src/lib/preferences.ts'
+import { DEFAULT_PREFERENCES, normalizePreferences } from '../src/lib/preferences.ts'
 
 // In-memory Mongo adapter; no .env or external services are used.
 process.env.MONGO_URI = 'mongodb://localhost/test-only'
@@ -72,9 +72,9 @@ test('invalid names never reach the database', async () => {
   assert.equal(updates.length, 0)
 })
 test('preferences save and round-trip without changing profile or role', async () => {
-  const preferences = { ...DEFAULT_PREFERENCES, font: 'serif', accent: 'teal', rain: true }
+  const preferences = { ...DEFAULT_PREFERENCES, font: 'serif', accent: 'teal', animations: { ...DEFAULT_PREFERENCES.animations, type: 'rain' } }
   assert.equal((await call('/me', 'PATCH', { preferences })).status, 200)
-  assert.deepEqual((await (await call('/me', 'GET')).json()).user.preferences, preferences)
+  assert.deepEqual((await (await call('/me', 'GET')).json()).user.preferences, normalizePreferences(preferences))
   assert.equal(account.role, 'user')
 })
 test('invalid and injected preference keys are rejected', async () => {
@@ -92,11 +92,11 @@ test('password change verifies current password and stores a new hash', async ()
 })
 
 test('custom rain settings persist through the account API', async () => {
-  const preferences = { ...DEFAULT_PREFERENCES, rain: true, rainSettings: {
+  const preferences = { theme: 'dark', font: 'inter', accent: 'teal', rain: true, rainSettings: {
     direction: 'down-left', density: 'light', speed: 1.5, height: 90, width: 2.5, splash: true, color: '#f0a123',
   } }
   assert.equal((await call('/me', 'PATCH', { preferences })).status, 200)
-  assert.deepEqual((await (await call('/me', 'GET')).json()).user.preferences, preferences)
+  assert.deepEqual((await (await call('/me', 'GET')).json()).user.preferences, normalizePreferences(preferences))
 })
 
 test('invalid rain options are rejected before writing to MongoDB', async () => {
@@ -106,18 +106,18 @@ test('invalid rain options are rejected before writing to MongoDB', async () => 
     { density: 'unlimited' }, { direction: 'up' }, { splash: 'true' }, { color: 'url(https://example.com)' },
     { color: '#123' }, { extra: true },
   ]) {
-    const preferences = { ...DEFAULT_PREFERENCES, rainSettings: { ...defaults, ...patch } }
+    const preferences = { ...DEFAULT_PREFERENCES, animations: { ...DEFAULT_PREFERENCES.animations, settings: { ...DEFAULT_PREFERENCES.animations.settings, rain: { ...defaults, ...patch } } } }
     assert.equal((await call('/me', 'PATCH', { preferences })).status, 400)
   }
   assert.equal(updates.length, 0)
 })
 
 test('falling leaves and breeze preferences persist through the account API', async () => {
-  const preferences = { ...DEFAULT_PREFERENCES, animation: 'leaves', leafSettings: {
+  const preferences = { theme: 'dark', font: 'inter', accent: 'teal', rain: false, animation: 'leaves', leafSettings: {
     direction: 'down-left', density: 'light', speed: 0.7, height: 20, width: 12, breeze: true, color: '#aabbcc',
   } }
   assert.equal((await call('/me', 'PATCH', { preferences })).status, 200)
-  assert.deepEqual((await (await call('/me', 'GET')).json()).user.preferences, preferences)
+  assert.deepEqual((await (await call('/me', 'GET')).json()).user.preferences, normalizePreferences(preferences))
 })
 
 test('invalid animation choices and leaf settings never reach the database', async () => {
@@ -125,4 +125,16 @@ test('invalid animation choices and leaf settings never reach the database', asy
     assert.equal((await call('/me', 'PATCH', { preferences: { ...DEFAULT_PREFERENCES, ...extra } })).status, 400)
   }
   assert.equal(updates.length, 0)
+})
+
+test('canonical animation preferences are stored without legacy fields', async () => {
+  const preferences = { ...DEFAULT_PREFERENCES, animations: {
+    ...DEFAULT_PREFERENCES.animations, type: 'leaves', settings: {
+      ...DEFAULT_PREFERENCES.animations.settings,
+      leaves: { ...DEFAULT_PREFERENCES.animations.settings.leaves, height: 35, width: 22, speed: 1.6 },
+    },
+  } }
+  assert.equal((await call('/me', 'PATCH', { preferences })).status, 200)
+  assert.deepEqual(account.preferences, preferences)
+  assert.equal('rain' in (account.preferences as object), false)
 })

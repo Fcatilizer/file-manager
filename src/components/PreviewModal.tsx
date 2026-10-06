@@ -5,6 +5,7 @@ import Modal, { ModalCloseButton } from './Modal'
 import DocxPreview from './DocxPreview'
 import SheetPreview from './SheetPreview'
 import VideoPreview from './VideoPreview'
+import PdfPreview from './PdfPreview'
 import { rawUrl, fetchTextContent, type FileItem } from '../lib/api'
 import { loadAudioMetadata, revokeAudioMetadata, type AudioMetadata } from '../lib/audioMetadata'
 import { fileKind, extOf, isMarkdownFile } from '../lib/filetype'
@@ -252,7 +253,17 @@ export default function PreviewModal({
       }
 
       case 'pdf':
-        return <iframe className="preview__frame" src={src} title={file.name} />
+        return (
+          <PdfPreview
+            key={src}
+            file={file}
+            bucket={bucket}
+            source={source}
+            src={src}
+            activeColor={activeColor}
+            onDownload={() => onDownload(file.key, file.name)}
+          />
+        )
 
       case 'env': {
         if (tooLarge || textError) {

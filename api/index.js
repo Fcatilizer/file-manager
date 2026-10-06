@@ -208,6 +208,7 @@ var ICON_PATHS = {
   rain: ["M7 14H6a4 4 0 110-8 6 6 0 0111.6-1A4.5 4.5 0 1120 14h-1", "M9 14l-2 4", "M14 14l-2 4", "M19 14l-2 4", "M10 20l-1 2"],
   // Actions & Controls
   plus: ["M12 5v14", "M5 12h14"],
+  minus: ["M5 12h14"],
   chevronDown: ["M6 9l6 6 6-6"],
   refresh: ["M23 4v6h-6", "M1 20v-6h6", "M3.51 9a9 9 0 0114.85-3.36L23 10", "M1 14l4.64 4.36A9 9 0 0020.49 15"],
   database: ["M20 6c0 2.2-3.6 4-8 4S4 8.2 4 6s3.6-4 8-4 8 1.8 8 4z", "M4 6v12c0 2.2 3.6 4 8 4s8-1.8 8-4V6", "M4 12c0 2.2 3.6 4 8 4s8-1.8 8-4"],
@@ -355,10 +356,29 @@ var ACCENTS = {
   rose: { label: "Rose", light: "#be123c", dark: "#fb7185" },
   amber: { label: "Amber", light: "#92400e", dark: "#fbbf24" }
 };
+function record(value) {
+  return !!value && typeof value === "object" && !Array.isArray(value);
+}
+function appearanceValid(p) {
+  return (p.theme === "light" || p.theme === "dark") && typeof p.font === "string" && Object.hasOwn(FONTS, p.font) && typeof p.accent === "string" && Object.hasOwn(ACCENTS, p.accent);
+}
 function isPreferences(value) {
-  if (!value || typeof value !== "object") return false;
-  const p = value;
-  return (p.theme === "light" || p.theme === "dark") && typeof p.font === "string" && Object.hasOwn(FONTS, p.font) && typeof p.accent === "string" && Object.hasOwn(ACCENTS, p.accent) && typeof p.rain === "boolean" && (!("rainSettings" in p) || isRainSettings(p.rainSettings)) && (!("animation" in p) || ANIMATIONS.some((option) => option.value === p.animation)) && (!("leafSettings" in p) || isLeafSettings(p.leafSettings)) && Object.keys(p).every((key) => ["theme", "font", "accent", "rain", "rainSettings", "animation", "leafSettings"].includes(key));
+  if (!record(value) || !appearanceValid(value)) return false;
+  const a = value.animations;
+  return Object.keys(value).every((key) => ["theme", "font", "accent", "animations"].includes(key)) && record(a) && Object.keys(a).every((key) => ["type", "settings"].includes(key)) && ANIMATIONS.some((option) => option.value === a.type) && record(a.settings) && Object.keys(a.settings).every((key) => ["rain", "leaves"].includes(key)) && isRainSettings(a.settings.rain) && isLeafSettings(a.settings.leaves);
+}
+function normalizePreferences(value) {
+  if (isPreferences(value)) return value;
+  if (!record(value) || !appearanceValid(value) || typeof value.rain !== "boolean" || !Object.keys(value).every((key) => ["theme", "font", "accent", "rain", "rainSettings", "animation", "leafSettings"].includes(key)) || "rainSettings" in value && !isRainSettings(value.rainSettings) || "leafSettings" in value && !isLeafSettings(value.leafSettings) || "animation" in value && !ANIMATIONS.some((option) => option.value === value.animation)) return void 0;
+  return {
+    theme: value.theme,
+    font: value.font,
+    accent: value.accent,
+    animations: {
+      type: value.animation ?? (value.rain ? "rain" : "none"),
+      settings: { rain: value.rainSettings || { ...DEFAULT_RAIN }, leaves: value.leafSettings || { ...DEFAULT_LEAVES } }
+    }
+  };
 }
 
 // src/lib/publicShareStyle.ts
@@ -631,7 +651,7 @@ function toPublicUser(user) {
     id: String(user._id),
     email: user.email,
     name: user.name || "",
-    preferences: isPreferences(user.preferences) ? user.preferences : void 0,
+    preferences: normalizePreferences(user.preferences),
     role: user.role,
     createdAt: user.createdAt.toISOString()
   };
@@ -752,8 +772,8 @@ var mongoBucketStore = {
   async listOwned(ownerId) {
     return (await collections()).buckets.find({ ownerId, state: "active" }).toArray();
   },
-  async reserve(record) {
-    await (await collections()).buckets.insertOne(record);
+  async reserve(record2) {
+    await (await collections()).buckets.insertOne(record2);
   },
   async activate(name) {
     await (await collections()).buckets.updateOne({ _id: name, state: "creating" }, { $set: { state: "active" } });
@@ -993,13 +1013,14 @@ authRouter.patch("/me", requireAuth, async (req, res) => {
     res.status(400).json({ error: "Name must contain 1\u201380 characters without control characters" });
     return;
   }
-  if ("preferences" in body && !isPreferences(body.preferences)) {
+  const preferences = "preferences" in body ? normalizePreferences(body.preferences) : void 0;
+  if ("preferences" in body && !preferences) {
     res.status(400).json({ error: "Invalid preferences" });
     return;
   }
   const updated = await updateUserProfile(user.id, {
     ..."name" in body ? { name: body.name.trim() } : {},
-    ..."preferences" in body ? { preferences: body.preferences } : {}
+    ...preferences ? { preferences } : {}
   });
   if (!updated) {
     res.status(404).json({ error: "User not found" });
@@ -1371,8 +1392,8 @@ async function indexedCollection() {
   return shares2;
 }
 var mongoShareStore = {
-  async insert(record) {
-    await (await indexedCollection()).insertOne(record);
+  async insert(record2) {
+    await (await indexedCollection()).insertOne(record2);
   },
   async findToken(tokenHash) {
     return (await indexedCollection()).findOne({ tokenHash });
@@ -1413,7 +1434,7 @@ function createShareRouters(s3, protection = new BucketProtection(), store = mon
     const profile = await getSharer(bucketUser(req).id);
     const sharerName = profile?.name?.trim() || bucketUser(req).email.split("@")[0];
     const token = randomBytes2(32).toString("base64url");
-    const record = {
+    const record2 = {
       _id: randomUUID3(),
       tokenHash: hash(token),
       encryptedToken: encryptShareToken(token),
@@ -1427,8 +1448,8 @@ function createShareRouters(s3, protection = new BucketProtection(), store = mon
       createdAt: /* @__PURE__ */ new Date(),
       revoked: false
     };
-    await store.insert(record);
-    res.status(201).json({ ...summary(record), path: `/api/public/${token}` });
+    await store.insert(record2);
+    res.status(201).json({ ...summary(record2), path: `/api/public/${token}` });
   }));
   management.get("/", asyncRoute(async (req, res) => {
     const { bucket, key } = req.query;
@@ -1796,17 +1817,17 @@ function createS3Router(protection = new BucketProtection(), authenticate = (_re
     if (error) throw new BucketAccessError(400, error);
     if (name.startsWith(PRIVATE_BUCKET_PREFIX)) throw new BucketAccessError(400, "This prefix is reserved for private bucket storage");
     if (isPrivate) {
-      const record = await protection.reserve(req, name, req.body?.password);
+      const record2 = await protection.reserve(req, name, req.body?.password);
       try {
-        await s3.send(new HeadBucketCommand({ Bucket: record._id }));
+        await s3.send(new HeadBucketCommand({ Bucket: record2._id }));
       } catch (err) {
         const failure = err;
         if (failure.name !== "NotFound" && failure.name !== "NoSuchBucket" && failure.$metadata?.httpStatusCode !== 404) throw err;
-        await s3.send(new CreateBucketCommand({ Bucket: record._id }));
+        await s3.send(new CreateBucketCommand({ Bucket: record2._id }));
       }
-      await protection.store.activate(record._id);
-      const details = await protection.unlock(req, record._id, req.body?.password);
-      res.status(201).json({ success: true, bucket: record._id, details });
+      await protection.store.activate(record2._id);
+      const details = await protection.unlock(req, record2._id, req.body?.password);
+      res.status(201).json({ success: true, bucket: record2._id, details });
       return;
     }
     if (await protection.store.find(name)) throw new BucketAccessError(409, "Bucket name unavailable");
@@ -2091,7 +2112,7 @@ var DEFAULT_CSP = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-  "font-src 'self' data: https://fonts.gstatic.com",
+  "font-src 'self' blob: data: https://fonts.gstatic.com",
   "img-src 'self' data: blob: https: http:",
   "media-src 'self' blob: https: http:",
   "frame-src 'self' blob:",

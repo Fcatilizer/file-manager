@@ -229,6 +229,7 @@ export const ICON_PATHS: Record<string, string[]> = {
 
   // Actions & Controls
   plus: ['M12 5v14', 'M5 12h14'],
+  minus: ['M5 12h14'],
   chevronDown: ['M6 9l6 6 6-6'],
   refresh: ['M23 4v6h-6', 'M1 20v-6h6', 'M3.51 9a9 9 0 0114.85-3.36L23 10', 'M1 14l4.64 4.36A9 9 0 0020.49 15'],
   database: ['M20 6c0 2.2-3.6 4-8 4S4 8.2 4 6s3.6-4 8-4 8 1.8 8 4z', 'M4 6v12c0 2.2 3.6 4 8 4s8-1.8 8-4V6', 'M4 12c0 2.2 3.6 4 8 4s8-1.8 8-4'],

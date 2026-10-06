@@ -1,4 +1,4 @@
-import { isPreferences, type Preferences } from '../src/lib/preferences.ts'
+import { normalizePreferences, type Preferences } from '../src/lib/preferences.ts'
 import { MongoClient, ObjectId } from 'mongodb'
 import type { Collection, Db } from 'mongodb'
 import bcrypt from 'bcryptjs'
@@ -91,7 +91,7 @@ export function toPublicUser(user: UserDoc): PublicUser {
     id: String(user._id),
     email: user.email,
     name: user.name || '',
-    preferences: isPreferences(user.preferences) ? user.preferences : undefined,
+    preferences: normalizePreferences(user.preferences),
     role: user.role,
     createdAt: user.createdAt.toISOString(),
   }

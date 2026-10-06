@@ -231,8 +231,8 @@ export async function fetchTextContent(bucket: string, key: string): Promise<str
   return res.text()
 }
 
-export async function fetchFileBuffer(bucket: string, key: string): Promise<ArrayBuffer> {
-  const res = await fetch(rawUrl(bucket, key), { credentials: 'include' })
+export async function fetchFileBuffer(bucket: string, key: string, signal?: AbortSignal): Promise<ArrayBuffer> {
+  const res = await fetch(rawUrl(bucket, key), { credentials: 'include', signal })
   if (res.status === 401) window.dispatchEvent(new Event(UNAUTHORIZED_EVENT))
   if (res.status === 423) notifyBucketLocked(bucket)
   if (!res.ok) throw new Error(`Failed to load file: ${res.status}`)

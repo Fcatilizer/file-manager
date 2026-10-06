@@ -1,6 +1,6 @@
 import { randomUUID, createHash } from 'node:crypto'
 import { mongoBucketStore } from './bucket-store.ts'
-import { isPreferences } from '../src/lib/preferences.ts'
+import { normalizePreferences } from '../src/lib/preferences.ts'
 import express from 'express'
 import type { Request, Response, NextFunction } from 'express'
 import jwt from 'jsonwebtoken'
@@ -271,13 +271,14 @@ authRouter.patch('/me', requireAuth, async (req: Request, res: Response) => {
     res.status(400).json({ error: 'Name must contain 1–80 characters without control characters' })
     return
   }
-  if ('preferences' in body && !isPreferences(body.preferences)) {
+  const preferences = 'preferences' in body ? normalizePreferences(body.preferences) : undefined
+  if ('preferences' in body && !preferences) {
     res.status(400).json({ error: 'Invalid preferences' })
     return
   }
   const updated = await updateUserProfile(user.id, {
     ...('name' in body ? { name: body.name.trim() } : {}),
-    ...('preferences' in body ? { preferences: body.preferences } : {}),
+    ...(preferences ? { preferences } : {}),
   })
   if (!updated) { res.status(404).json({ error: 'User not found' }); return }
   res.json({ user: updated })

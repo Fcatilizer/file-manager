@@ -39,3 +39,5 @@
   .animation-settings__preview > span { font-size: 0; }
   .animation-settings__preview > span::after { content: 'Still preview · Reduced motion'; font-size: 11px; }
 }
+
+.animation-settings__title { margin-top: 22px; font-size: 13px; font-weight: 600; }

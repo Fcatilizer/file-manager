@@ -11,7 +11,8 @@
     "build": "tsc -b && vite build && esbuild server/vercel.ts --bundle --platform=node --format=esm --packages=external --outfile=api/index.js",
     "start": "NODE_ENV=production tsx server/index.ts",
     "lint": "oxlint",
-    "test": "node --import tsx --test tests/*.test.ts"
+    "test": "node --import tsx --test tests/*.test.ts",
+    "migrate:animations": "tsx scripts/migrate-animation-preferences.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1146.0",
@@ -29,6 +30,7 @@
     "mammoth": "^1.13.0",
     "marked": "^18.1.0",
     "mongodb": "^7.7.0",
+    "pdfjs-dist": "^6.4.299",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "tsx": "^4.23.15",

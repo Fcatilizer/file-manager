@@ -1,5 +1,5 @@
-import { isRainSettings, type RainSettings } from './rain.ts'
-import { isLeafSettings, type LeafSettings } from './leaves.ts'
+import { DEFAULT_RAIN, isRainSettings, type RainSettings } from './rain.ts'
+import { DEFAULT_LEAVES, isLeafSettings, type LeafSettings } from './leaves.ts'
 export const ANIMATIONS = [
   { value: 'none', label: 'Off', description: 'A quiet background' },
   { value: 'rain', label: 'Rain', description: 'Soft, flowing streaks' },
@@ -23,27 +23,52 @@ export const ACCENTS = {
   rose: { label: 'Rose', light: '#be123c', dark: '#fb7185' },
   amber: { label: 'Amber', light: '#92400e', dark: '#fbbf24' },
 } as const
+export type AnimationPreferences = {
+  type: AnimationKind
+  settings: { rain: RainSettings; leaves: LeafSettings }
+}
 export type Preferences = {
   theme: 'light' | 'dark'
   font: keyof typeof FONTS
   accent: keyof typeof ACCENTS
-  rain: boolean
-  rainSettings?: RainSettings
-  animation?: AnimationKind
-  leafSettings?: LeafSettings
+  animations: AnimationPreferences
 }
-/** Old saved rain preferences continue working without a database migration. */
-export function selectedAnimation(preferences: Preferences): AnimationKind {
-  return preferences.animation ?? (preferences.rain ? 'rain' : 'none')
+export const DEFAULT_ANIMATIONS: AnimationPreferences = {
+  type: 'none', settings: { rain: DEFAULT_RAIN, leaves: DEFAULT_LEAVES },
 }
-export const DEFAULT_PREFERENCES: Preferences = { theme: 'dark', font: 'inter', accent: 'indigo', rain: false }
-export function isPreferences(value: unknown): value is Preferences {
-  if (!value || typeof value !== 'object') return false
-  const p = value as Record<string, unknown>
+export const DEFAULT_PREFERENCES: Preferences = { theme: 'dark', font: 'inter', accent: 'indigo', animations: DEFAULT_ANIMATIONS }
+export function selectedAnimation(preferences: Preferences): AnimationKind { return preferences.animations.type }
+
+function record(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value)
+}
+function appearanceValid(p: Record<string, unknown>) {
   return (p.theme === 'light' || p.theme === 'dark') && typeof p.font === 'string' && Object.hasOwn(FONTS, p.font)
-    && typeof p.accent === 'string' && Object.hasOwn(ACCENTS, p.accent) && typeof p.rain === 'boolean'
-    && (!('rainSettings' in p) || isRainSettings(p.rainSettings))
-    && (!('animation' in p) || ANIMATIONS.some(option => option.value === p.animation))
-    && (!('leafSettings' in p) || isLeafSettings(p.leafSettings))
-    && Object.keys(p).every((key) => ['theme', 'font', 'accent', 'rain', 'rainSettings', 'animation', 'leafSettings'].includes(key))
+    && typeof p.accent === 'string' && Object.hasOwn(ACCENTS, p.accent)
+}
+export function isPreferences(value: unknown): value is Preferences {
+  if (!record(value) || !appearanceValid(value)) return false
+  const a = value.animations
+  return Object.keys(value).every(key => ['theme', 'font', 'accent', 'animations'].includes(key))
+    && record(a) && Object.keys(a).every(key => ['type', 'settings'].includes(key))
+    && ANIMATIONS.some(option => option.value === a.type)
+    && record(a.settings) && Object.keys(a.settings).every(key => ['rain', 'leaves'].includes(key))
+    && isRainSettings(a.settings.rain) && isLeafSettings(a.settings.leaves)
+}
+
+/** Read legacy preferences at the API/cache boundary; write only the new schema. */
+export function normalizePreferences(value: unknown): Preferences | undefined {
+  if (isPreferences(value)) return value
+  if (!record(value) || !appearanceValid(value) || typeof value.rain !== 'boolean'
+    || !Object.keys(value).every(key => ['theme', 'font', 'accent', 'rain', 'rainSettings', 'animation', 'leafSettings'].includes(key))
+    || ('rainSettings' in value && !isRainSettings(value.rainSettings))
+    || ('leafSettings' in value && !isLeafSettings(value.leafSettings))
+    || ('animation' in value && !ANIMATIONS.some(option => option.value === value.animation))) return undefined
+  return {
+    theme: value.theme as Preferences['theme'], font: value.font as Preferences['font'], accent: value.accent as Preferences['accent'],
+    animations: {
+      type: value.animation as AnimationKind | undefined ?? (value.rain ? 'rain' : 'none'),
+      settings: { rain: value.rainSettings as RainSettings || { ...DEFAULT_RAIN }, leaves: value.leafSettings as LeafSettings || { ...DEFAULT_LEAVES } },
+    },
+  }
 }

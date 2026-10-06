@@ -1,11 +1,12 @@
-import { ACCENTS, FONTS, DOCUMENT_FONT, DEFAULT_PREFERENCES, isPreferences, type Preferences } from './preferences'
+import { ACCENTS, FONTS, DOCUMENT_FONT, DEFAULT_PREFERENCES, normalizePreferences, type Preferences } from './preferences'
 
 export function readPreferences(): Preferences {
   try {
     const saved: unknown = JSON.parse(localStorage.getItem('vault:preferences') || 'null')
-    if (isPreferences(saved)) return saved
+    const normalized = normalizePreferences(saved)
+    if (normalized) return normalized
     const theme = localStorage.getItem('theme')
-    return { ...DEFAULT_PREFERENCES, theme: theme === 'light' || theme === 'dark' ? theme : matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark', rain: localStorage.getItem('vault:rain') === 'on' }
+    return { ...DEFAULT_PREFERENCES, theme: theme === 'light' || theme === 'dark' ? theme : matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark', animations: { ...DEFAULT_PREFERENCES.animations, type: localStorage.getItem('vault:rain') === 'on' ? 'rain' : 'none' } }
   } catch { return { ...DEFAULT_PREFERENCES } }
 }
 export function applyPreferences(preferences: Preferences): void {

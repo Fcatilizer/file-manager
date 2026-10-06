@@ -21,7 +21,7 @@ export default function LeafBackground({ settings = DEFAULT_LEAVES, preview = fa
         '--leaf-turn': `${index * 47 % 90 - 45}deg`,
       } as CSSProperties}>
         <span className="leaf-sway">
-          <svg className="leaf-shape" viewBox="0 0 24 40" fill="none">
+          <svg className="leaf-shape" viewBox="0 0 24 40" preserveAspectRatio="none" fill="none">
             <path d="M20 2C5 5 0 15 5 25c3 6 9 8 13 3C23 21 18 13 20 2Z" fill="currentColor" fillOpacity=".23" stroke="currentColor" strokeWidth="1.3" />
             <path d="M6 37c2-12 5-20 11-29M10 23l-4-5m7-2 4-2" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
           </svg>

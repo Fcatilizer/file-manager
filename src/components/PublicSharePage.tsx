@@ -36,15 +36,15 @@ export default function PublicSharePage() {
 
   const source = useMemo<PreviewSource>(() => {
     const rawUrl = (key: string) => `${base}?${new URLSearchParams({ key, raw: '1' })}`
-    const read = async (key: string) => {
-      const response = await fetch(rawUrl(key), { credentials: 'omit', referrerPolicy: 'no-referrer' })
+    const read = async (key: string, signal?: AbortSignal) => {
+      const response = await fetch(rawUrl(key), { credentials: 'omit', referrerPolicy: 'no-referrer', signal })
       if (!response.ok) {
         if (response.status === 404) { setError('Files unavailable'); setPreview(null); setDetailsItem(null) }
         throw Error('File unavailable')
       }
       return response
     }
-    return { rawUrl, text: async (key) => (await read(key)).text(), buffer: async (key) => (await read(key)).arrayBuffer() }
+    return { rawUrl, text: async (key) => (await read(key)).text(), buffer: async (key, signal) => (await read(key, signal)).arrayBuffer() }
   }, [base])
 
   useEffect(() => {
