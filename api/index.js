@@ -639,7 +639,20 @@ var mongoBucketStore = {
 import express from "express";
 import jwt from "jsonwebtoken";
 import bcrypt2 from "bcryptjs";
+import { rateLimit } from "express-rate-limit";
 var SESSION_COOKIE = "vault_session";
+var AUTH_RATE_WINDOW_MS = Number(process.env.AUTH_RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1e3;
+var AUTH_RATE_LIMIT_MAX = Number(process.env.AUTH_RATE_LIMIT_MAX) || 10;
+var authRateLimiter = rateLimit({
+  windowMs: AUTH_RATE_WINDOW_MS,
+  limit: AUTH_RATE_LIMIT_MAX,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
+  message: { error: "Too many login attempts. Please try again in 15 minutes." },
+  statusCode: 429,
+  skip: (req) => process.env.NODE_ENV === "test" && !req.headers["x-test-rate-limit"]
+});
 function getSecret() {
   const secret = process.env.JWT_SECRET;
   if (!secret) {
@@ -713,7 +726,7 @@ authRouter.get("/status", async (_req, res) => {
     setupTokenRequired: Boolean(process.env.SETUP_TOKEN)
   });
 });
-authRouter.post("/setup", async (req, res) => {
+authRouter.post("/setup", authRateLimiter, async (req, res) => {
   const total = await countUsers();
   if (total > 0) {
     res.status(403).json({ error: "Setup has already been completed" });
@@ -739,7 +752,7 @@ authRouter.post("/setup", async (req, res) => {
   res.cookie(SESSION_COOKIE, token, cookieOptions());
   res.status(201).json({ user: toPublicUser(user) });
 });
-authRouter.post("/login", async (req, res) => {
+authRouter.post("/login", authRateLimiter, async (req, res) => {
   const email = typeof req.body?.email === "string" ? req.body.email.toLowerCase().trim() : "";
   const password = typeof req.body?.password === "string" ? req.body.password : "";
   if (!email || !password) {
@@ -1900,6 +1913,31 @@ var app = express6();
 app.disable("x-powered-by");
 app.set("trust proxy", 1);
 app.use(cookieParser());
+var DEFAULT_CSP = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src 'self' data: https://fonts.gstatic.com",
+  "img-src 'self' data: blob: https: http:",
+  "media-src 'self' blob: https: http:",
+  "frame-src 'self' blob:",
+  "frame-ancestors 'self'",
+  "connect-src 'self' https: http: ws: wss:",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'"
+].join("; ");
+app.use((_req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "SAMEORIGIN");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()");
+  res.setHeader("Content-Security-Policy", DEFAULT_CSP);
+  if (process.env.NODE_ENV === "production") {
+    res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  }
+  next();
+});
 app.get("/healthz", (_req, res) => {
   res.json({ status: "ok", uptime: process.uptime() });
 });

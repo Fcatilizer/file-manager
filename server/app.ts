@@ -14,6 +14,34 @@ app.disable('x-powered-by')
 app.set('trust proxy', 1)
 app.use(cookieParser())
 
+// ─── Global Security Headers (SEC-09) ─────────────────────────
+const DEFAULT_CSP = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src 'self' data: https://fonts.gstatic.com",
+  "img-src 'self' data: blob: https: http:",
+  "media-src 'self' blob: https: http:",
+  "frame-src 'self' blob:",
+  "frame-ancestors 'self'",
+  "connect-src 'self' https: http: ws: wss:",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+].join('; ')
+
+app.use((_req: Request, res: Response, next: NextFunction) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff')
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN')
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin')
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()')
+  res.setHeader('Content-Security-Policy', DEFAULT_CSP)
+  if (process.env.NODE_ENV === 'production') {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
+  }
+  next()
+})
+
 // ─── Public health check (for hosting platforms / Vercel) ─────
 app.get('/healthz', (_req: Request, res: Response) => {
   res.json({ status: 'ok', uptime: process.uptime() })

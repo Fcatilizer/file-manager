@@ -6,6 +6,7 @@ import type { Request, Response, NextFunction } from 'express'
 import jwt from 'jsonwebtoken'
 import type { JwtPayload, SignOptions } from 'jsonwebtoken'
 import bcrypt from 'bcryptjs'
+import { rateLimit } from 'express-rate-limit'
 import {
   countUsers,
   createUser,
@@ -24,6 +25,20 @@ export interface AuthUser {
   email: string
   role: UserRole
 }
+
+const AUTH_RATE_WINDOW_MS = Number(process.env.AUTH_RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000
+const AUTH_RATE_LIMIT_MAX = Number(process.env.AUTH_RATE_LIMIT_MAX) || 10
+
+export const authRateLimiter = rateLimit({
+  windowMs: AUTH_RATE_WINDOW_MS,
+  limit: AUTH_RATE_LIMIT_MAX,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
+  message: { error: 'Too many login attempts. Please try again in 15 minutes.' },
+  statusCode: 429,
+  skip: (req) => process.env.NODE_ENV === 'test' && !req.headers['x-test-rate-limit'],
+})
 
 /** Request augmented with the resolved user (set by requireAuth). */
 export interface AuthedRequest extends Request {
@@ -117,7 +132,7 @@ authRouter.get('/status', async (_req: Request, res: Response) => {
 })
 
 // ─── First-run admin creation (public, only when empty) ──
-authRouter.post('/setup', async (req: Request, res: Response) => {
+authRouter.post('/setup', authRateLimiter, async (req: Request, res: Response) => {
   const total = await countUsers()
   if (total > 0) {
     res.status(403).json({ error: 'Setup has already been completed' })
@@ -149,7 +164,7 @@ authRouter.post('/setup', async (req: Request, res: Response) => {
 })
 
 // ─── Login ───────────────────────────────────────────────
-authRouter.post('/login', async (req: Request, res: Response) => {
+authRouter.post('/login', authRateLimiter, async (req: Request, res: Response) => {
   const email = typeof req.body?.email === 'string' ? req.body.email.toLowerCase().trim() : ''
   const password = typeof req.body?.password === 'string' ? req.body.password : ''
 
