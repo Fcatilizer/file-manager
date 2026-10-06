@@ -7,8 +7,9 @@ import SheetPreview from './SheetPreview'
 import VideoPreview from './VideoPreview'
 import { rawUrl, fetchTextContent, type FileItem } from '../lib/api'
 import { loadAudioMetadata, revokeAudioMetadata, type AudioMetadata } from '../lib/audioMetadata'
-import { fileKind, extOf } from '../lib/filetype'
+import { fileKind, extOf, isMarkdownFile } from '../lib/filetype'
 import { getFileTypeInfo } from '../lib/fileIcons'
+import MarkdownPreview from './MarkdownPreview'
 
 const MAX_TEXT_BYTES = 1_000_000 // ~1 MB inline text limit
 
@@ -374,9 +375,10 @@ export default function PreviewModal({
         )
       }
 
-      case 'text':
+      case 'text': {
+        const isMarkdown = isMarkdownFile(file.name)
         return (
-          <div className="preview__code-wrap">
+          <div className={`preview__code-wrap ${isMarkdown ? 'preview__code-wrap--markdown' : ''}`}>
             {tooLarge || textError ? (
               <div className="preview__empty">
                 <div
@@ -405,6 +407,13 @@ export default function PreviewModal({
               <div className="preview__loader">
                 <div className="spinner" />
               </div>
+            ) : isMarkdown ? (
+              <MarkdownPreview
+                key={file.key}
+                file={file}
+                content={text}
+                activeColor={activeColor}
+              />
             ) : (
               <>
                 <div className="preview__code-toolbar">
@@ -423,6 +432,7 @@ export default function PreviewModal({
             )}
           </div>
         )
+      }
 
       case 'word':
         return (

@@ -1004,6 +1004,10 @@ body {
   flex-direction: column;
 }
 
+.preview__code-wrap--markdown {
+  overflow: hidden;
+}
+
 .preview__code-toolbar {
   display: flex;
   align-items: center;

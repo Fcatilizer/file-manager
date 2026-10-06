@@ -19,10 +19,24 @@ export function extOf(name: string): string {
   return parts.pop()!.toLowerCase()
 }
 
+export function formatSize(bytes?: number): string {
+  if (!bytes || bytes <= 0) return '0 B'
+  const k = 1024
+  const units = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return `${(bytes / Math.pow(k, i)).toFixed(i > 0 ? 1 : 0)} ${units[i]}`
+}
+
 /** Matches `.env`, `.env.local`, `.env.production`, `prod.env`, `env`, etc. */
 export function isEnvFile(name: string): boolean {
   const lower = name.toLowerCase()
   return lower === '.env' || lower === 'env' || lower.startsWith('.env.') || lower.endsWith('.env')
+}
+
+/** Matches Markdown document extensions (.md, .markdown) */
+export function isMarkdownFile(name: string): boolean {
+  const ext = extOf(name)
+  return ext === 'md' || ext === 'markdown'
 }
 
 export function fileKind(name: string): FileKind {

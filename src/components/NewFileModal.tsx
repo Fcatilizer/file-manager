@@ -2,7 +2,11 @@ import { useState, useRef, useEffect, useMemo, type KeyboardEvent } from 'react'
 import Modal, { ModalCloseButton } from './Modal'
 import { Icon } from './Icon'
 import { getFileTypeInfo } from '../lib/fileIcons'
-import { SUPPORTED_EXTENSIONS, type SupportedExtension } from '../lib/notebookExtensions'
+import {
+  SUPPORTED_EXTENSIONS,
+  computeFullName,
+  type SupportedExtension,
+} from '../lib/notebookExtensions'
 import '../styles/notebook-modal.css'
 
 type Props = {
@@ -20,17 +24,57 @@ export default function NewFileModal({
 }: Props) {
   const [fileName, setFileName] = useState('untitled')
   const [extension, setExtension] = useState<SupportedExtension>('txt')
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [content, setContent] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const gutterRef = useRef<HTMLDivElement>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  // Computed authoritative filename
+  const fullName = useMemo(() => computeFullName(fileName, extension), [fileName, extension])
 
   // Dynamic file type info and icon
   const typeInfo = useMemo(() => {
-    return getFileTypeInfo(`file.${extension}`, false)
-  }, [extension])
+    return getFileTypeInfo(fullName, false)
+  }, [fullName])
+
+  // Close custom dropdown on outside click or Escape
+  useEffect(() => {
+    if (!isDropdownOpen) return
+
+    const handlePointerDown = (e: MouseEvent | TouchEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setIsDropdownOpen(false)
+      }
+    }
+
+    const handleKeyDown = (e: globalThis.KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsDropdownOpen(false)
+      }
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [isDropdownOpen])
+
+  // Select extension with smart filename default switching
+  const handleSelectExtension = (newExt: SupportedExtension) => {
+    if (newExt === 'env' && fileName === 'untitled') {
+      setFileName('')
+    } else if (newExt !== 'env' && fileName === '') {
+      setFileName('untitled')
+    }
+    setExtension(newExt)
+    setIsDropdownOpen(false)
+  }
 
   // Sync scroll between textarea and line number gutter
   const handleScroll = () => {
@@ -57,7 +101,7 @@ export default function NewFileModal({
     return { chars, words, sizeStr: formatBytes(bytes) }
   }, [content])
 
-  // Handle Tab key in textarea
+  // Handle Tab key in textarea and Cmd+S / Ctrl+S
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Tab') {
       e.preventDefault()
@@ -80,27 +124,17 @@ export default function NewFileModal({
     if (saving) return
     setError(null)
 
-    let baseName = fileName.trim()
-    if (!baseName) {
-      baseName = 'untitled'
-    }
-
-    // Strip extension if user accidentally typed it
-    if (baseName.toLowerCase().endsWith(`.${extension}`)) {
-      baseName = baseName.slice(0, -(extension.length + 1))
-    }
+    const targetFullName = computeFullName(fileName, extension)
 
     // Validation
-    if (/[/\\:*?"<>|]/.test(baseName)) {
-      setError('File name contains invalid characters (/ \\ : * ? " < > |)')
+    if (/[\\:*?"<>|]/.test(targetFullName)) {
+      setError('File name contains invalid characters (\\ : * ? " < > |)')
       return
     }
 
-    const fullName = `${baseName}.${extension}`
-
-    if (existingNames.includes(fullName)) {
+    if (existingNames.includes(targetFullName)) {
       const confirmOverwrite = window.confirm(
-        `A file named "${fullName}" already exists in this folder. Do you want to overwrite it?`,
+        `A file named "${targetFullName}" already exists in this folder. Do you want to overwrite it?`,
       )
       if (!confirmOverwrite) return
     }
@@ -110,7 +144,7 @@ export default function NewFileModal({
 
     setSaving(true)
     try {
-      await onSave(fullName, content, mime)
+      await onSave(targetFullName, content, mime)
       onClose()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save file')
@@ -118,10 +152,15 @@ export default function NewFileModal({
     }
   }
 
-  // Focus textarea when mounted if filename is already given
+  // Focus textarea when mounted
   useEffect(() => {
     textareaRef.current?.focus()
   }, [])
+
+  const currentOption = useMemo(
+    () => SUPPORTED_EXTENSIONS.find((s) => s.ext === extension) || SUPPORTED_EXTENSIONS[0],
+    [extension],
+  )
 
   return (
     <Modal ariaLabel="New notebook file" className="notebook-modal" onClose={onClose}>
@@ -137,35 +176,74 @@ export default function NewFileModal({
               className="notebook-header__name-input"
               value={fileName}
               onChange={(e) => setFileName(e.target.value)}
-              placeholder="untitled"
+              placeholder={extension === 'env' ? 'e.g. local or leave blank for .env' : 'untitled'}
               aria-label="File name"
             />
-            <span className="notebook-header__dot">.</span>
-            <select
-              className="notebook-header__ext-select"
-              value={extension}
-              onChange={(e) => setExtension(e.target.value as SupportedExtension)}
-              aria-label="File extension"
-            >
-              {SUPPORTED_EXTENSIONS.map((item) => (
-                <option key={item.ext} value={item.ext}>
-                  {item.ext}
-                </option>
-              ))}
-            </select>
+
+            {/* Custom File Extension Dropdown */}
+            <div className="notebook-ext-dropdown" ref={dropdownRef}>
+              <button
+                type="button"
+                className="notebook-ext-dropdown__trigger"
+                onClick={() => setIsDropdownOpen((v) => !v)}
+                aria-expanded={isDropdownOpen}
+                aria-haspopup="listbox"
+                title="Select file extension"
+              >
+                <span>{currentOption.extLabel}</span>
+                <Icon
+                  name="chevronDown"
+                  size={12}
+                  className={`notebook-ext-dropdown__chevron ${isDropdownOpen ? 'notebook-ext-dropdown__chevron--open' : ''}`}
+                />
+              </button>
+
+              {isDropdownOpen && (
+                <div className="notebook-ext-dropdown__menu" role="listbox">
+                  {SUPPORTED_EXTENSIONS.map((item) => {
+                    const itemInfo = getFileTypeInfo(
+                      item.ext === 'env' ? '.env' : `file.${item.ext}`,
+                      false,
+                    )
+                    const isSelected = extension === item.ext
+                    return (
+                      <button
+                        key={item.ext}
+                        type="button"
+                        role="option"
+                        aria-selected={isSelected}
+                        className={`notebook-ext-dropdown__item ${isSelected ? 'notebook-ext-dropdown__item--active' : ''}`}
+                        onClick={() => handleSelectExtension(item.ext)}
+                      >
+                        <span
+                          className="notebook-ext-dropdown__item-icon"
+                          style={{ color: itemInfo.colorLight }}
+                        >
+                          <Icon name={itemInfo.iconName} size={15} color={itemInfo.colorLight} />
+                        </span>
+                        <div className="notebook-ext-dropdown__item-text">
+                          <strong>
+                            <span>{item.label}</span>
+                            <span className="notebook-ext-dropdown__item-ext">{item.extLabel}</span>
+                          </strong>
+                          <small>{item.desc}</small>
+                        </div>
+                        {isSelected && (
+                          <span className="notebook-ext-dropdown__item-check">
+                            <Icon name="check" size={13} />
+                          </span>
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
           </div>
 
-          <div className="notebook-pills">
-            {SUPPORTED_EXTENSIONS.map((item) => (
-              <button
-                key={item.ext}
-                type="button"
-                className={`notebook-pill ${extension === item.ext ? 'notebook-pill--active' : ''}`}
-                onClick={() => setExtension(item.ext)}
-              >
-                .{item.ext}
-              </button>
-            ))}
+          <div className="notebook-header__saving-as">
+            <span>Saving as:</span>
+            <strong>{fullName}</strong>
           </div>
         </div>
 
@@ -212,7 +290,11 @@ export default function NewFileModal({
             onChange={(e) => setContent(e.target.value)}
             onScroll={handleScroll}
             onKeyDown={handleKeyDown}
-            placeholder="Start typing your notes, markdown, code, or data here…"
+            placeholder={
+              extension === 'env'
+                ? '# Environment variables (KEY=value)\nPORT=3000\nAPI_SECRET=my-secret-key\nNODE_ENV=production'
+                : 'Start typing your notes, markdown, code, or data here…'
+            }
             spellCheck="false"
           />
         </div>
