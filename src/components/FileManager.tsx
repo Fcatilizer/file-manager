@@ -6,6 +6,8 @@ import CreateBucketDialog from './buckets/CreateBucketDialog'
 import BucketPasswordDialog from './buckets/BucketPasswordDialog'
 import AppearanceControls from './AppearanceControls'
 import VaultBrandButton from './VaultBrandButton'
+import NewFileModal from './NewFileModal'
+import '../styles/new-dropdown.css'
 import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef, Fragment, type DragEvent } from 'react'
 import {
   fetchBuckets,
@@ -104,6 +106,9 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
   const [query, setQuery] = useState('')
   const [activeCategory, setActiveCategory] = useState<FileCategory | null>(null)
   const [showNewFolder, setShowNewFolder] = useState(false)
+  const [showNewFile, setShowNewFile] = useState(false)
+  const [showNewMenu, setShowNewMenu] = useState(false)
+  const newMenuRef = useRef<HTMLDivElement>(null)
   const [pendingDelete, setPendingDelete] = useState<{ key: string; name: string } | null>(null)
 
   const activeDetails = bucketDetails[activeBucket]
@@ -117,6 +122,8 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
       setDetailsItem(null)
       setPendingDelete(null)
       setShowNewFolder(false)
+      setShowNewFile(false)
+      setShowNewMenu(false)
       setLoading(false)
     }
   }, [activeBucket])
@@ -406,6 +413,43 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
     [activeBucket, prefix, showToast, loadFiles],
   )
 
+  // ─── Create notebook file ──────────────────────────────
+
+  const handleCreateNewFile = useCallback(
+    async (fullName: string, content: string, mime: string) => {
+      if (!activeBucket || activeLocked) return
+      try {
+        const file = new File([content], fullName, { type: mime })
+        await uploadFile(activeBucket, prefix + fullName, file)
+        showToast(`Created ${fullName}`)
+        setShowNewFile(false)
+        loadFiles()
+      } catch (err) {
+        throw new Error(err instanceof Error ? err.message : 'Failed to save file')
+      }
+    },
+    [activeBucket, activeLocked, prefix, showToast, loadFiles],
+  )
+
+  // Dismiss New Menu on outside click or Escape
+  useEffect(() => {
+    if (!showNewMenu) return
+    const onPointerDown = (event: PointerEvent) => {
+      if (!newMenuRef.current?.contains(event.target as Node)) {
+        setShowNewMenu(false)
+      }
+    }
+    const onKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key === 'Escape') setShowNewMenu(false)
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    window.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown)
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [showNewMenu])
+
   // ─── Navigation ─────────────────────────────────────────
 
   const segments = prefix ? prefix.split('/').filter(Boolean) : []
@@ -590,9 +634,63 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
           ))}
         </nav>
         <div className="toolbar__actions">
-          <button className="btn btn--ghost" disabled={!activeBucket || activeLocked} onClick={() => setShowNewFolder(true)}>
-            <Icon name="folderPlus" size={14} /> New Folder
-          </button>
+          <div className="new-dropdown" ref={newMenuRef}>
+            <button
+              type="button"
+              className="btn btn--ghost new-dropdown__trigger"
+              disabled={!activeBucket || activeLocked}
+              onClick={() => setShowNewMenu((v) => !v)}
+              aria-expanded={showNewMenu}
+              aria-haspopup="menu"
+              title="Create new folder or file"
+            >
+              <Icon name="plus" size={14} />
+              <span>New</span>
+              <Icon
+                name="chevronDown"
+                size={12}
+                className={`new-dropdown__chevron ${showNewMenu ? 'new-dropdown__chevron--open' : ''}`}
+              />
+            </button>
+            {showNewMenu && (
+              <div className="new-dropdown__menu" role="menu">
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="new-dropdown__item"
+                  onClick={() => {
+                    setShowNewMenu(false)
+                    setShowNewFolder(true)
+                  }}
+                >
+                  <span className="new-dropdown__item-icon" style={{ color: 'var(--accent)' }}>
+                    <Icon name="folderPlus" size={15} />
+                  </span>
+                  <div className="new-dropdown__item-text">
+                    <strong>New Folder</strong>
+                    <small>Create an empty folder</small>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="new-dropdown__item"
+                  onClick={() => {
+                    setShowNewMenu(false)
+                    setShowNewFile(true)
+                  }}
+                >
+                  <span className="new-dropdown__item-icon" style={{ color: 'var(--accent)' }}>
+                    <Icon name="filePlus" size={15} />
+                  </span>
+                  <div className="new-dropdown__item-text">
+                    <strong>New File</strong>
+                    <small>Write in notebook & save</small>
+                  </div>
+                </button>
+              </div>
+            )}
+          </div>
           <label className={`btn btn--primary${!activeBucket || activeLocked || uploading ? ' btn--disabled' : ''}`}>
             <Icon name="upload" size={14} /> Upload
             <input
@@ -855,6 +953,16 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
           }}
           onConfirm={createNewFolder}
           onClose={() => setShowNewFolder(false)}
+        />
+      )}
+
+      {/* New file notebook modal */}
+      {showNewFile && (
+        <NewFileModal
+          currentFolder={prefix}
+          existingNames={files.map((f) => f.name)}
+          onSave={handleCreateNewFile}
+          onClose={() => setShowNewFile(false)}
         />
       )}
 

@@ -1,0 +1,102 @@
+/* ─── New Dropdown (Folder / File) ───────────────────────── */
+
+.new-dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.new-dropdown__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  user-select: none;
+}
+
+.new-dropdown__chevron {
+  transition: transform 0.2s ease;
+  color: var(--text-3);
+  margin-left: 2px;
+}
+
+.new-dropdown__chevron--open {
+  transform: rotate(180deg);
+}
+
+.new-dropdown__menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 210px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.25), 0 8px 10px -6px rgba(0, 0, 0, 0.15);
+  padding: 6px;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  animation: dropdownIn 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes dropdownIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.new-dropdown__item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: none;
+  color: var(--text-1);
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition: background-color 0.12s ease;
+}
+
+.new-dropdown__item:hover,
+.new-dropdown__item:focus-visible {
+  background-color: var(--bg-hover, var(--bg-3));
+  outline: none;
+}
+
+.new-dropdown__item-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: var(--accent-soft, rgba(15, 118, 110, 0.1));
+  flex-shrink: 0;
+}
+
+.new-dropdown__item-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.new-dropdown__item-text strong {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--text-1);
+}
+
+.new-dropdown__item-text small {
+  font-size: 11px;
+  color: var(--text-3);
+  line-height: 1.2;
+}
