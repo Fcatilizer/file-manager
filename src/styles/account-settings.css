@@ -1,4 +1,4 @@
-.account-settings { width: min(560px, 94vw); max-height: 90dvh; overflow: hidden; }
+.account-settings { width: min(560px, 94vw); max-height: 90dvh; overflow: hidden; display: flex; flex-direction: column; }
 .account-settings__header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 24px 24px 18px; }
 .account-settings__header h2 { font-size: 18px; font-weight: 600; }
 .account-settings__header p { color: var(--text-2); font-size: 12px; margin-top: 4px; overflow-wrap: anywhere; }
@@ -18,13 +18,15 @@
 .account-settings input[type="radio"], .account-settings input[type="checkbox"] { accent-color: var(--accent); }
 .account-settings__success { color: var(--success); font-size: 12px; margin-top: 14px; }
 .account-settings .dialog__error { margin-top: 14px; }
-@media (max-width: 400px) {
+@media (max-width: 640px) {
+  .account-settings { width: min(560px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); }
   .account-settings__header, .account-settings__body { padding: 18px 16px; }
   .account-settings__nav { padding-left: 16px; padding-right: 16px; }
   .account-settings__accents { grid-template-columns: repeat(2, 1fr); }
 }
 
 /* Keep navigation and Close available while long preferences scroll. */
-.account-settings__content { display: flex; flex-direction: column; max-height: 90dvh; }
+.account-settings__content { display: flex; flex-direction: column; max-height: 90dvh; flex: 1; min-height: 0; }
 .account-settings__header, .account-settings__nav { flex-shrink: 0; }
-.account-settings__body { min-height: 0; overflow-y: auto; }
+.account-settings__body { min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+

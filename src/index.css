@@ -745,14 +745,24 @@ body {
 .modal-overlay {
   position: fixed;
   inset: 0;
+  width: 100%;
+  height: 100%;
+  height: 100dvh;
   background: var(--drop-bg);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   display: flex;
-  align-items: center;
+  align-items: safe center;
   justify-content: center;
   z-index: 200;
-  padding: 24px;
+  padding: clamp(12px, 3vh, 24px);
+  padding-top: max(clamp(12px, 3vh, 24px), env(safe-area-inset-top, 0px));
+  padding-bottom: max(clamp(12px, 3vh, 24px), env(safe-area-inset-bottom, 0px));
+  padding-left: max(clamp(12px, 3vw, 24px), env(safe-area-inset-left, 0px));
+  padding-right: max(clamp(12px, 3vw, 24px), env(safe-area-inset-right, 0px));
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
   animation: fadeIn 140ms ease;
 }
 
@@ -764,12 +774,13 @@ body {
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   overflow: hidden;
+  margin: auto;
   animation: previewIn 180ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .preview {
   width: min(1100px, 94vw);
-  height: min(86vh, 920px);
+  height: min(86dvh, 920px);
 }
 
 @keyframes previewIn {
@@ -1177,13 +1188,56 @@ body {
 @media (max-width: 640px) {
   .modal-overlay--fullscreen {
     padding: 0;
+    align-items: stretch;
+    justify-content: stretch;
+  }
+
+  .modal-overlay--fullscreen > .modal {
+    margin: 0;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 100% !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    border-radius: 0 !important;
+    border: none !important;
   }
 
   .preview {
-    width: 100vw;
-    height: 100vh;
+    width: 100%;
+    width: 100dvw;
+    height: 100%;
+    height: 100dvh;
+    max-height: 100dvh;
     border-radius: 0;
     border: none;
+  }
+
+  .preview__header {
+    padding-top: max(12px, env(safe-area-inset-top, 12px));
+    padding-bottom: 10px;
+    padding-left: max(12px, env(safe-area-inset-left, 12px));
+    padding-right: max(12px, env(safe-area-inset-right, 12px));
+    gap: 10px;
+  }
+
+  .preview__fileicon {
+    width: 30px;
+    height: 30px;
+  }
+
+  .preview__name {
+    font-size: 12.5px;
+  }
+
+  .preview__sub {
+    font-size: 10.5px;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .preview__controls {
+    gap: 4px;
   }
 
   .preview__nav {
@@ -1207,6 +1261,17 @@ body {
   .preview__audio-cover-wrap {
     width: 130px;
     height: 130px;
+  }
+
+  .preview__code-toolbar {
+    padding: 6px 12px;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .preview__code {
+    padding: 12px 14px;
+    font-size: 12px;
   }
 }
 
@@ -1472,7 +1537,7 @@ body {
 
 .users-modal {
   width: min(580px, 94vw);
-  max-height: min(80vh, 720px);
+  max-height: min(80dvh, 720px);
 }
 
 .users-modal__header {
@@ -1646,16 +1711,20 @@ body {
 }
 
 @media (max-width: 640px) {
-  .modal-overlay--fullscreen {
-    padding: 0;
-  }
-
   .users-modal {
-    width: 100vw;
-    max-height: 100vh;
-    height: 100vh;
+    width: 100%;
+    width: 100dvw;
+    max-height: 100dvh;
+    height: 100%;
+    height: 100dvh;
     border-radius: 0;
     border: none;
+  }
+
+  .users-modal__header {
+    padding-top: max(12px, env(safe-area-inset-top, 12px));
+    padding-left: max(14px, env(safe-area-inset-left, 14px));
+    padding-right: max(14px, env(safe-area-inset-right, 14px));
   }
 }
 
@@ -2216,7 +2285,19 @@ body {
 /* ─── Dialog (reusable modal variant) ─────────────────── */
 
 .dialog {
-  width: min(420px, 94vw);
+  width: min(440px, 94vw);
+  max-height: min(90dvh, 680px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.dialog > form {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: inherit;
+  height: 100%;
 }
 
 .dialog__header {
@@ -2224,6 +2305,7 @@ body {
   align-items: center;
   gap: 10px;
   padding: 18px 18px 0;
+  flex-shrink: 0;
 }
 
 .dialog__icon {
@@ -2247,6 +2329,8 @@ body {
   font-size: 14px;
   font-weight: 600;
   color: var(--text-1);
+  min-width: 0;
+  flex: 1;
 }
 
 .dialog__body {
@@ -2254,6 +2338,9 @@ body {
   flex-direction: column;
   gap: 6px;
   padding: 16px 18px 4px;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .dialog__label {
@@ -2279,6 +2366,23 @@ body {
   justify-content: flex-end;
   gap: 8px;
   padding: 18px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+  .dialog {
+    width: min(440px, calc(100vw - 24px));
+    max-height: calc(100dvh - 24px);
+  }
+  .dialog__header {
+    padding: 14px 16px 0;
+  }
+  .dialog__body {
+    padding: 12px 16px 4px;
+  }
+  .dialog__footer {
+    padding: 14px 16px;
+  }
 }
 
 /* ─── Danger button ───────────────────────────────────── */
@@ -2304,8 +2408,8 @@ body {
 /* ─── Password Modal ──────────────────────────────────── */
 
 .password-modal {
-  width: 100%;
-  max-width: 440px;
+  width: min(440px, 94vw);
+  max-height: min(90dvh, 600px);
   background: var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -2322,12 +2426,15 @@ body {
   justify-content: space-between;
   padding: 16px 20px;
   border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
 }
 
 .password-modal__title {
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
+  flex: 1;
 }
 
 .password-modal__icon {
@@ -2364,6 +2471,9 @@ body {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .password-input-wrap {
@@ -2423,6 +2533,21 @@ body {
   margin-top: 6px;
   padding-top: 14px;
   border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+  .password-modal {
+    width: min(440px, calc(100vw - 24px));
+    max-height: calc(100dvh - 24px);
+  }
+  .password-modal__header {
+    padding: 14px 16px;
+  }
+  .password-modal__form {
+    padding: 16px;
+    gap: 12px;
+  }
 }
 
 .btn--disabled { opacity: 0.5; cursor: not-allowed; }

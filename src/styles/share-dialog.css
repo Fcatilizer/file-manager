@@ -1,4 +1,4 @@
-.share-dialog { display: grid; gap: 16px; padding: 24px; max-height: calc(100dvh - 48px); overflow-y: auto; }
+.share-dialog { display: grid; gap: 16px; padding: 24px; max-height: calc(100dvh - 48px); overflow-y: auto; -webkit-overflow-scrolling: touch; }
 .share-dialog h2, .share-dialog h3, .share-dialog p { margin: 0; }
 .share-dialog h3 { font-size: 14px; margin-bottom: 8px; }
 .share-dialog__list { padding: 0; margin: 12px 0 0; list-style: none; max-height: 180px; overflow-y: auto; }
@@ -6,3 +6,9 @@
 .share-dialog__list small { display: block; color: var(--text-2); margin-top: 4px; }
 .share-dialog__actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 .share-dialog__legacy { font-size: 10px; line-height: 1.4; color: var(--text-3); }
+@media (max-width: 640px) {
+  .share-dialog { padding: 16px; gap: 12px; max-height: calc(100dvh - 32px); }
+  .share-dialog__list li { flex-wrap: wrap; gap: 8px; }
+  .share-dialog__actions { width: 100%; justify-content: flex-end; }
+}
+

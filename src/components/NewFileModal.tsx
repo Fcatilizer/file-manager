@@ -163,7 +163,12 @@ export default function NewFileModal({
   )
 
   return (
-    <Modal ariaLabel="New notebook file" className="notebook-modal" onClose={onClose}>
+    <Modal
+      ariaLabel="New notebook file"
+      className="notebook-modal"
+      overlayClassName="modal-overlay--fullscreen"
+      onClose={onClose}
+    >
       <header className="notebook-header">
         <div className="notebook-header__identity">
           <div className="notebook-header__icon" style={{ color: typeInfo.colorLight }}>

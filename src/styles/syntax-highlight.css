@@ -183,3 +183,20 @@
   background: var(--accent);
   color: #ffffff;
 }
+
+@media (max-width: 640px) {
+  .preview__code-actions {
+    gap: 6px;
+    margin-left: auto;
+  }
+  .preview__syntax-toggle {
+    padding: 3px 6px;
+    font-size: 11px;
+    gap: 4px;
+  }
+  .preview__lang-badge {
+    font-size: 10px;
+    padding: 1px 4px;
+  }
+}
+

@@ -338,3 +338,30 @@
   color: var(--text-3);
   max-width: 320px;
 }
+
+@media (max-width: 640px) {
+  .preview__markdown-toolbar {
+    padding: 6px 12px;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .preview__markdown-stats {
+    font-size: 11px;
+  }
+  .preview__markdown-actions {
+    gap: 6px;
+    margin-left: auto;
+  }
+  .preview__mode-btn {
+    padding: 3px 8px;
+    font-size: 11px;
+  }
+  .preview__markdown-scroll {
+    padding: 16px 12px 48px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .preview__markdown-body {
+    font-size: 13.5px;
+  }
+}
+
