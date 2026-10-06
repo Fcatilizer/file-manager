@@ -54,7 +54,7 @@ const x = 42;
   )
   assert.ok(html.includes('type="checkbox"'), 'renders task list checkboxes')
   assert.ok(html.includes('<table>') && html.includes('<th>Col 1</th>'), 'renders markdown tables')
-  assert.ok(html.includes('<pre><code') && html.includes('const x = 42;'), 'renders code block')
+  assert.ok(html.includes('<pre><code') && html.includes('hljs') && html.includes('42'), 'renders highlighted code block')
 })
 
 test('renderMarkdownToHtml handles empty or falsy markdown gracefully', () => {

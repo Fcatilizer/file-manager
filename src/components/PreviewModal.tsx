@@ -10,6 +10,7 @@ import { loadAudioMetadata, revokeAudioMetadata, type AudioMetadata } from '../l
 import { fileKind, extOf, isMarkdownFile } from '../lib/filetype'
 import { getFileTypeInfo } from '../lib/fileIcons'
 import MarkdownPreview from './MarkdownPreview'
+import CodePreview from './CodePreview'
 
 const MAX_TEXT_BYTES = 1_000_000 // ~1 MB inline text limit
 
@@ -415,20 +416,13 @@ export default function PreviewModal({
                 activeColor={activeColor}
               />
             ) : (
-              <>
-                <div className="preview__code-toolbar">
-                  <span className="preview__code-stats">
-                    {text.split('\n').length} lines • {formatSize(file.size)}
-                  </span>
-                  <button className="btn btn--ghost btn--sm" onClick={handleCopy}>
-                    <Icon name={copied ? 'check' : 'copy'} size={13} />
-                    {copied ? 'Copied' : 'Copy'}
-                  </button>
-                </div>
-                <pre className="preview__code">
-                  <code>{text}</code>
-                </pre>
-              </>
+              <CodePreview
+                key={file.key}
+                file={file}
+                content={text}
+                onCopy={handleCopy}
+                copied={copied}
+              />
             )}
           </div>
         )

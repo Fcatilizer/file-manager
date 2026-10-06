@@ -1,6 +1,9 @@
 import { Marked } from 'marked'
 import DOMPurify from 'dompurify'
 
+import hljs from 'highlight.js'
+import { escapeHtml } from './syntaxHighlight'
+
 const markedInstance = new Marked({
   gfm: true,
   breaks: true,
@@ -8,6 +11,14 @@ const markedInstance = new Marked({
     link({ href, title, text }) {
       const t = title ? ` title="${title}"` : ''
       return `<a href="${href}"${t} target="_blank" rel="noopener noreferrer">${text}</a>`
+    },
+    code({ text, lang }) {
+      const language = lang && hljs.getLanguage(lang) ? lang : undefined
+      const highlighted = language
+        ? hljs.highlight(text, { language, ignoreIllegals: true }).value
+        : escapeHtml(text)
+      const langClass = language ? ` class="hljs language-${language}"` : ' class="hljs"'
+      return `<pre><code${langClass}>${highlighted}</code></pre>\n`
     },
   },
 })

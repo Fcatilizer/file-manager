@@ -1,0 +1,185 @@
+/* ─────────────────────────────────────────────────────────────
+   Syntax Highlighting Theme (Vault Dark & Light)
+   ───────────────────────────────────────────────────────────── */
+
+/* Dark Theme (Default) */
+:root,
+[data-theme="dark"] {
+  --hljs-bg: transparent;
+  --hljs-text: #e4e4e7;
+  --hljs-comment: #71717a;
+  --hljs-keyword: #f43f5e;
+  --hljs-number: #fb923c;
+  --hljs-string: #34d399;
+  --hljs-function: #60a5fa;
+  --hljs-class: #38bdf8;
+  --hljs-variable: #f1f5f9;
+  --hljs-meta: #a1a1aa;
+  --hljs-builtin: #2dd4bf;
+  --hljs-tag: #f43f5e;
+  --hljs-attr: #38bdf8;
+}
+
+/* Light Theme */
+[data-theme="light"] {
+  --hljs-bg: transparent;
+  --hljs-text: #1e293b;
+  --hljs-comment: #64748b;
+  --hljs-keyword: #e11d48;
+  --hljs-number: #ea580c;
+  --hljs-string: #059669;
+  --hljs-function: #2563eb;
+  --hljs-class: #0284c7;
+  --hljs-variable: #0f172a;
+  --hljs-meta: #64748b;
+  --hljs-builtin: #0d9488;
+  --hljs-tag: #e11d48;
+  --hljs-attr: #0284c7;
+}
+
+.hljs {
+  color: var(--hljs-text);
+  background: var(--hljs-bg);
+}
+
+.hljs-comment,
+.hljs-quote {
+  color: var(--hljs-comment);
+  font-style: italic;
+}
+
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-subst {
+  color: var(--hljs-keyword);
+  font-weight: 550;
+}
+
+.hljs-number,
+.hljs-literal,
+.hljs-variable.constant_ {
+  color: var(--hljs-number);
+}
+
+.hljs-string,
+.hljs-doctag,
+.hljs-regexp {
+  color: var(--hljs-string);
+}
+
+.hljs-title,
+.hljs-section,
+.hljs-selector-id {
+  color: var(--hljs-function);
+  font-weight: 600;
+}
+
+.hljs-title.function_,
+.hljs-function .hljs-title {
+  color: var(--hljs-function);
+}
+
+.hljs-title.class_,
+.hljs-class .hljs-title,
+.hljs-type {
+  color: var(--hljs-class);
+}
+
+.hljs-params,
+.hljs-variable {
+  color: var(--hljs-variable);
+}
+
+.hljs-meta,
+.hljs-meta .hljs-keyword {
+  color: var(--hljs-meta);
+}
+
+.hljs-built_in,
+.hljs-symbol {
+  color: var(--hljs-builtin);
+}
+
+.hljs-tag,
+.hljs-name {
+  color: var(--hljs-tag);
+}
+
+.hljs-attr,
+.hljs-attribute {
+  color: var(--hljs-attr);
+}
+
+.hljs-punctuation {
+  color: var(--hljs-comment);
+}
+
+/* ─── Syntax Highlight Toggle & Language Badge in Toolbar ─── */
+
+.preview__code-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.preview__code-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.preview__lang-badge {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-soft, rgba(15, 118, 110, 0.12));
+  border: 1px solid var(--accent);
+  padding: 1px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.preview__syntax-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-3);
+  color: var(--text-2);
+  cursor: pointer;
+  transition: all var(--transition);
+  user-select: none;
+}
+
+.preview__syntax-toggle:hover {
+  background: var(--bg-hover);
+  color: var(--text-1);
+}
+
+.preview__syntax-toggle--active {
+  background: var(--accent-soft, rgba(15, 118, 110, 0.14));
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.preview__syntax-pill {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: var(--bg-2);
+  color: var(--text-2);
+}
+
+.preview__syntax-toggle--active .preview__syntax-pill {
+  background: var(--accent);
+  color: #ffffff;
+}
