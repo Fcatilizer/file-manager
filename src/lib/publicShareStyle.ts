@@ -1,5 +1,10 @@
 /** Shared browser and server error-page styles, scoped away from preview modals. */
 export const publicShareStyle = `
+.public-share-preview .modal-overlay {
+  --drop-bg: rgba(15, 23, 42, 0.28);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
 :where(.public-share) * {
   box-sizing:border-box}.public-share {
   margin:0;

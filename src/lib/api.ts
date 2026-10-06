@@ -1,3 +1,4 @@
+import { uploadDirect, type UploadOptions } from './upload'
 import type { BucketDetails } from './bucketProtection'
 export type { BucketDetails } from './bucketProtection'
 import type { Preferences } from './preferences'
@@ -201,36 +202,8 @@ export async function fetchFiles(bucket: string, prefix: string): Promise<FileIt
   return data.items
 }
 
-export async function uploadFile(bucket: string, key: string, file: File): Promise<void> {
-  const contentType = file.type || 'application/octet-stream'
-
-  // Attempt direct-to-S3 presigned upload first (bypasses serverless 4.5MB request body limits)
-  try {
-    const params = new URLSearchParams({ bucket, key, contentType })
-    const data = await request<{ uploadUrl: string }>(`/api/upload-url?${params}`)
-    if (data.uploadUrl) {
-      const directRes = await fetch(data.uploadUrl, {
-        method: 'PUT',
-        headers: { 'Content-Type': contentType },
-        body: file,
-      })
-      if (directRes.ok) {
-        return
-      }
-      console.warn('[vault] Direct S3 upload returned status:', directRes.status, '— falling back to proxy')
-    }
-  } catch (err) {
-    if (err instanceof ApiError && err.status < 500) throw err
-    console.warn('[vault] Direct S3 upload negotiation failed, falling back to server proxy:', err)
-  }
-
-  // Fallback to Express backend upload proxy
-  const params = new URLSearchParams({ bucket, key })
-  await request(`/api/upload?${params}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': contentType },
-    body: file,
-  })
+export async function uploadFile(bucket: string, key: string, file: File, options?: UploadOptions): Promise<void> {
+  await uploadDirect(request, bucket, key, file, options)
 }
 
 export async function deleteFile(bucket: string, key: string): Promise<void> {

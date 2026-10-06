@@ -225,6 +225,11 @@ function isPreferences(value) {
 
 // src/lib/publicShareStyle.ts
 var publicShareStyle = `
+.public-share-preview .modal-overlay {
+  --drop-bg: rgba(15, 23, 42, 0.28);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
 :where(.public-share) * {
   box-sizing:border-box}.public-share {
   margin:0;
@@ -415,7 +420,7 @@ function notFound(req, res) {
 }
 
 // server/app.ts
-import express5 from "express";
+import express6 from "express";
 import cookieParser from "cookie-parser";
 
 // server/db.ts
@@ -1356,6 +1361,117 @@ function createShareRouters(s3, protection = new BucketProtection(), store = mon
   return { management, publicRouter };
 }
 
+// server/uploads.ts
+import { createHash as createHash5 } from "node:crypto";
+import express4 from "express";
+import jwt2 from "jsonwebtoken";
+import { AbortMultipartUploadCommand, CompleteMultipartUploadCommand, CreateMultipartUploadCommand, ListPartsCommand, UploadPartCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl as getSignedUrl3 } from "@aws-sdk/s3-request-presigner";
+
+// src/lib/uploadPolicy.ts
+var UPLOAD_CHUNK_BYTES = 8 * 1024 * 1024;
+var MAX_UPLOAD_BYTES = 5 * 1024 ** 4;
+function uploadPartSize(size) {
+  return Math.max(UPLOAD_CHUNK_BYTES, Math.ceil(size / 1e4 / (1024 * 1024)) * 1024 * 1024);
+}
+
+// server/uploads.ts
+var audience = "vault:multipart:v1";
+function ticketSecret() {
+  const secret = process.env.JWT_SECRET;
+  if (!secret && process.env.NODE_ENV === "production") throw Error("JWT_SECRET must be set in production");
+  return createHash5("sha256").update(audience).update(secret || "dev-insecure-secret-change-me").digest();
+}
+function readTicket(req) {
+  try {
+    if (typeof req.body?.ticket !== "string" || req.body.ticket.length > 16384) throw Error();
+    const value = jwt2.verify(req.body.ticket, ticketSecret(), { algorithms: ["HS256"], audience });
+    if (value.owner !== bucketUser(req).id || value.session !== bucketSession(req)) throw Error();
+    return value;
+  } catch {
+    throw new BucketAccessError(403, "This upload session is invalid or expired. Start the upload again.");
+  }
+}
+function validUploadKey(value) {
+  return typeof value === "string" && value.length > 0 && Buffer.byteLength(value) <= 1024 && !value.endsWith("/") && ![...value].some((char) => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127);
+}
+function createUploadRouter(s3, signer, protection, authenticate) {
+  const router = express4.Router();
+  router.use(authenticate, express4.json({ limit: "32kb" }));
+  router.use((_req, res, next) => {
+    res.set("Cache-Control", "no-store");
+    next();
+  });
+  router.post("/start", async (req, res, next) => {
+    try {
+      const { bucket, key, size, contentType } = req.body || {};
+      if (typeof bucket !== "string" || !bucket || !validUploadKey(key) || !Number.isSafeInteger(size) || size <= 0 || size > MAX_UPLOAD_BYTES || typeof contentType !== "string" || contentType.length > 255 || /[\r\n]/.test(contentType)) {
+        throw new BucketAccessError(400, "Invalid upload details or unsupported file size");
+      }
+      await protection.authorize(req, bucket);
+      const owner = bucketUser(req).id, session = bucketSession(req), secret = ticketSecret();
+      const result = await s3.send(new CreateMultipartUploadCommand({ Bucket: bucket, Key: key, ContentType: contentType || "application/octet-stream" }));
+      if (!result.UploadId) throw Error("Storage returned no upload ID");
+      const ticket = { owner, session, bucket, key, uploadId: result.UploadId, size, partSize: uploadPartSize(size) };
+      res.json({ ticket: jwt2.sign(ticket, secret, { audience, expiresIn: "24h", algorithm: "HS256" }), partSize: ticket.partSize, partCount: Math.ceil(size / ticket.partSize) });
+    } catch (err) {
+      next(err);
+    }
+  });
+  router.post("/part", async (req, res, next) => {
+    try {
+      const ticket = readTicket(req);
+      const metadata = await protection.authorize(req, ticket.bucket);
+      const part = req.body.partNumber;
+      if (!Number.isInteger(part) || part < 1 || part > Math.ceil(ticket.size / ticket.partSize)) throw new BucketAccessError(400, "Invalid upload part");
+      const ttl = metadata ? Math.max(1, Math.min(PRIVATE_URL_SECONDS, Math.floor(((await protection.grantExpiry(req, metadata))?.getTime() || 0) / 1e3 - Date.now() / 1e3))) : 900;
+      const uploadUrl = await getSignedUrl3(signer, new UploadPartCommand({ Bucket: ticket.bucket, Key: ticket.key, UploadId: ticket.uploadId, PartNumber: part, ContentLength: Math.min(ticket.partSize, ticket.size - (part - 1) * ticket.partSize) }), { expiresIn: ttl });
+      res.json({ uploadUrl });
+    } catch (err) {
+      next(err);
+    }
+  });
+  router.post("/complete", async (req, res, next) => {
+    try {
+      const ticket = readTicket(req);
+      await protection.authorize(req, ticket.bucket);
+      const parts = [];
+      let marker;
+      do {
+        const page = await s3.send(new ListPartsCommand({ Bucket: ticket.bucket, Key: ticket.key, UploadId: ticket.uploadId, PartNumberMarker: marker, MaxParts: 1e3 }));
+        for (const part of page.Parts || []) {
+          const number = parts.length + 1;
+          const expected = Math.min(ticket.partSize, ticket.size - (number - 1) * ticket.partSize);
+          if (number > 1e4 || part.PartNumber !== number || expected <= 0 || part.Size !== expected || !part.ETag) throw new BucketAccessError(409, "Uploaded parts are incomplete or have the wrong size. Please retry the upload.");
+          parts.push({ PartNumber: number, ETag: part.ETag });
+        }
+        if (page.IsTruncated && (!page.NextPartNumberMarker || page.NextPartNumberMarker === marker || !page.Parts?.length)) throw new BucketAccessError(502, "Storage returned invalid upload pagination");
+        marker = page.IsTruncated ? page.NextPartNumberMarker : void 0;
+      } while (marker);
+      if (parts.length !== Math.ceil(ticket.size / ticket.partSize)) throw new BucketAccessError(409, "Some upload parts are missing. Please retry the upload.");
+      await protection.authorize(req, ticket.bucket);
+      await s3.send(new CompleteMultipartUploadCommand({ Bucket: ticket.bucket, Key: ticket.key, UploadId: ticket.uploadId, MultipartUpload: { Parts: parts } }));
+      res.json({ success: true });
+    } catch (err) {
+      next(err);
+    }
+  });
+  router.post("/abort", async (req, res, next) => {
+    try {
+      const ticket = readTicket(req);
+      await s3.send(new AbortMultipartUploadCommand({ Bucket: ticket.bucket, Key: ticket.key, UploadId: ticket.uploadId }));
+      res.json({ success: true });
+    } catch (err) {
+      if (err?.name === "NoSuchUpload") {
+        res.json({ success: true });
+        return;
+      }
+      next(err);
+    }
+  });
+  return router;
+}
+
 // server/object-metadata.ts
 import { HeadObjectCommand as HeadObjectCommand3, ListObjectsV2Command as ListObjectsV2Command2 } from "@aws-sdk/client-s3";
 async function getObjectMetadata(s3, bucket, key) {
@@ -1396,7 +1512,7 @@ async function getObjectMetadata(s3, bucket, key) {
 }
 
 // server/s3.ts
-import express4 from "express";
+import express5 from "express";
 import {
   S3Client as S3Client2,
   ListBucketsCommand,
@@ -1409,7 +1525,7 @@ import {
   GetObjectCommand as GetObjectCommand3,
   HeadBucketCommand
 } from "@aws-sdk/client-s3";
-import { getSignedUrl as getSignedUrl3 } from "@aws-sdk/s3-request-presigner";
+import { getSignedUrl as getSignedUrl4 } from "@aws-sdk/s3-request-presigner";
 import bcrypt4 from "bcryptjs";
 
 // src/lib/buckets.ts
@@ -1450,9 +1566,11 @@ function bucketError(res, err) {
 var wrap = (fn) => (req, res, next) => {
   Promise.resolve(fn(req, res)).catch(next);
 };
-function createStorageClient() {
+function createStorageClient(publicEndpoint = false) {
   return new S3Client2({
-    endpoint: process.env.MINIO_ENDPOINT || "http://localhost:9000",
+    endpoint: publicEndpoint && process.env.MINIO_PUBLIC_ENDPOINT || process.env.MINIO_ENDPOINT || "http://localhost:9000",
+    // Presigned browser PUTs have no body at signing time; avoid signing an empty-body CRC32.
+    requestChecksumCalculation: "WHEN_REQUIRED",
     region: process.env.MINIO_REGION || "us-east-1",
     credentials: {
       accessKeyId: process.env.MINIO_ACCESS_KEY || "admin",
@@ -1463,15 +1581,17 @@ function createStorageClient() {
 }
 function createS3Router(protection = new BucketProtection(), authenticate = (_req, _res, next) => next()) {
   const s3 = createStorageClient();
+  const uploadSigner = createStorageClient(true);
   const defaultBucket = process.env.MINIO_BUCKET || "fruitms-public-local";
   const privateBucket = process.env.MINIO_PRIVATE_BUCKET || "shared-files";
   console.log(`[vault] S3 endpoint: ${process.env.MINIO_ENDPOINT || "http://localhost:9000"}`);
   console.log(`[vault] default bucket: ${defaultBucket} | private bucket: ${privateBucket}`);
-  const router = express4.Router();
+  const router = express5.Router();
   router.use((_req, res, next) => {
     res.setHeader("Cache-Control", "no-store");
     next();
   });
+  router.use("/uploads", createUploadRouter(s3, uploadSigner, protection, authenticate));
   router.get("/health", authenticate, (_req, res) => {
     res.json({ status: "ok" });
   });
@@ -1486,7 +1606,7 @@ function createS3Router(protection = new BucketProtection(), authenticate = (_re
       privateBucket: buckets.includes(privateBucket) ? privateBucket : ""
     });
   }));
-  router.post("/buckets", authenticate, express4.json(), wrap(async (req, res) => {
+  router.post("/buckets", authenticate, express5.json(), wrap(async (req, res) => {
     const isPrivate = req.body?.private === true;
     if (!isPrivate && bucketUser(req).role !== "admin") throw new BucketAccessError(403, "Admin access required");
     const name = req.body?.name;
@@ -1515,7 +1635,7 @@ function createS3Router(protection = new BucketProtection(), authenticate = (_re
       bucketError(res, err);
     }
   }));
-  router.post("/buckets/:name/unlock", authenticate, express4.json(), wrap(async (req, res) => {
+  router.post("/buckets/:name/unlock", authenticate, express5.json(), wrap(async (req, res) => {
     res.json({ details: await protection.unlock(req, String(req.params.name), req.body?.password) });
   }));
   router.post("/buckets/:name/lock", authenticate, wrap(async (req, res) => {
@@ -1523,7 +1643,7 @@ function createS3Router(protection = new BucketProtection(), authenticate = (_re
     await protection.store.revoke(bucket._id);
     res.json({ details: { name: bucket._id, label: bucket.label, isPrivate: true, locked: true } });
   }));
-  router.patch("/buckets/:name/password", authenticate, express4.json(), wrap(async (req, res) => {
+  router.patch("/buckets/:name/password", authenticate, express5.json(), wrap(async (req, res) => {
     const bucket = await protection.owned(req, String(req.params.name));
     const error = validateBucketPassword(req.body?.newPassword);
     if (error) throw new BucketAccessError(400, error);
@@ -1532,7 +1652,7 @@ function createS3Router(protection = new BucketProtection(), authenticate = (_re
     if (!changed) throw new BucketAccessError(409, "Bucket changed. Please try again.");
     res.json({ details: { name: bucket._id, label: bucket.label, isPrivate: true, locked: true } });
   }));
-  router.delete("/buckets/:name", authenticate, express4.json(), wrap(async (req, res) => {
+  router.delete("/buckets/:name", authenticate, express5.json(), wrap(async (req, res) => {
     const name = String(req.params.name);
     const bucket = await protection.authorize(req, name);
     if (!bucket && bucketUser(req).role !== "admin") throw new BucketAccessError(403, "Admin access required");
@@ -1548,7 +1668,7 @@ function createS3Router(protection = new BucketProtection(), authenticate = (_re
     if (bucket) await protection.store.markDeleted(name);
     res.json({ success: true });
   }));
-  router.use("/folders", express4.json());
+  router.use("/folders", express5.json());
   const filePaths = /* @__PURE__ */ new Set(["/files", "/upload-url", "/upload", "/download", "/raw", "/folders", "/metadata"]);
   router.use((req, res, next) => {
     const routePath = req.path.toLowerCase().replace(/\/+$/, "");
@@ -1647,12 +1767,12 @@ function createS3Router(protection = new BucketProtection(), authenticate = (_re
     const bucket = res.locals.bucket;
     const key = req.query.key || "";
     const contentType = req.query.contentType || "application/octet-stream";
-    if (!key) {
-      res.status(400).json({ error: 'Query parameter "key" is required' });
+    if (!validUploadKey(key)) {
+      res.status(400).json({ error: "A valid file key is required" });
       return;
     }
-    const uploadUrl = await getSignedUrl3(
-      s3,
+    const uploadUrl = await getSignedUrl4(
+      uploadSigner,
       new PutObjectCommand({
         Bucket: bucket,
         Key: key,
@@ -1662,20 +1782,9 @@ function createS3Router(protection = new BucketProtection(), authenticate = (_re
     );
     res.json({ uploadUrl, bucket, key });
   }));
-  router.put(
-    "/upload",
-    express4.raw({ type: "*/*", limit: "5gb" }),
-    wrap(async (req, res) => {
-      const bucket = res.locals.bucket;
-      const key = req.query.key || "";
-      const contentType = req.headers["content-type"] || "application/octet-stream";
-      const body = req.body;
-      await s3.send(
-        new PutObjectCommand({ Bucket: bucket, Key: key, Body: body, ContentType: contentType })
-      );
-      res.json({ success: true, key });
-    })
-  );
+  router.put("/upload", (_req, res) => {
+    res.status(410).json({ error: "Proxy uploads are no longer supported. Refresh Vault to upload directly to storage." });
+  });
   router.delete("/files", wrap(async (req, res) => {
     const bucket = res.locals.bucket;
     const key = req.query.key || "";
@@ -1697,7 +1806,7 @@ function createS3Router(protection = new BucketProtection(), authenticate = (_re
   router.get("/download", wrap(async (req, res) => {
     const bucket = res.locals.bucket;
     const key = req.query.key || "";
-    const signedUrl = await getSignedUrl3(
+    const signedUrl = await getSignedUrl4(
       s3,
       new GetObjectCommand3({ Bucket: bucket, Key: key }),
       { expiresIn: res.locals.urlTtl }
@@ -1711,7 +1820,7 @@ function createS3Router(protection = new BucketProtection(), authenticate = (_re
     const isMedia = /\.(mp4|webm|mov|mkv|mp3|wav|ogg|m4a|flac|aac)$/i.test(key);
     const shouldRedirect = redirect || Boolean(process.env.VERCEL) && isMedia;
     if (shouldRedirect) {
-      const signedUrl = await getSignedUrl3(
+      const signedUrl = await getSignedUrl4(
         s3,
         new GetObjectCommand3({ Bucket: bucket, Key: key }),
         { expiresIn: res.locals.urlTtl }
@@ -1754,7 +1863,7 @@ function createS3Router(protection = new BucketProtection(), authenticate = (_re
     });
     body.pipe(res);
   }));
-  router.post("/folders", express4.json(), wrap(async (req, res) => {
+  router.post("/folders", express5.json(), wrap(async (req, res) => {
     const bucket = res.locals.bucket;
     const path = req.body?.path || "";
     const folderPath = path.endsWith("/") ? path : path + "/";
@@ -1787,7 +1896,7 @@ function createS3Router(protection = new BucketProtection(), authenticate = (_re
 }
 
 // server/app.ts
-var app = express5();
+var app = express6();
 app.disable("x-powered-by");
 app.set("trust proxy", 1);
 app.use(cookieParser());
@@ -1803,8 +1912,8 @@ app.use("/api", async (_req, _res, next) => {
     next(err);
   }
 });
-app.use("/api/auth", express5.json(), authRouter);
-app.use("/api/users", requireAuth, requireAdmin, express5.json(), usersRouter);
+app.use("/api/auth", express6.json(), authRouter);
+app.use("/api/users", requireAuth, requireAdmin, express6.json(), usersRouter);
 var shares = createShareRouters(createStorageClient());
 app.use("/api/public", shares.publicRouter);
 app.use("/api/shares", requireAuth, shares.management);

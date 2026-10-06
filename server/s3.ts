@@ -1,3 +1,4 @@
+import { createUploadRouter, validUploadKey } from './uploads.ts'
 import { getObjectMetadata } from './object-metadata.ts'
 import express from 'express'
 import type { Request, Response, NextFunction, Router, RequestHandler } from 'express'
@@ -51,9 +52,11 @@ export interface S3Config {
   privateBucket: string
 }
 
-export function createStorageClient(): S3Client {
+export function createStorageClient(publicEndpoint = false): S3Client {
   return new S3Client({
-    endpoint: process.env.MINIO_ENDPOINT || 'http://localhost:9000',
+    endpoint: (publicEndpoint && process.env.MINIO_PUBLIC_ENDPOINT) || process.env.MINIO_ENDPOINT || 'http://localhost:9000',
+    // Presigned browser PUTs have no body at signing time; avoid signing an empty-body CRC32.
+    requestChecksumCalculation: 'WHEN_REQUIRED',
     region: process.env.MINIO_REGION || 'us-east-1',
     credentials: {
       accessKeyId: process.env.MINIO_ACCESS_KEY || 'admin',
@@ -66,6 +69,7 @@ export function createStorageClient(): S3Client {
 
 export function createS3Router(protection = new BucketProtection(), authenticate: RequestHandler = (_req, _res, next) => next()): Router {
   const s3 = createStorageClient()
+  const uploadSigner = createStorageClient(true)
   const defaultBucket = process.env.MINIO_BUCKET || 'fruitms-public-local'
   const privateBucket = process.env.MINIO_PRIVATE_BUCKET || 'shared-files'
 
@@ -74,6 +78,8 @@ export function createS3Router(protection = new BucketProtection(), authenticate
 
   const router = express.Router()
   router.use((_req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next() })
+
+  router.use('/uploads', createUploadRouter(s3, uploadSigner, protection, authenticate))
 
   // ─── Health ────────────────────────────────────────────
   router.get('/health', authenticate, (_req, res) => {
@@ -255,13 +261,13 @@ export function createS3Router(protection = new BucketProtection(), authenticate
     const key = (req.query.key as string) || ''
     const contentType = (req.query.contentType as string) || 'application/octet-stream'
 
-    if (!key) {
-      res.status(400).json({ error: 'Query parameter "key" is required' })
+    if (!validUploadKey(key)) {
+      res.status(400).json({ error: 'A valid file key is required' })
       return
     }
 
     const uploadUrl = await getSignedUrl(
-      s3,
+      uploadSigner,
       new PutObjectCommand({
         Bucket: bucket,
         Key: key,
@@ -273,22 +279,10 @@ export function createS3Router(protection = new BucketProtection(), authenticate
     res.json({ uploadUrl, bucket, key })
   }))
 
-  // ─── Upload File (Server Proxy) ────────────────────────
-  router.put(
-    '/upload',
-    express.raw({ type: '*/*', limit: '5gb' }),
-    wrap(async (req, res) => {
-      const bucket = res.locals.bucket as string
-      const key = (req.query.key as string) || ''
-      const contentType = (req.headers['content-type'] as string) || 'application/octet-stream'
-      const body = req.body as Buffer
-
-      await s3.send(
-        new PutObjectCommand({ Bucket: bucket, Key: key, Body: body, ContentType: contentType }),
-      )
-      res.json({ success: true, key })
-    }),
-  )
+  // Never buffer user files in a serverless function. Old clients must refresh.
+  router.put('/upload', (_req, res) => {
+    res.status(410).json({ error: 'Proxy uploads are no longer supported. Refresh Vault to upload directly to storage.' })
+  })
 
   // ─── Delete File / Folder ──────────────────────────────
   router.delete('/files', wrap(async (req, res) => {

@@ -1,3 +1,4 @@
+import { UploadProgressBar, UploadError } from './UploadStatus'
 import ItemDetailsDialog from './ItemDetailsDialog'
 import ShareDialog from './ShareDialog'
 import CreateBucketDialog from './buckets/CreateBucketDialog'
@@ -86,7 +87,10 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
   const [files, setFiles] = useState<FileItem[]>([])
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
-  const [uploadProgress, setUploadProgress] = useState({ done: 0, total: 0 })
+  const [uploadProgress, setUploadProgress] = useState({ done: 0, total: 0, loaded: 0, bytes: 0, name: '', phase: 'uploading' })
+  const [uploadError, setUploadError] = useState('')
+  const uploadController = useRef<AbortController | null>(null)
+  useEffect(() => () => uploadController.current?.abort(), [])
   const [dragActive, setDragActive] = useState(false)
   const [toast, setToast] = useState<ToastData | null>(null)
   const [previewIndex, setPreviewIndex] = useState<number | null>(null)
@@ -289,24 +293,37 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
   const handleUpload = useCallback(
     async (fileList: FileList) => {
       if (!fileList.length || !activeBucket || activeLocked || uploading) return
+      const selectedFiles = Array.from(fileList)
+      setUploadError('')
+      const controller = new AbortController()
+      uploadController.current = controller
       setUploading(true)
-      setUploadProgress({ done: 0, total: fileList.length })
-
       let ok = 0
-      for (let i = 0; i < fileList.length; i++) {
-        try {
-          await uploadFile(activeBucket, prefix + fileList[i].name, fileList[i])
-          ok++
-        } catch {
-          showToast(`Failed: ${fileList[i].name}`, 'error')
+      let failed = 0
+      try {
+        for (let i = 0; i < selectedFiles.length && !controller.signal.aborted; i++) {
+          const file = selectedFiles[i]
+          setUploadProgress({ done: i, total: selectedFiles.length, loaded: 0, bytes: file.size, name: file.name, phase: 'uploading' })
+          try {
+            await uploadFile(activeBucket, prefix + file.name, file, {
+              signal: controller.signal,
+              onProgress: ({ loaded, total, phase }) => setUploadProgress({ done: i, total: selectedFiles.length, loaded, bytes: total, name: file.name, phase }),
+            })
+            ok++
+          } catch (err) {
+            if (controller.signal.aborted) break
+            failed++
+            setUploadError(`${file.name}: ${err instanceof Error ? err.message : 'Upload failed'}`)
+            // Keep the useful failure visible and avoid repeating a broken storage request for every file.
+            break
+          }
         }
-        setUploadProgress({ done: i + 1, total: fileList.length })
-      }
-
-      setUploading(false)
-      if (ok > 0) {
-        showToast(`Uploaded ${ok} file${ok > 1 ? 's' : ''}`)
-        loadFiles()
+        if (controller.signal.aborted) showToast('Upload cancelled')
+        else if (!failed && ok > 0) showToast(`Uploaded ${ok} file${ok > 1 ? 's' : ''}`, 'success')
+        if (ok > 0) loadFiles()
+      } finally {
+        setUploading(false)
+        uploadController.current = null
       }
     },
     [activeBucket, activeLocked, prefix, uploading, showToast, loadFiles],
@@ -564,6 +581,8 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
         </div>
       </div>
 
+      {uploadError && <UploadError message={uploadError} onDismiss={() => setUploadError('')} />}
+
       {/* Search & Filter */}
       {!activeLocked && files.length > 0 && (
         <div className="search-filter">
@@ -732,13 +751,7 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
       {detailsItem && <ItemDetailsDialog key={detailsItem.key} bucket={activeBucket} bucketLabel={activeDetails?.label || activeBucket} item={detailsItem} onClose={() => setDetailsItem(null)} />}
       {shareItem && <ShareDialog bucket={activeBucket} item={shareItem} isPrivate={!!activeDetails?.isPrivate} onClose={() => setShareItem(null)} />}
 
-      {/* Upload Progress */}
-      {uploading && (
-        <div className="upload-bar">
-          <div className="spinner" />
-          Uploading {uploadProgress.done}/{uploadProgress.total}…
-        </div>
-      )}
+      {uploading && <UploadProgressBar progress={uploadProgress} onCancel={() => uploadController.current?.abort()} />}
 
       {/* Drop Overlay */}
       {dragActive && (

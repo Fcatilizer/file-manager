@@ -139,6 +139,6 @@ export default function PublicSharePage() {
       </>}
     </main>
   </div>
-    {preview && !error && <PreviewModal key={preview.key} file={preview} bucket="" source={source} theme="light" hasPrev={index > 0} hasNext={index >= 0 && index < files.length - 1} onPrev={() => setPreview(files[index - 1])} onNext={() => setPreview(files[index + 1])} onClose={closePreview} onDownload={download} />}
+    {preview && !error && <div className="public-share-preview"><PreviewModal key={preview.key} file={preview} bucket="" source={source} theme="light" hasPrev={index > 0} hasNext={index >= 0 && index < files.length - 1} onPrev={() => setPreview(files[index - 1])} onNext={() => setPreview(files[index + 1])} onClose={closePreview} onDownload={download} /></div>}
   </>
 }

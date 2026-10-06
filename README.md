@@ -60,9 +60,60 @@ MongoDB must allow creation of the ownership, grant, and rate-limit indexes.
 For direct browser uploads from Vercel, allow your deployed frontend origin in
 RustFS's `RUSTFS_CORS_ALLOWED_ORIGINS` and restart RustFS when changing that server
 setting ([RustFS CORS documentation](https://docs.rustfs.com/en/administration/cors)).
-Bucket creation does not change CORS or access policies. If direct uploads fail,
-the existing proxy fallback is subject to Vercel's
-[4.5 MB request limit](https://vercel.com/docs/functions/limitations).
+Bucket creation does not change CORS or access policies. File bytes never pass
+through Vercel, including on failure; the old proxy endpoint now refuses uploads.
+Use a browser-reachable HTTPS `MINIO_ENDPOINT`, or set `MINIO_PUBLIC_ENDPOINT`
+when the backend uses a separate internal storage address.
+
+For the current deployment, add this to the **RustFS server/container environment**
+(preserve any other trusted origins), then restart/recreate RustFS:
+
+```env
+RUSTFS_CORS_ALLOWED_ORIGINS="https://file-manager-phi-sepia.vercel.app"
+```
+
+This setting belongs on RustFS, not in Vercel's environment. Its Console CORS
+setting is separate and does not enable S3 API uploads. The S3 endpoint and any
+reverse proxy must permit `OPTIONS`/`PUT`, allow `Content-Type`, and return the
+matching `Access-Control-Allow-Origin`. Verify before retrying an upload:
+
+```sh
+curl -i -X OPTIONS 'https://dev-fs-api.a3group.co.in/shared-files/cors-check' \
+  -H 'Origin: https://file-manager-phi-sepia.vercel.app' \
+  -H 'Access-Control-Request-Method: PUT' \
+  -H 'Access-Control-Request-Headers: content-type'
+```
+
+A successful HTTP status alone is insufficient: the CORS allow-origin/method/header
+response fields must permit the browser request. If a proxy supplies CORS, avoid
+adding duplicate allow-origin headers. Do not make buckets publicly writable.
+
+### Large-file uploads
+
+Files larger than 8 MiB use S3 multipart upload: normally 8 MiB parts, at most
+three simultaneous direct-to-storage requests. Part size grows for very large
+files to stay within 10,000 parts (application cap: 5 TiB). Ensure the storage
+proxy body limit allows the selected part size; chunking does not bypass CORS.
+Smaller files, including empty files, use direct signed PUTs.
+
+Failed transient transfers retry up to twice with fresh signed URLs. The UI shows
+byte progress, cancellation, and persistent errors instead of silently falling
+back to Vercel. The server verifies part sizes/ETags through S3 ListParts before
+completion, so exposing ETag to browser JavaScript is not required. Storage
+credentials need multipart create/upload/list-parts/complete/abort permissions.
+
+Upload tickets are bound to the initiating user and login, expire after 24 hours,
+and every signing/completion request rechecks bucket access. Private buckets
+retain their existing unlock expiry and 60-second signed URL limit; a locked
+bucket must be unlocked before starting a new attempt. Cleanup is allowed for
+the initiating login after the bucket locks. Automatic retries work within the
+open page; resuming after reload is not implemented.
+
+Failures/cancellations attempt to abort incomplete multipart uploads. A closed
+tab, lost connection or expired login can prevent cleanup: configure an
+`AbortIncompleteMultipartUpload` lifecycle rule in storage where supported, or
+periodically remove stale multipart uploads. The frontend does not change bucket
+lifecycle rules or CORS settings automatically.
 
 ## Account settings and appearance
 
@@ -127,6 +178,7 @@ The tests mock S3 and do not read `.env`, connect to MongoDB or mutate real stor
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD` | no | seeds the first admin; if omitted, a first-run setup screen appears |
 | `SETUP_TOKEN` | no | if set, required to complete first-run setup |
 | `MINIO_ENDPOINT` | yes | S3/RustFS endpoint |
+| `MINIO_PUBLIC_ENDPOINT` | no | Browser-reachable HTTPS endpoint for signed uploads; defaults to `MINIO_ENDPOINT` |
 | `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY` | yes | S3 credentials |
 | `MINIO_BUCKET` / `MINIO_PRIVATE_BUCKET` | no | bucket names |
 | `MINIO_REGION` | no | defaults to `us-east-1` |
@@ -170,7 +222,7 @@ Vault includes native Vercel configuration (`vercel.json` and the generated `api
 4. Click **Deploy**.
 
 > **How Vercel Serverless is optimized in Vault:**
-> - **Direct-to-S3 Uploads:** Files upload directly to S3 via presigned PUT URLs, bypassing Vercel's 4.5 MB serverless payload limit.
+> - **Direct-to-S3 Uploads:** Small files use signed PUTs; large files use multipart uploads with retries, progress and cancellation. File bytes bypass Vercel's serverless payload limit.
 > - **Media Streaming (307 Redirects):** Audio and video streams redirect directly to S3 presigned URLs, avoiding proxying media through the function.
 > - **MongoDB Connection Pooling:** Reuses pooled MongoClient connections across serverless lambda freezes and warm starts.
 
