@@ -235,6 +235,20 @@
   border: 1px solid var(--border);
 }
 
+.notebook-header__mode-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--primary-soft, rgba(59, 130, 246, 0.12));
+  color: var(--primary, #3b82f6);
+  border: 1px solid var(--primary-border, rgba(59, 130, 246, 0.25));
+}
+
 .notebook-header__actions {
   display: flex;
   align-items: center;

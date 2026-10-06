@@ -12,6 +12,7 @@ import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef, Fra
 import {
   fetchBuckets,
   fetchFiles,
+  fetchTextContent,
   uploadFile,
   deleteFile,
   downloadFile,
@@ -27,6 +28,7 @@ import {
   type SessionUser,
 } from '../lib/api'
 import { getFileTypeInfo, getCategoryInfo, CATEGORY_ORDER, type FileCategory } from '../lib/fileIcons'
+import { isEditableFile } from '../lib/filetype'
 import { Icon } from './Icon'
 import BucketDropdown from './BucketDropdown'
 import { chooseBucket } from '../lib/buckets'
@@ -107,6 +109,9 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
   const [activeCategory, setActiveCategory] = useState<FileCategory | null>(null)
   const [showNewFolder, setShowNewFolder] = useState(false)
   const [showNewFile, setShowNewFile] = useState(false)
+  const [editingFile, setEditingFile] = useState<{ file: FileItem; content: string } | null>(null)
+  const [loadingEditKey, setLoadingEditKey] = useState<string | null>(null)
+  const [previewVersion, setPreviewVersion] = useState(0)
   const [showNewMenu, setShowNewMenu] = useState(false)
   const newMenuRef = useRef<HTMLDivElement>(null)
   const [pendingDelete, setPendingDelete] = useState<{ key: string; name: string } | null>(null)
@@ -123,6 +128,7 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
       setPendingDelete(null)
       setShowNewFolder(false)
       setShowNewFile(false)
+      setEditingFile(null)
       setShowNewMenu(false)
       setLoading(false)
     }
@@ -429,6 +435,60 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
       }
     },
     [activeBucket, activeLocked, prefix, showToast, loadFiles],
+  )
+
+  // ─── Edit existing file ─────────────────────────────────
+
+  const handleOpenEdit = useCallback(
+    async (file: FileItem, knownContent?: string) => {
+      if (activeLocked) return
+      if (knownContent !== undefined) {
+        setEditingFile({ file, content: knownContent })
+        return
+      }
+      setLoadingEditKey(file.key)
+      try {
+        const content = await fetchTextContent(activeBucket, file.key)
+        setEditingFile({ file, content })
+      } catch (err) {
+        showToast(err instanceof Error ? err.message : 'Failed to load file for editing', 'error')
+      } finally {
+        setLoadingEditKey(null)
+      }
+    },
+    [activeBucket, activeLocked, showToast],
+  )
+
+  const handleSaveEditedFile = useCallback(
+    async (newFullName: string, newContent: string, mime: string) => {
+      if (!activeBucket || activeLocked || !editingFile) return
+      const originalFile = editingFile.file
+      const originalKey = originalFile.key
+      const folderPrefix = originalKey.includes('/')
+        ? originalKey.substring(0, originalKey.lastIndexOf('/') + 1)
+        : ''
+      const newKey = folderPrefix + newFullName
+
+      try {
+        const fileBlob = new File([newContent], newFullName, { type: mime })
+        await uploadFile(activeBucket, newKey, fileBlob)
+
+        if (newKey !== originalKey) {
+          await deleteFile(activeBucket, originalKey)
+          setPreviewIndex(null)
+        } else {
+          // Increment version to trigger fresh preview remount
+          setPreviewVersion((v) => v + 1)
+        }
+
+        showToast(`Saved changes to ${newFullName}`)
+        setEditingFile(null)
+        loadFiles()
+      } catch (err) {
+        throw new Error(err instanceof Error ? err.message : 'Failed to save changes')
+      }
+    },
+    [activeBucket, activeLocked, editingFile, showToast, loadFiles],
   )
 
   // Dismiss New Menu on outside click or Escape
@@ -849,6 +909,24 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
                           <Icon name="eye" size={14} />
                         </button>
                       )}
+                      {!f.isFolder && isEditableFile(f.name) && (
+                        <button
+                          className="btn btn--icon"
+                          title="Edit file"
+                          aria-label={`Edit ${f.name}`}
+                          disabled={loadingEditKey === f.key}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            void handleOpenEdit(f)
+                          }}
+                        >
+                          {loadingEditKey === f.key ? (
+                            <span className="spinner spinner--sm" />
+                          ) : (
+                            <Icon name="edit" size={14} />
+                          )}
+                        </button>
+                      )}
                       {!f.isFolder && (
                         <button
                           className="btn btn--icon"
@@ -902,7 +980,7 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
       {/* Preview Modal */}
       {!activeLocked && activePreview && (
         <PreviewModal
-          key={activePreview.key}
+          key={`${activePreview.key}-${previewVersion}`}
           file={activePreview}
           bucket={activeBucket}
           theme={theme}
@@ -912,6 +990,7 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
           onPrev={() => stepPreview(-1)}
           onNext={() => stepPreview(1)}
           onDownload={handleDownload}
+          onEdit={!activeLocked ? (f, c) => void handleOpenEdit(f, c) : undefined}
         />
       )}
 
@@ -963,6 +1042,19 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
           existingNames={files.map((f) => f.name)}
           onSave={handleCreateNewFile}
           onClose={() => setShowNewFile(false)}
+        />
+      )}
+
+      {/* Edit file notebook modal */}
+      {editingFile && (
+        <NewFileModal
+          isEditMode
+          initialFullName={editingFile.file.name}
+          initialContent={editingFile.content}
+          currentFolder={prefix}
+          existingNames={files.map((f) => f.name)}
+          onSave={handleSaveEditedFile}
+          onClose={() => setEditingFile(null)}
         />
       )}
 

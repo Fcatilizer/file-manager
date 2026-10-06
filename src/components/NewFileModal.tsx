@@ -5,7 +5,10 @@ import { getFileTypeInfo } from '../lib/fileIcons'
 import {
   SUPPORTED_EXTENSIONS,
   computeFullName,
+  parseFileNameAndExt,
+  getMimeForExtension,
   type SupportedExtension,
+  type ExtensionOption,
 } from '../lib/notebookExtensions'
 import '../styles/notebook-modal.css'
 
@@ -14,6 +17,9 @@ type Props = {
   onClose: () => void
   existingNames?: string[]
   currentFolder?: string
+  isEditMode?: boolean
+  initialFullName?: string
+  initialContent?: string
 }
 
 export default function NewFileModal({
@@ -21,17 +27,44 @@ export default function NewFileModal({
   onClose,
   existingNames = [],
   currentFolder = '',
+  isEditMode = false,
+  initialFullName = '',
+  initialContent = '',
 }: Props) {
-  const [fileName, setFileName] = useState('untitled')
-  const [extension, setExtension] = useState<SupportedExtension>('txt')
+  const parsed = useMemo(() => {
+    if (initialFullName) {
+      return parseFileNameAndExt(initialFullName)
+    }
+    return { baseName: 'untitled', ext: 'txt' }
+  }, [initialFullName])
+
+  const [fileName, setFileName] = useState(() => parsed.baseName)
+  const [extension, setExtension] = useState<SupportedExtension | string>(() => parsed.ext)
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
-  const [content, setContent] = useState('')
+  const [content, setContent] = useState(() => initialContent)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const gutterRef = useRef<HTMLDivElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
+
+  // Dynamically include extension if it is not in default options
+  const availableExtensions = useMemo(() => {
+    const exists = SUPPORTED_EXTENSIONS.some((item) => item.ext === extension)
+    if (!exists && extension) {
+      const itemInfo = getFileTypeInfo(`file.${extension}`, false)
+      const customOption: ExtensionOption = {
+        ext: extension,
+        label: itemInfo.label || extension.toUpperCase(),
+        extLabel: `.${extension}`,
+        mime: getMimeForExtension(extension),
+        desc: `${extension.toUpperCase()} file`,
+      }
+      return [customOption, ...SUPPORTED_EXTENSIONS]
+    }
+    return SUPPORTED_EXTENSIONS
+  }, [extension])
 
   // Computed authoritative filename
   const fullName = useMemo(() => computeFullName(fileName, extension), [fileName, extension])
@@ -66,7 +99,7 @@ export default function NewFileModal({
   }, [isDropdownOpen])
 
   // Select extension with smart filename default switching
-  const handleSelectExtension = (newExt: SupportedExtension) => {
+  const handleSelectExtension = (newExt: SupportedExtension | string) => {
     if (newExt === 'env' && fileName === 'untitled') {
       setFileName('')
     } else if (newExt !== 'env' && fileName === '') {
@@ -101,6 +134,15 @@ export default function NewFileModal({
     return { chars, words, sizeStr: formatBytes(bytes) }
   }, [content])
 
+  // Prompt confirmation if user tries to close with unsaved edits
+  const handleRequestClose = () => {
+    if (content !== initialContent) {
+      const confirmDiscard = window.confirm('Discard unsaved changes?')
+      if (!confirmDiscard) return
+    }
+    onClose()
+  }
+
   // Handle Tab key in textarea and Cmd+S / Ctrl+S
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Tab') {
@@ -132,15 +174,17 @@ export default function NewFileModal({
       return
     }
 
-    if (existingNames.includes(targetFullName)) {
+    if (
+      existingNames.includes(targetFullName) &&
+      (!isEditMode || targetFullName !== initialFullName)
+    ) {
       const confirmOverwrite = window.confirm(
         `A file named "${targetFullName}" already exists in this folder. Do you want to overwrite it?`,
       )
       if (!confirmOverwrite) return
     }
 
-    const matchedExt = SUPPORTED_EXTENSIONS.find((s) => s.ext === extension)
-    const mime = matchedExt?.mime || 'text/plain'
+    const mime = getMimeForExtension(extension)
 
     setSaving(true)
     try {
@@ -158,16 +202,23 @@ export default function NewFileModal({
   }, [])
 
   const currentOption = useMemo(
-    () => SUPPORTED_EXTENSIONS.find((s) => s.ext === extension) || SUPPORTED_EXTENSIONS[0],
-    [extension],
+    () =>
+      availableExtensions.find((s) => s.ext === extension) || {
+        ext: extension,
+        label: extension.toUpperCase(),
+        extLabel: `.${extension}`,
+        mime: getMimeForExtension(extension),
+        desc: 'File format',
+      },
+    [availableExtensions, extension],
   )
 
   return (
     <Modal
-      ariaLabel="New notebook file"
+      ariaLabel={isEditMode ? `Edit ${initialFullName || 'file'}` : 'New notebook file'}
       className="notebook-modal"
       overlayClassName="modal-overlay--fullscreen"
-      onClose={onClose}
+      onClose={handleRequestClose}
     >
       <header className="notebook-header">
         <div className="notebook-header__identity">
@@ -205,7 +256,7 @@ export default function NewFileModal({
 
               {isDropdownOpen && (
                 <div className="notebook-ext-dropdown__menu" role="listbox">
-                  {SUPPORTED_EXTENSIONS.map((item) => {
+                  {availableExtensions.map((item) => {
                     const itemInfo = getFileTypeInfo(
                       item.ext === 'env' ? '.env' : `file.${item.ext}`,
                       false,
@@ -247,8 +298,9 @@ export default function NewFileModal({
           </div>
 
           <div className="notebook-header__saving-as">
-            <span>Saving as:</span>
+            <span>{isEditMode ? 'Editing:' : 'Saving as:'}</span>
             <strong>{fullName}</strong>
+            {isEditMode && <span className="notebook-header__mode-badge">Edit mode</span>}
           </div>
         </div>
 
@@ -265,11 +317,11 @@ export default function NewFileModal({
               </>
             ) : (
               <>
-                <Icon name="check" size={14} /> Save file
+                <Icon name="check" size={14} /> {isEditMode ? 'Save changes' : 'Save file'}
               </>
             )}
           </button>
-          <ModalCloseButton onClose={onClose} label="Close notebook" />
+          <ModalCloseButton onClose={handleRequestClose} label="Close notebook" />
         </div>
       </header>
 

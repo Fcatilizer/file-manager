@@ -9,9 +9,10 @@ type Props = {
   file: FileItem
   content: string
   activeColor?: string
+  onEdit?: () => void
 }
 
-export default function MarkdownPreview({ file, content }: Props) {
+export default function MarkdownPreview({ file, content, onEdit }: Props) {
   const [mode, setMode] = useState<'preview' | 'raw'>('preview')
   const [copied, setCopied] = useState(false)
 
@@ -88,6 +89,18 @@ export default function MarkdownPreview({ file, content }: Props) {
             <Icon name={copied ? 'check' : 'copy'} size={13} />
             <span>{copied ? 'Copied' : 'Copy'}</span>
           </button>
+
+          {onEdit && (
+            <button
+              type="button"
+              className="btn btn--ghost btn--sm"
+              onClick={onEdit}
+              title="Edit markdown in notebook"
+            >
+              <Icon name="edit" size={13} />
+              <span>Edit</span>
+            </button>
+          )}
         </div>
       </div>
 

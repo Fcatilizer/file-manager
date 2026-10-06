@@ -85,6 +85,7 @@ type Props = {
   onPrev: () => void
   onNext: () => void
   onDownload: (key: string, name: string) => void
+  onEdit?: (file: FileItem, content: string) => void
 }
 
 export default function PreviewModal({
@@ -98,6 +99,7 @@ export default function PreviewModal({
   onPrev,
   onNext,
   onDownload,
+  onEdit,
 }: Props) {
   const kind = fileKind(file.name)
   const fileInfo = getFileTypeInfo(file.name, false)
@@ -333,6 +335,17 @@ export default function PreviewModal({
                   <Icon name={copiedAll ? 'check' : 'copy'} size={13} />
                   {copiedAll ? 'Copied' : 'Copy all'}
                 </button>
+                {onEdit && text !== null && (
+                  <button
+                    type="button"
+                    className="btn btn--ghost btn--sm"
+                    onClick={() => onEdit(file, text)}
+                    title="Edit environment config in notebook"
+                  >
+                    <Icon name="edit" size={13} />
+                    <span>Edit</span>
+                  </button>
+                )}
               </div>
             </div>
 
@@ -425,6 +438,7 @@ export default function PreviewModal({
                 file={file}
                 content={text}
                 activeColor={activeColor}
+                onEdit={onEdit && text !== null ? () => onEdit(file, text) : undefined}
               />
             ) : (
               <CodePreview
@@ -433,6 +447,7 @@ export default function PreviewModal({
                 content={text}
                 onCopy={handleCopy}
                 copied={copied}
+                onEdit={onEdit && text !== null ? () => onEdit(file, text) : undefined}
               />
             )}
           </div>
@@ -585,6 +600,17 @@ export default function PreviewModal({
           </div>
 
           <div className="preview__controls">
+            {onEdit && (kind === 'text' || kind === 'env') && !tooLarge && text !== null && (
+              <button
+                type="button"
+                className="btn btn--icon"
+                title="Edit file in notebook"
+                aria-label={`Edit ${file.name} in notebook`}
+                onClick={() => onEdit(file, text)}
+              >
+                <Icon name="edit" size={15} />
+              </button>
+            )}
             <button
               className="btn btn--icon"
               title="Download file"

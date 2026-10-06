@@ -55,3 +55,9 @@ export function fileKind(name: string): FileKind {
 export function isPreviewable(name: string): boolean {
   return fileKind(name) !== 'other'
 }
+
+/** Matches files that can be edited in the notebook (text, code, config, markdown, env). */
+export function isEditableFile(name: string): boolean {
+  const kind = fileKind(name)
+  return kind === 'text' || kind === 'env'
+}

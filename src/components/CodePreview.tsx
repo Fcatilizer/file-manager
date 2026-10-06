@@ -10,9 +10,10 @@ type Props = {
   content: string
   onCopy: () => void
   copied: boolean
+  onEdit?: () => void
 }
 
-export default function CodePreview({ file, content, onCopy, copied }: Props) {
+export default function CodePreview({ file, content, onCopy, copied, onEdit }: Props) {
   // Syntax highlighting toggle defaults to true as requested
   const [syntaxHighlight, setSyntaxHighlight] = useState(true)
 
@@ -62,6 +63,18 @@ export default function CodePreview({ file, content, onCopy, copied }: Props) {
             <Icon name={copied ? 'check' : 'copy'} size={13} />
             <span>{copied ? 'Copied' : 'Copy'}</span>
           </button>
+
+          {onEdit && (
+            <button
+              type="button"
+              className="btn btn--ghost btn--sm"
+              onClick={onEdit}
+              title="Edit file in notebook"
+            >
+              <Icon name="edit" size={13} />
+              <span>Edit</span>
+            </button>
+          )}
         </div>
       </div>
 
