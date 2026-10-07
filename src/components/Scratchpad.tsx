@@ -52,15 +52,18 @@ export default function Scratchpad({
   )
 
   useEffect(() => {
-    if (!open || locked || !bucket || draftsRef.current[bucket]) return
+    const cached = draftsRef.current[bucket]
+    if (!open || locked || !bucket || (cached && (cached.saving || cached.content !== cached.saved))) return
     const controller = new AbortController()
     fetchScratchpad(bucket, controller.signal)
       .then((note) => {
         if (!controller.signal.aborted) {
-          setDrafts((current) => ({
-            ...current,
-            [bucket]: { ...note, saved: note.content, saving: false, error: '', conflict: false },
-          }))
+          setDrafts((current) => {
+            const draft = current[bucket]
+            // Keep edits made while the refresh request was in flight.
+            if (draft && (draft.saving || draft.content !== draft.saved)) return current
+            return { ...current, [bucket]: { ...note, saved: note.content, saving: false, error: '', conflict: false } }
+          })
         }
       })
       .catch((err) => {

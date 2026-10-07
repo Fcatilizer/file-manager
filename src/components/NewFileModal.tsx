@@ -363,9 +363,8 @@ export default function NewFileModal({
             spellCheck="false"
           />
         </div>
-      </div>
+      </div>}
 
-      }
       <footer className="notebook-footer">
         <div className="notebook-footer__info">
           <span>

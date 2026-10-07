@@ -49,7 +49,7 @@ export default function Modal({
         if (e.shiftKey && (document.activeElement === first || document.activeElement === overlayRef.current)) { e.preventDefault(); last?.focus() }
         else if (!e.shiftKey && (document.activeElement === last || document.activeElement === overlayRef.current)) { e.preventDefault(); first.focus() }
       }
-      if (e.key === 'Escape'  && closeOnEscape) onClose()
+      if (e.key === 'Escape' && closeOnEscape) onClose()
       onKeyDown?.(e)
     }
     window.addEventListener('keydown', handler)
