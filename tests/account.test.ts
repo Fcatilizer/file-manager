@@ -165,3 +165,17 @@ test('Snow controls persist through the account API and reject excessive frost h
   assert.equal((await call('/me', 'PATCH', { preferences })).status, 400)
   assert.equal(updates.length, before)
 })
+
+
+test('Water preferences save and reload while invalid ripple size never reaches the DB', async () => {
+  const preferences = { ...DEFAULT_PREFERENCES, animations: { ...DEFAULT_PREFERENCES.animations, type: 'water', settings: {
+    ...DEFAULT_PREFERENCES.animations.settings,
+    water: { ...DEFAULT_PREFERENCES.animations.settings.water, petals: false, rippleSize: 150, speed: 0.7 },
+  } } }
+  assert.equal((await call('/me', 'PATCH', { preferences })).status, 200)
+  assert.deepEqual((await (await call('/me', 'GET')).json()).user.preferences, preferences)
+  const before = updates.length
+  preferences.animations.settings.water.rippleSize = 500
+  assert.equal((await call('/me', 'PATCH', { preferences })).status, 400)
+  assert.equal(updates.length, before)
+})

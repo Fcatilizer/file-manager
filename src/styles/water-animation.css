@@ -1,0 +1,58 @@
+/* Surface ripples, drift, and buoyancy use transforms on separate layers. */
+.water-scene {
+  position: absolute; inset: 0; contain: strict; overflow: hidden;
+  pointer-events: none; user-select: none;
+  --water-petal-color: color-mix(in srgb, var(--water-color) 40%, #ffdbe9);
+  color: var(--water-color);
+}
+.water-background { position: fixed; z-index: -1; }
+.water-patch {
+  position: absolute; width: 0; height: 0;
+  animation: water-drift var(--water-drift-duration) var(--water-delay) ease-in-out infinite;
+}
+.water-ring {
+  position: absolute; width: var(--water-ripple-size); height: calc(var(--water-ripple-size) * .45);
+  border: 1px solid currentColor; border-radius: 50%; box-sizing: border-box;
+  box-shadow: 0 1px 2px color-mix(in srgb, currentColor 12%, transparent);
+  animation: water-ripple var(--water-duration) var(--water-delay) ease-out infinite;
+}
+.water-ring--inner { width: calc(var(--water-ripple-size) * .7); height: calc(var(--water-ripple-size) * .315); }
+.water-petal-bob {
+  position: absolute; left: 7px; top: -4px;
+  width: var(--water-petal-width); height: var(--water-petal-height);
+  animation: water-bob var(--water-duration) var(--water-delay) ease-in-out infinite;
+}
+.water-petal {
+  display: block; width: 100%; height: 100%; color: var(--water-petal-color);
+  opacity: .65; transform: rotate(var(--water-petal-angle));
+  filter: drop-shadow(0 2px 1px color-mix(in srgb, var(--water-color) 16%, transparent));
+}
+.water-petal-vein { color: var(--water-color); opacity: .45; }
+@keyframes water-ripple {
+  0% { transform: translate(-50%, -50%) scale(.12); opacity: 0; }
+  12% { opacity: .25; }
+  65% { opacity: .08; }
+  85%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+}
+@keyframes water-bob {
+  0%, 100% { transform: translate(0, 0) rotate(-5deg); }
+  22% { transform: translate(2px, -4px) rotate(7deg); }
+  48% { transform: translate(5px, 2px) rotate(2deg); }
+  75% { transform: translate(2px, -1px) rotate(-7deg); }
+}
+@keyframes water-drift {
+  0%, 100% { transform: translate(-10px, 0); }
+  40% { transform: translate(12px, 6px); }
+  70% { transform: translate(4px, -5px); }
+}
+[data-theme="light"] .water-scene { --water-petal-color: color-mix(in srgb, var(--water-color) 65%, #dc779e); }
+.water-scene--paused .water-patch,
+.water-scene--paused .water-ring,
+.water-scene--paused .water-petal-bob { animation-play-state: paused; }
+@media (max-width: 640px) {
+  .water-background .water-patch:nth-child(even) { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .water-background { display: none; }
+  .water-patch, .water-ring, .water-petal-bob { animation-play-state: paused; }
+}

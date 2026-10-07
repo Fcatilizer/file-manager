@@ -1,3 +1,4 @@
+import { DEFAULT_WATER, isWaterSettings, WATER_LIMITS, RIPPLE_SIZE_LIMITS } from './water.ts'
 import type { AnimationAppearance, AnimationLimits } from './animationSettings.ts'
 import { DEFAULT_RAIN, isRainSettings, RAIN_LIMITS } from './rain.ts'
 import { DEFAULT_LEAVES, isLeafSettings, LEAF_LIMITS } from './leaves.ts'
@@ -48,6 +49,14 @@ export const ANIMATION_CATALOG = {
     ],
     ranges: [{ key: 'frostHeight', label: 'Frost height', ...FROST_HEIGHT_LIMITS, unit: ' px', enabledBy: 'accumulation' }],
     hint: 'The frost builds gradually and stays shallow. Previews accumulate faster.',
+  }),
+  water: defineAnimation({
+    label: 'Water Ripple', description: 'Gentle ripples and floating blossom petals', particle: 'Petal',
+    defaults: DEFAULT_WATER, limits: WATER_LIMITS, validate: isWaterSettings,
+    controls: { direction: false, speedLabel: 'Flow speed' },
+    switches: [{ key: 'petals', label: 'Floating petals', description: 'Cherry blossom petals gently bob and sway with the ripples.' }],
+    ranges: [{ key: 'rippleSize', label: 'Ripple size', ...RIPPLE_SIZE_LIMITS, unit: ' px' }],
+    hint: 'A quiet water surface with slow currents. Turn petals off for ripples alone.',
   }),
   starfield: defineAnimation({
     label: 'Starfield', description: 'Twinkling stars and passing meteors', particle: 'Star',

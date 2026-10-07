@@ -344,6 +344,29 @@ function isLeafSettings(value) {
   return Object.keys(settings).every((key) => Object.hasOwn(DEFAULT_LEAVES, key)) && isAnimationAppearance(settings, LEAF_LIMITS) && typeof settings.breeze === "boolean";
 }
 
+// src/lib/water.ts
+var WATER_LIMITS = {
+  speed: { min: 0.5, max: 2, step: 0.1 },
+  height: { min: 8, max: 30, step: 1 },
+  width: { min: 6, max: 24, step: 1 }
+};
+var RIPPLE_SIZE_LIMITS = { min: 40, max: 180, step: 5 };
+var DEFAULT_WATER = {
+  direction: "down",
+  density: "balanced",
+  speed: 1,
+  height: 18,
+  width: 12,
+  color: "theme",
+  petals: true,
+  rippleSize: 100
+};
+function isWaterSettings(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const settings = value;
+  return Object.keys(settings).every((key) => Object.hasOwn(DEFAULT_WATER, key)) && isAnimationAppearance(settings, WATER_LIMITS) && typeof settings.petals === "boolean" && typeof settings.rippleSize === "number" && Number.isFinite(settings.rippleSize) && settings.rippleSize >= RIPPLE_SIZE_LIMITS.min && settings.rippleSize <= RIPPLE_SIZE_LIMITS.max;
+}
+
 // src/lib/snow.ts
 var SNOW_LIMITS = {
   speed: { min: 0.5, max: 2, step: 0.1 },
@@ -469,6 +492,18 @@ var ANIMATION_CATALOG = {
     ],
     ranges: [{ key: "frostHeight", label: "Frost height", ...FROST_HEIGHT_LIMITS, unit: " px", enabledBy: "accumulation" }],
     hint: "The frost builds gradually and stays shallow. Previews accumulate faster."
+  }),
+  water: defineAnimation({
+    label: "Water Ripple",
+    description: "Gentle ripples and floating blossom petals",
+    particle: "Petal",
+    defaults: DEFAULT_WATER,
+    limits: WATER_LIMITS,
+    validate: isWaterSettings,
+    controls: { direction: false, speedLabel: "Flow speed" },
+    switches: [{ key: "petals", label: "Floating petals", description: "Cherry blossom petals gently bob and sway with the ripples." }],
+    ranges: [{ key: "rippleSize", label: "Ripple size", ...RIPPLE_SIZE_LIMITS, unit: " px" }],
+    hint: "A quiet water surface with slow currents. Turn petals off for ripples alone."
   }),
   starfield: defineAnimation({
     label: "Starfield",

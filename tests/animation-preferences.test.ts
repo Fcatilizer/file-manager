@@ -70,3 +70,19 @@ test('Snow settings validate and backfill without changing existing selections',
   assert.deepEqual(updated.animations.settings.snow, snow)
   assert.ok(isPreferences(updated))
 })
+
+
+test('Water settings backfill for existing users and reject invalid surface controls', () => {
+  const water = DEFAULT_PREFERENCES.animations.settings.water
+  const validate = ANIMATION_CATALOG.water.validate
+  assert.ok(validate({ ...water, petals: false, color: '#eeaacc', rippleSize: 180 }))
+  for (const patch of [{ rippleSize: 181 }, { rippleSize: 39 }, { rippleSize: NaN }, { petals: 'yes' }, { height: 31 }, { width: 0 }, { speed: Infinity }, { color: 'url(evil)' }, { extra: true }]) {
+    assert.equal(validate({ ...water, ...patch }), false)
+  }
+  const { water: _water, ...previousSettings } = DEFAULT_PREFERENCES.animations.settings
+  const updated = normalizePreferences({ ...DEFAULT_PREFERENCES, animations: { type: 'snow', settings: previousSettings } })!
+  assert.equal(updated.animations.type, 'snow')
+  assert.deepEqual(updated.animations.settings.snow, previousSettings.snow)
+  assert.deepEqual(updated.animations.settings.water, water)
+  assert.ok(isPreferences(updated))
+})
