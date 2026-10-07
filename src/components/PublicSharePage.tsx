@@ -1,3 +1,4 @@
+import { previewRowKey } from '../lib/previewKeyboard'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import PreviewModal from './PreviewModal'
 import ItemDetailsDialog from './ItemDetailsDialog'
@@ -98,7 +99,10 @@ export default function PublicSharePage() {
     return () => removeEventListener('popstate', back)
   }, [])
   const openPreview = (item: FileItem) => { opener.current = document.activeElement as HTMLElement; setPreview(item) }
-  const closePreview = () => { setPreview(null); requestAnimationFrame(() => opener.current?.focus({ preventScroll: true })) }
+  const closePreview = () => { setPreview(null); requestAnimationFrame(() => {
+    const row = Array.from(document.querySelectorAll<HTMLElement>('[data-file-key]')).find(item => item.dataset.fileKey === preview?.key)
+    if (opener.current?.dataset.fileKey) row?.focus({ preventScroll: true }); else opener.current?.focus({ preventScroll: true })
+  }) }
   const openDetails = (item: FileItem) => { opener.current = document.activeElement as HTMLElement; setDetailsItem(item) }
   const closeDetails = () => { setDetailsItem(null); requestAnimationFrame(() => opener.current?.focus({ preventScroll: true })) }
   const handleRefresh = useCallback(() => {
@@ -152,7 +156,8 @@ export default function PublicSharePage() {
           <div className="row heading"><span>Name</span><span className="size">Size</span><span className="modified">Modified</span><span /></div>
           {loading ? <div className="empty" role="status">Loading folder…</div> : view.entries.map(item => {
             const info = getFileTypeInfo(item.name, item.isFolder)
-            return <div className="row" key={item.key}>
+            return <div className="row" key={item.key} tabIndex={0} data-file-key={item.key} aria-label={`${item.isFolder ? 'Folder' : 'File'}: ${item.name}`}
+              onKeyDown={event => previewRowKey(event, key => { if (item.isFolder) { if (key === 'Enter') navigate(item.key) } else openPreview(item) })}>
               <button className="filename public-text-button" onClick={() => item.isFolder ? navigate(item.key) : openPreview(item)} aria-label={`${item.isFolder ? 'Open folder' : 'Open file'} ${item.name}`}><Icon name={info.iconName} color={info.colorLight} size={19} /><span>{item.name}</span></button>
               <span className="size">{item.isFolder ? 'Folder' : size(item.size)}</span><span className="modified">{item.lastModified ? date(item.lastModified) : '—'}</span>
               <span className="action">

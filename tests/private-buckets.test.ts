@@ -58,6 +58,8 @@ test('all object routes refuse locked owners, other users and admins before stor
     for (const [route, method, body] of [
       [`/files?bucket=${name}`, 'GET', undefined],
       [`/metadata?bucket=${name}&key=a`, 'GET', undefined],
+      [`/scratchpad?bucket=${name}`, 'GET', undefined],
+      [`/scratchpad?bucket=${name}`, 'PUT', { content: 'notes', etag: null }],
       [`/FILES/?bucket=${name}`, 'GET', undefined],
       [`/files?bucket=${name}&key=a`, 'DELETE', undefined],
       [`/upload-url?bucket=${name}&key=a`, 'GET', undefined],

@@ -1,3 +1,4 @@
+import NotebookDiff from './NotebookDiff'
 import { useState, useRef, useEffect, useMemo, type KeyboardEvent } from 'react'
 import Modal, { ModalCloseButton } from './Modal'
 import { Icon } from './Icon'
@@ -42,6 +43,7 @@ export default function NewFileModal({
   const [extension, setExtension] = useState<SupportedExtension | string>(() => parsed.ext)
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [content, setContent] = useState(() => initialContent)
+  const [showDiff, setShowDiff] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -136,7 +138,8 @@ export default function NewFileModal({
 
   // Prompt confirmation if user tries to close with unsaved edits
   const handleRequestClose = () => {
-    if (content !== initialContent) {
+    if (saving) return
+    if (content !== initialContent || (isEditMode && fullName !== initialFullName)) {
       const confirmDiscard = window.confirm('Discard unsaved changes?')
       if (!confirmDiscard) return
     }
@@ -305,6 +308,7 @@ export default function NewFileModal({
         </div>
 
         <div className="notebook-header__actions">
+          {isEditMode && <button type="button" className="btn btn--ghost" aria-pressed={showDiff} onClick={() => setShowDiff(v => !v)}>{showDiff ? 'Edit' : 'View Diff'}</button>}
           <button
             type="button"
             className="btn btn--primary"
@@ -332,7 +336,7 @@ export default function NewFileModal({
         </div>
       )}
 
-      <div className="notebook-canvas">
+      {showDiff ? <NotebookDiff original={initialContent} current={content} /> : <div className="notebook-canvas">
         <div className="notebook-gutter" ref={gutterRef} aria-hidden="true">
           {Array.from({ length: lineCount }, (_, i) => (
             <span key={i + 1}>{i + 1}</span>
@@ -361,6 +365,7 @@ export default function NewFileModal({
         </div>
       </div>
 
+      }
       <footer className="notebook-footer">
         <div className="notebook-footer__info">
           <span>

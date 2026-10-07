@@ -4,11 +4,13 @@ export function Icon({
   name,
   size = 18,
   color,
+  fill = 'none',
   className,
 }: {
   name: string
   size?: number
   color?: string
+  fill?: string
   className?: string
 }) {
   const d = ICON_PATHS[name] || ICON_PATHS.file
@@ -17,7 +19,7 @@ export function Icon({
       width={size}
       height={size}
       viewBox="0 0 24 24"
-      fill="none"
+      fill={fill}
       stroke={color || 'currentColor'}
       strokeWidth="2"
       strokeLinecap="round"

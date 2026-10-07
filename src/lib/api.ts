@@ -271,3 +271,14 @@ export interface ObjectMetadata {
 export function fetchMetadata(bucket: string, key: string) {
   return request<ObjectMetadata>(`/api/metadata?${new URLSearchParams({ bucket, key })}`)
 }
+
+
+export interface ScratchpadNote { content: string; etag: string | null }
+export function fetchScratchpad(bucket: string, signal?: AbortSignal) {
+  return request<ScratchpadNote>(`/api/scratchpad?${new URLSearchParams({ bucket })}`, { signal })
+}
+export function saveScratchpad(bucket: string, note: ScratchpadNote, signal?: AbortSignal) {
+  return request<ScratchpadNote>(`/api/scratchpad?${new URLSearchParams({ bucket })}`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(note), signal,
+  })
+}

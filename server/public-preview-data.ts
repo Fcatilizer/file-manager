@@ -1,3 +1,5 @@
+import { isInspectableArchive } from '../src/lib/archivePolicy.ts'
+import { sendArchiveRange } from './archive-range.ts'
 import { GetObjectCommand, HeadObjectCommand, type S3Client } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import type { Request, Response } from 'express'
@@ -16,6 +18,7 @@ export async function publicPreviewData(s3: S3Client, share: ShareRecord, key: s
     res.json({ file: { key, name, isFolder: false, size: object.ContentLength || 0, lastModified: object.LastModified?.toISOString() || '' }, root: share.key, expiresAt: share.expiresAt })
     return
   }
+  if (isInspectableArchive(name)) { await sendArchiveRange(s3, share.bucket, key, req, res); return }
   const mime = mediaMime[extOf(name)]
   if (mime) {
     const ttl = share.expiresAt ? Math.min(60, Math.floor((share.expiresAt.getTime() - Date.now()) / 1000)) : 60

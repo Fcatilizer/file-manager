@@ -1,6 +1,6 @@
 import { Icon } from './Icon'
 import '../styles/modal-controls.css'
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 
 type Props = {
   ariaLabel?: string
@@ -33,9 +33,23 @@ export default function Modal({
   closeOnEscape = true,
   onKeyDown,
 }: Props) {
+  const overlayRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null
+    overlayRef.current?.focus()
+    return () => { if (previous?.isConnected) previous.focus({ preventScroll: true }) }
+  }, [])
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && closeOnEscape) onClose()
+      if (e.defaultPrevented || Array.from(document.querySelectorAll('[aria-modal="true"]')).at(-1) !== overlayRef.current) return
+      if (e.key === 'Tab') {
+        const controls = Array.from(overlayRef.current!.querySelectorAll<HTMLElement>('button:not(:disabled), a[href], input:not(:disabled), textarea:not(:disabled), select:not(:disabled), [tabindex="0"]')).filter(el => el.getClientRects().length)
+        const first = controls[0], last = controls.at(-1)
+        if (!first) { e.preventDefault(); return }
+        if (e.shiftKey && (document.activeElement === first || document.activeElement === overlayRef.current)) { e.preventDefault(); last?.focus() }
+        else if (!e.shiftKey && (document.activeElement === last || document.activeElement === overlayRef.current)) { e.preventDefault(); first.focus() }
+      }
+      if (e.key === 'Escape'  && closeOnEscape) onClose()
       onKeyDown?.(e)
     }
     window.addEventListener('keydown', handler)
@@ -49,6 +63,8 @@ export default function Modal({
 
   return (
     <div
+      ref={overlayRef}
+      tabIndex={-1}
       className={`modal-overlay ${overlayClassName}`.trim()}
       onClick={closeOnBackdrop ? onClose : undefined}
       role="dialog"

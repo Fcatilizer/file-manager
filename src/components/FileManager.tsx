@@ -1,3 +1,5 @@
+import { previewRowKey } from '../lib/previewKeyboard'
+import Scratchpad from './Scratchpad'
 import { UploadProgressBar, UploadError, type UploadStatus } from './UploadStatus'
 import { UploadControl } from '../lib/uploadControl'
 import ItemDetailsDialog from './ItemDetailsDialog'
@@ -103,6 +105,7 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
   const [previewIndex, setPreviewIndex] = useState<number | null>(null)
   const [detailsItem, setDetailsItem] = useState<FileItem | null>(null)
   const [shareItem, setShareItem] = useState<FileItem | null>(null)
+  const [scratchpadDirty, setScratchpadDirty] = useState(false)
   const [showUsers, setShowUsers] = useState(false)
   const [showAccount, setShowAccount] = useState(false)
   const [query, setQuery] = useState('')
@@ -567,7 +570,13 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
     [previewable],
   )
 
-  const closePreview = useCallback(() => setPreviewIndex(null), [])
+  const closePreview = useCallback(() => {
+    const key = previewIndex === null ? '' : previewable[previewIndex]?.key
+    setPreviewIndex(null)
+    requestAnimationFrame(() => {
+      Array.from(document.querySelectorAll<HTMLElement>('[data-file-key]')).find(row => row.dataset.fileKey === key)?.focus()
+    })
+  }, [previewIndex, previewable])
 
   const stepPreview = useCallback(
     (delta: number) => {
@@ -662,7 +671,7 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
               <span className="user-chip__avatar" aria-hidden="true">{(user.name || user.email).charAt(0).toUpperCase()}</span>
               <span className="user-chip__email">{user.name || user.email}</span>
             </button>
-            <button className="user-chip__logout" onClick={onLogout} title="Sign out" aria-label="Sign out">
+            <button className="user-chip__logout" onClick={() => { if (!scratchpadDirty || window.confirm('Some scratchpad notes are not saved. Sign out and discard these drafts?')) onLogout() }} title="Sign out" aria-label="Sign out">
               <Icon name="back" size={14} />
             </button>
           </div>
@@ -888,6 +897,13 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
                 return (
                   <div
                     key={f.key}
+                    tabIndex={0}
+                    data-file-key={f.key}
+                    aria-label={`${f.isFolder ? 'Folder' : 'File'}: ${f.name}`}
+                    onKeyDown={event => previewRowKey(event, key => {
+                      if (f.isFolder) { if (key === 'Enter') setPrefix(f.key) }
+                      else openPreview(f)
+                    })}
                     className={`file-row${f.isFolder ? ' file-row--folder' : ' file-row--clickable'}`}
                     onClick={() => (f.isFolder ? setPrefix(f.key) : openPreview(f))}
                   >
@@ -952,6 +968,7 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
         )}
       </div>
 
+      <Scratchpad key={user.id} bucket={activeBucket} locked={activeLocked} onSaved={loadFiles} onPendingChange={setScratchpadDirty} />
       {detailsItem && <ItemDetailsDialog key={detailsItem.key} bucket={activeBucket} bucketLabel={activeDetails?.label || activeBucket} item={detailsItem} onClose={() => setDetailsItem(null)} />}
       {shareItem && <ShareDialog bucket={activeBucket} item={shareItem} isPrivate={!!activeDetails?.isPrivate} onClose={() => setShareItem(null)} />}
 

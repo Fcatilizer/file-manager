@@ -1,3 +1,9 @@
+import '../styles/preview-keyboard.css'
+import { lazy, Suspense } from 'react'
+import { isInspectableArchive } from '../lib/archivePolicy'
+const ArchivePreview = lazy(() => import('./ArchivePreview'))
+import AudioPlayer from './AudioPlayer'
+import { ownsKeyboard } from '../lib/previewKeyboard'
 import type { PreviewSource } from '../lib/previewSource'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Icon } from './Icon'
@@ -181,14 +187,17 @@ export default function PreviewModal({
   // ─── Keyboard navigation (Escape handled by Modal) ──────
   const handleKey = useCallback(
     (e: KeyboardEvent) => {
-      if (e.key === 'ArrowLeft' && hasPrev) onPrev()
-      else if (e.key === 'ArrowRight' && hasNext) onNext()
+      if (e.defaultPrevented || e.repeat || e.altKey || e.ctrlKey || e.metaKey || ownsKeyboard(e.target)) return
+      if (['ArrowLeft', 'ArrowUp'].includes(e.key) && hasPrev) { e.preventDefault(); onPrev() }
+      else if (['ArrowRight', 'ArrowDown'].includes(e.key) && hasNext) { e.preventDefault(); onNext() }
+      else if (e.key === ' ') { e.preventDefault(); onClose() }
     },
-    [onPrev, onNext, hasPrev, hasNext],
+    [onPrev, onNext, hasPrev, hasNext, onClose],
   )
 
   // ─── Body ───────────────────────────────────────────────
   const renderBody = () => {
+    if (isInspectableArchive(file.name)) return <Suspense fallback={<div className="preview__loader">Loading archive inspector…</div>}><ArchivePreview key={src} src={src} name={file.name} size={file.size} /></Suspense>
     switch (kind) {
       case 'image':
         return (
@@ -249,7 +258,14 @@ export default function PreviewModal({
               {fileInfo.label} • {formatSize(file.size)}
               {audioMeta?.year ? ` • ${audioMeta.year}` : ''}
             </div>
-            <audio key={file.key} className="preview__audio" src={src} controls autoPlay />
+            <AudioPlayer
+              key={src}
+              src={src}
+              onPrev={hasPrev ? onPrev : undefined}
+              onNext={hasNext ? onNext : undefined}
+              hasPrev={hasPrev}
+              hasNext={hasNext}
+            />
           </div>
         )
       }
@@ -532,7 +548,7 @@ export default function PreviewModal({
     <Modal
       onClose={onClose}
       className="preview"
-      overlayClassName="modal-overlay--fullscreen"
+      overlayClassName="modal-overlay--fullscreen quick-look-overlay"
       onKeyDown={handleKey}
       overlayChildren={
         <>

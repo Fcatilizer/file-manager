@@ -1,3 +1,6 @@
+import { scratchpadRoute } from './scratchpad.ts'
+import { isInspectableArchive } from '../src/lib/archivePolicy.ts'
+import { sendArchiveRange } from './archive-range.ts'
 import { mediaMime } from './media-types.ts'
 import { createUploadRouter, validUploadKey } from './uploads.ts'
 import { getObjectMetadata } from './object-metadata.ts'
@@ -164,7 +167,7 @@ export function createS3Router(protection = new BucketProtection(), authenticate
   // Resolve one canonical bucket before any storage access, signing or upload
   // buffering. Body/query disagreements can never select a different bucket.
   router.use('/folders', express.json())
-  const filePaths = new Set(['/files', '/upload-url', '/upload', '/download', '/raw', '/folders', '/metadata'])
+  const filePaths = new Set(['/files', '/upload-url', '/upload', '/download', '/raw', '/folders', '/metadata', '/scratchpad'])
   router.use((req, res, next) => {
     const routePath = req.path.toLowerCase().replace(/\/+$/, '')
     if (!filePaths.has(routePath)) { next(); return }
@@ -183,6 +186,9 @@ export function createS3Router(protection = new BucketProtection(), authenticate
     })().catch(next)
     })
   })
+
+  router.get('/scratchpad', wrap((req, res) => scratchpadRoute(s3, req, res)))
+  router.put('/scratchpad', express.json({ limit: '128kb' }), wrap((req, res) => scratchpadRoute(s3, req, res)))
 
   router.get('/metadata', wrap(async (req, res) => {
     const key = req.query.key
@@ -322,6 +328,7 @@ export function createS3Router(protection = new BucketProtection(), authenticate
   router.get('/raw', wrap(async (req, res) => {
     const bucket = res.locals.bucket as string
     const key = (req.query.key as string) || ''
+    if (isInspectableArchive(key) && req.headers.range) { await sendArchiveRange(s3, bucket, key, req, res); return }
     const redirect = req.query.redirect === 'true'
 
     // Serverless (Vercel) timeout protection: redirect large media files

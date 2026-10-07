@@ -307,5 +307,47 @@ export const ICON_PATHS: Record<string, string[]> = {
     'M23 11h-6',
   ],
   shield: ['M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'],
+
+  // Media & Audio Playback
+  play: ['M6 4l14 8-14 8V4z'],
+  pause: ['M6 4h4v16H6z', 'M14 4h4v16h-4z'],
+  skipBack: ['M19 20L9 12l10-8v16z', 'M5 19V5'],
+  skipForward: ['M5 4l10 8-10 8V4z', 'M19 5v14'],
+  repeat: [
+    'M17 1l4 4-4 4',
+    'M3 11V9a4 4 0 014-4h14',
+    'M7 23l-4-4 4-4',
+    'M21 13v2a4 4 0 01-4 4H3',
+  ],
+  repeatOne: [
+    'M17 1l4 4-4 4',
+    'M3 11V9a4 4 0 014-4h14',
+    'M7 23l-4-4 4-4',
+    'M21 13v2a4 4 0 01-4 4H3',
+    'M11 10h1v4',
+    'M10 14h3',
+  ],
+  shuffle: [
+    'M16 3h5v5',
+    'M4 20l5.5-5.5',
+    'M21 3l-7 7',
+    'M4 4l7 7',
+    'M14.5 14.5L21 21',
+    'M21 21h-5v-5',
+  ],
+  volumeLow: [
+    'M11 5L6 9H2v6h4l5 4V5z',
+    'M15.54 8.46a5 5 0 010 7.07',
+  ],
+  volumeHigh: [
+    'M11 5L6 9H2v6h4l5 4V5z',
+    'M15.54 8.46a5 5 0 010 7.07',
+    'M19.07 4.93a10 10 0 010 14.14',
+  ],
+  volumeMute: [
+    'M11 5L6 9H2v6h4l5 4V5z',
+    'M23 9l-6 6',
+    'M17 9l6 6',
+  ],
 }
 

@@ -284,7 +284,48 @@ var ICON_PATHS = {
     "M20 8v6",
     "M23 11h-6"
   ],
-  shield: ["M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"]
+  shield: ["M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"],
+  // Media & Audio Playback
+  play: ["M6 4l14 8-14 8V4z"],
+  pause: ["M6 4h4v16H6z", "M14 4h4v16h-4z"],
+  skipBack: ["M19 20L9 12l10-8v16z", "M5 19V5"],
+  skipForward: ["M5 4l10 8-10 8V4z", "M19 5v14"],
+  repeat: [
+    "M17 1l4 4-4 4",
+    "M3 11V9a4 4 0 014-4h14",
+    "M7 23l-4-4 4-4",
+    "M21 13v2a4 4 0 01-4 4H3"
+  ],
+  repeatOne: [
+    "M17 1l4 4-4 4",
+    "M3 11V9a4 4 0 014-4h14",
+    "M7 23l-4-4 4-4",
+    "M21 13v2a4 4 0 01-4 4H3",
+    "M11 10h1v4",
+    "M10 14h3"
+  ],
+  shuffle: [
+    "M16 3h5v5",
+    "M4 20l5.5-5.5",
+    "M21 3l-7 7",
+    "M4 4l7 7",
+    "M14.5 14.5L21 21",
+    "M21 21h-5v-5"
+  ],
+  volumeLow: [
+    "M11 5L6 9H2v6h4l5 4V5z",
+    "M15.54 8.46a5 5 0 010 7.07"
+  ],
+  volumeHigh: [
+    "M11 5L6 9H2v6h4l5 4V5z",
+    "M15.54 8.46a5 5 0 010 7.07",
+    "M19.07 4.93a10 10 0 010 14.14"
+  ],
+  volumeMute: [
+    "M11 5L6 9H2v6h4l5 4V5z",
+    "M23 9l-6 6",
+    "M17 9l6 6"
+  ]
 };
 
 // src/lib/animationSettings.ts
@@ -299,7 +340,7 @@ var ANIMATION_DENSITIES = [
   { value: "full", label: "Full" }
 ];
 function isAnimationAppearance(settings, limits) {
-  return ANIMATION_DIRECTIONS.some((option) => option.value === settings.direction) && ANIMATION_DENSITIES.some((option) => option.value === settings.density) && Object.entries(limits).every(([key, range]) => typeof settings[key] === "number" && Number.isFinite(settings[key]) && settings[key] >= range.min && settings[key] <= range.max) && typeof settings.color === "string" && (settings.color === "theme" || /^#[0-9a-f]{6}$/i.test(settings.color));
+  return ANIMATION_DIRECTIONS.some((option) => option.value === settings.direction) && ANIMATION_DENSITIES.some((option) => option.value === settings.density) && Object.entries(limits).every(([key2, range]) => typeof settings[key2] === "number" && Number.isFinite(settings[key2]) && settings[key2] >= range.min && settings[key2] <= range.max) && typeof settings.color === "string" && (settings.color === "theme" || /^#[0-9a-f]{6}$/i.test(settings.color));
 }
 
 // src/lib/rain.ts
@@ -320,7 +361,7 @@ var DEFAULT_RAIN = {
 function isRainSettings(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const settings = value;
-  return Object.keys(settings).every((key) => Object.hasOwn(DEFAULT_RAIN, key)) && isAnimationAppearance(settings, RAIN_LIMITS) && typeof settings.splash === "boolean";
+  return Object.keys(settings).every((key2) => Object.hasOwn(DEFAULT_RAIN, key2)) && isAnimationAppearance(settings, RAIN_LIMITS) && typeof settings.splash === "boolean";
 }
 
 // src/lib/leaves.ts
@@ -341,7 +382,7 @@ var DEFAULT_LEAVES = {
 function isLeafSettings(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const settings = value;
-  return Object.keys(settings).every((key) => Object.hasOwn(DEFAULT_LEAVES, key)) && isAnimationAppearance(settings, LEAF_LIMITS) && typeof settings.breeze === "boolean";
+  return Object.keys(settings).every((key2) => Object.hasOwn(DEFAULT_LEAVES, key2)) && isAnimationAppearance(settings, LEAF_LIMITS) && typeof settings.breeze === "boolean";
 }
 
 // src/lib/water.ts
@@ -364,7 +405,7 @@ var DEFAULT_WATER = {
 function isWaterSettings(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const settings = value;
-  return Object.keys(settings).every((key) => Object.hasOwn(DEFAULT_WATER, key)) && isAnimationAppearance(settings, WATER_LIMITS) && typeof settings.petals === "boolean" && typeof settings.rippleSize === "number" && Number.isFinite(settings.rippleSize) && settings.rippleSize >= RIPPLE_SIZE_LIMITS.min && settings.rippleSize <= RIPPLE_SIZE_LIMITS.max;
+  return Object.keys(settings).every((key2) => Object.hasOwn(DEFAULT_WATER, key2)) && isAnimationAppearance(settings, WATER_LIMITS) && typeof settings.petals === "boolean" && typeof settings.rippleSize === "number" && Number.isFinite(settings.rippleSize) && settings.rippleSize >= RIPPLE_SIZE_LIMITS.min && settings.rippleSize <= RIPPLE_SIZE_LIMITS.max;
 }
 
 // src/lib/snow.ts
@@ -388,7 +429,7 @@ var DEFAULT_SNOW = {
 function isSnowSettings(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const settings = value;
-  return Object.keys(settings).every((key) => Object.hasOwn(DEFAULT_SNOW, key)) && isAnimationAppearance(settings, SNOW_LIMITS) && typeof settings.accumulation === "boolean" && typeof settings.glisten === "boolean" && typeof settings.frostHeight === "number" && Number.isFinite(settings.frostHeight) && settings.frostHeight >= FROST_HEIGHT_LIMITS.min && settings.frostHeight <= FROST_HEIGHT_LIMITS.max;
+  return Object.keys(settings).every((key2) => Object.hasOwn(DEFAULT_SNOW, key2)) && isAnimationAppearance(settings, SNOW_LIMITS) && typeof settings.accumulation === "boolean" && typeof settings.glisten === "boolean" && typeof settings.frostHeight === "number" && Number.isFinite(settings.frostHeight) && settings.frostHeight >= FROST_HEIGHT_LIMITS.min && settings.frostHeight <= FROST_HEIGHT_LIMITS.max;
 }
 
 // src/lib/starfield.ts
@@ -417,7 +458,7 @@ var DEFAULT_STARFIELD = {
 function isStarfieldSettings(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const settings = value;
-  return Object.keys(settings).every((key) => Object.hasOwn(DEFAULT_STARFIELD, key)) && isAnimationAppearance(settings, STARFIELD_LIMITS) && typeof settings.shootingStars === "boolean" && Object.entries(STARFIELD_EXTRA_LIMITS).every(([key, range]) => typeof settings[key] === "number" && Number.isFinite(settings[key]) && settings[key] >= range.min && settings[key] <= range.max);
+  return Object.keys(settings).every((key2) => Object.hasOwn(DEFAULT_STARFIELD, key2)) && isAnimationAppearance(settings, STARFIELD_LIMITS) && typeof settings.shootingStars === "boolean" && Object.entries(STARFIELD_EXTRA_LIMITS).every(([key2, range]) => typeof settings[key2] === "number" && Number.isFinite(settings[key2]) && settings[key2] >= range.min && settings[key2] <= range.max);
 }
 
 // src/lib/autumn.ts
@@ -439,7 +480,7 @@ var DEFAULT_AUTUMN = {
 function isAutumnSettings(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const settings = value;
-  return Object.keys(settings).every((key) => Object.hasOwn(DEFAULT_AUTUMN, key)) && isAnimationAppearance(settings, AUTUMN_LIMITS) && typeof settings.breeze === "boolean" && typeof settings.pile === "boolean";
+  return Object.keys(settings).every((key2) => Object.hasOwn(DEFAULT_AUTUMN, key2)) && isAnimationAppearance(settings, AUTUMN_LIMITS) && typeof settings.breeze === "boolean" && typeof settings.pile === "boolean";
 }
 
 // src/lib/animationCatalog.ts
@@ -533,7 +574,7 @@ function defaultAnimationSettings() {
 function normalizeAnimationSettings(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return void 0;
   const settings = value;
-  if (Object.keys(settings).some((key) => !Object.hasOwn(ANIMATION_CATALOG, key))) return void 0;
+  if (Object.keys(settings).some((key2) => !Object.hasOwn(ANIMATION_CATALOG, key2))) return void 0;
   for (const kind of ANIMATION_EFFECTS) {
     if (Object.hasOwn(settings, kind) && !ANIMATION_CATALOG[kind].validate(settings[kind])) return void 0;
   }
@@ -572,12 +613,12 @@ function appearanceValid(p) {
 function isPreferences(value) {
   if (!record(value) || !appearanceValid(value)) return false;
   const a = value.animations;
-  return Object.keys(value).every((key) => ["theme", "font", "accent", "animations"].includes(key)) && record(a) && Object.keys(a).every((key) => ["type", "settings"].includes(key)) && ANIMATIONS.some((option) => option.value === a.type) && isAnimationSettingsMap(a.settings);
+  return Object.keys(value).every((key2) => ["theme", "font", "accent", "animations"].includes(key2)) && record(a) && Object.keys(a).every((key2) => ["type", "settings"].includes(key2)) && ANIMATIONS.some((option) => option.value === a.type) && isAnimationSettingsMap(a.settings);
 }
 function normalizePreferences(value) {
   if (isPreferences(value)) return value;
   const animations = record(value) ? value.animations : void 0;
-  if (record(value) && appearanceValid(value) && record(animations) && Object.keys(value).every((key) => ["theme", "font", "accent", "animations"].includes(key)) && Object.keys(animations).every((key) => ["type", "settings"].includes(key)) && ANIMATIONS.some((option) => option.value === animations.type)) {
+  if (record(value) && appearanceValid(value) && record(animations) && Object.keys(value).every((key2) => ["theme", "font", "accent", "animations"].includes(key2)) && Object.keys(animations).every((key2) => ["type", "settings"].includes(key2)) && ANIMATIONS.some((option) => option.value === animations.type)) {
     const settings = normalizeAnimationSettings(animations.settings);
     if (settings) return {
       theme: value.theme,
@@ -586,7 +627,7 @@ function normalizePreferences(value) {
       animations: { type: animations.type, settings }
     };
   }
-  if (!record(value) || !appearanceValid(value) || typeof value.rain !== "boolean" || !Object.keys(value).every((key) => ["theme", "font", "accent", "rain", "rainSettings", "animation", "leafSettings"].includes(key)) || "rainSettings" in value && !isRainSettings(value.rainSettings) || "leafSettings" in value && !isLeafSettings(value.leafSettings) || "animation" in value && !ANIMATIONS.some((option) => option.value === value.animation)) return void 0;
+  if (!record(value) || !appearanceValid(value) || typeof value.rain !== "boolean" || !Object.keys(value).every((key2) => ["theme", "font", "accent", "rain", "rainSettings", "animation", "leafSettings"].includes(key2)) || "rainSettings" in value && !isRainSettings(value.rainSettings) || "leafSettings" in value && !isLeafSettings(value.leafSettings) || "animation" in value && !ANIMATIONS.some((option) => option.value === value.animation)) return void 0;
   return {
     theme: value.theme,
     font: value.font,
@@ -1222,7 +1263,7 @@ authRouter.post("/password", requireAuth, async (req, res) => {
 authRouter.patch("/me", requireAuth, async (req, res) => {
   const user = req.user;
   const body = req.body;
-  if (!body || typeof body !== "object" || Array.isArray(body) || !Object.keys(body).length || Object.keys(body).some((key) => !["name", "preferences"].includes(key))) {
+  if (!body || typeof body !== "object" || Array.isArray(body) || !Object.keys(body).length || Object.keys(body).some((key2) => !["name", "preferences"].includes(key2))) {
     res.status(400).json({ error: "Provide a name or preferences to update" });
     return;
   }
@@ -1315,8 +1356,66 @@ usersRouter.patch("/:id/password", async (req, res) => {
   res.json({ success: true, message: "Password updated successfully" });
 });
 
+// src/lib/archivePolicy.ts
+var ARCHIVE_RANGE_BYTES = 1024 * 1024;
+function isInspectableArchive(name) {
+  return /\.(zip|tar\.gz|tgz)$/i.test(name);
+}
+function parseArchiveRange(value) {
+  if (typeof value !== "string") return null;
+  const match = /^bytes=(\d+)-(\d+)$/.exec(value);
+  if (!match) return null;
+  const start = Number(match[1]), end = Number(match[2]);
+  return Number.isSafeInteger(start) && Number.isSafeInteger(end) && end >= start && end - start < ARCHIVE_RANGE_BYTES ? { start, end } : null;
+}
+
+// server/archive-range.ts
+import { GetObjectCommand } from "@aws-sdk/client-s3";
+async function sendArchiveRange(s3, bucket, key2, req, res) {
+  const range = parseArchiveRange(req.headers.range);
+  if (!range) {
+    res.status(416).json({ error: "Archive previews require a byte range of at most 1 MB." });
+    return;
+  }
+  const object = await s3.send(new GetObjectCommand({
+    Bucket: bucket,
+    Key: key2,
+    Range: `bytes=${range.start}-${range.end}`,
+    IfMatch: req.headers["if-match"]
+  }));
+  const limit = range.end - range.start + 1;
+  if (!object.ContentRange || (object.ContentLength || 0) > limit) {
+    object.Body?.destroy?.();
+    res.status(502).json({ error: "Storage did not honor the requested byte range." });
+    return;
+  }
+  const chunks = [];
+  let count = 0;
+  const body = object.Body;
+  const close = () => body?.destroy?.();
+  res.on("close", close);
+  try {
+    if (body) for await (const chunk of body) {
+      count += chunk.length;
+      if (count > limit) throw new Error("Archive response exceeds the requested range");
+      chunks.push(Buffer.from(chunk));
+    }
+    res.status(206).set({
+      "Content-Type": "application/octet-stream",
+      "Content-Range": object.ContentRange,
+      "Accept-Ranges": "bytes",
+      "Cache-Control": "no-store",
+      "Content-Disposition": "attachment",
+      ...object.ETag ? { ETag: object.ETag } : {}
+    }).send(Buffer.concat(chunks));
+  } finally {
+    res.off("close", close);
+    body?.destroy?.();
+  }
+}
+
 // server/public-preview-data.ts
-import { GetObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
+import { GetObjectCommand as GetObjectCommand2, HeadObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 // src/lib/filetype.ts
@@ -1534,26 +1633,30 @@ var BucketProtection = class {
 var mediaMime = { jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", gif: "image/gif", webp: "image/webp", avif: "image/avif", bmp: "image/bmp", ico: "image/x-icon", mp4: "video/mp4", webm: "video/webm", mov: "video/quicktime", m4v: "video/mp4", mkv: "video/x-matroska", mp3: "audio/mpeg", wav: "audio/wav", ogg: "audio/ogg", oga: "audio/ogg", ogv: "video/ogg", m4a: "audio/mp4", flac: "audio/flac", aac: "audio/aac", pdf: "application/pdf" };
 
 // server/public-preview-data.ts
-async function publicPreviewData(s3, share, key, req, res) {
-  if (key.endsWith("/")) throw new BucketAccessError(404, "Item not shared");
-  const object = await s3.send(new HeadObjectCommand({ Bucket: share.bucket, Key: key }));
-  const name = key.split("/").pop() || "File";
+async function publicPreviewData(s3, share, key2, req, res) {
+  if (key2.endsWith("/")) throw new BucketAccessError(404, "Item not shared");
+  const object = await s3.send(new HeadObjectCommand({ Bucket: share.bucket, Key: key2 }));
+  const name = key2.split("/").pop() || "File";
   if (req.query.metadata === "1") {
-    res.json({ file: { key, name, isFolder: false, size: object.ContentLength || 0, lastModified: object.LastModified?.toISOString() || "" }, root: share.key, expiresAt: share.expiresAt });
+    res.json({ file: { key: key2, name, isFolder: false, size: object.ContentLength || 0, lastModified: object.LastModified?.toISOString() || "" }, root: share.key, expiresAt: share.expiresAt });
+    return;
+  }
+  if (isInspectableArchive(name)) {
+    await sendArchiveRange(s3, share.bucket, key2, req, res);
     return;
   }
   const mime = mediaMime[extOf(name)];
   if (mime) {
     const ttl = share.expiresAt ? Math.min(60, Math.floor((share.expiresAt.getTime() - Date.now()) / 1e3)) : 60;
     if (ttl < 1) throw new BucketAccessError(404, "Share unavailable or expired");
-    const url = await getSignedUrl(s3, new GetObjectCommand({ Bucket: share.bucket, Key: key, ResponseContentType: mime, ResponseContentDisposition: "inline" }), { expiresIn: ttl });
+    const url = await getSignedUrl(s3, new GetObjectCommand2({ Bucket: share.bucket, Key: key2, ResponseContentType: mime, ResponseContentDisposition: "inline" }), { expiresIn: ttl });
     res.redirect(303, url);
     return;
   }
   const kind = fileKind(name);
   const limit = kind === "text" || kind === "env" ? 1e6 : 20 * 1024 * 1024;
   if ((object.ContentLength || 0) > limit) throw new BucketAccessError(413, "File too large to preview. Download it instead.");
-  const result = await s3.send(new GetObjectCommand({ Bucket: share.bucket, Key: key, Range: `bytes=0-${limit}` }));
+  const result = await s3.send(new GetObjectCommand2({ Bucket: share.bucket, Key: key2, Range: `bytes=0-${limit}` }));
   const chunks = [];
   let bytes = 0;
   if (result.Body) for await (const chunk of result.Body) {
@@ -1594,7 +1697,7 @@ function recoverShareToken(encrypted) {
 // server/shares.ts
 import { createHash as createHash4, randomBytes as randomBytes2, randomUUID as randomUUID3 } from "node:crypto";
 import express3 from "express";
-import { HeadObjectCommand as HeadObjectCommand2, ListObjectsV2Command, GetObjectCommand as GetObjectCommand2 } from "@aws-sdk/client-s3";
+import { HeadObjectCommand as HeadObjectCommand2, ListObjectsV2Command, GetObjectCommand as GetObjectCommand3 } from "@aws-sdk/client-s3";
 import { getSignedUrl as getSignedUrl2 } from "@aws-sdk/s3-request-presigner";
 var collection = () => getDatabase().collection("public_shares");
 var indexes2;
@@ -1617,8 +1720,8 @@ var mongoShareStore = {
   async findToken(tokenHash) {
     return (await indexedCollection()).findOne({ tokenHash });
   },
-  async list(ownerId, bucket, key) {
-    return (await indexedCollection()).find({ ownerId, bucket, key, revoked: false }).sort({ createdAt: -1 }).toArray();
+  async list(ownerId, bucket, key2) {
+    return (await indexedCollection()).find({ ownerId, bucket, key: key2, revoked: false }).sort({ createdAt: -1 }).toArray();
   },
   async revoke(_id, ownerId) {
     await (await indexedCollection()).updateOne({ _id, ownerId }, { $set: { revoked: true } });
@@ -1628,7 +1731,7 @@ var hash = (token) => createHash4("sha256").update(token).digest("hex");
 var asyncRoute = (fn) => (req, res, next) => {
   void fn(req, res).catch(next);
 };
-var safeKey = (key) => !key.split("/").some((part) => part === "." || part === "..") && ![...key].some((char) => char.charCodeAt(0) < 32 || char === "\\");
+var safeKey = (key2) => !key2.split("/").some((part) => part === "." || part === "..") && ![...key2].some((char) => char.charCodeAt(0) < 32 || char === "\\");
 var summary = (share) => {
   const token = recoverShareToken(share.encryptedToken);
   return { id: share._id, expiresAt: share.expiresAt, createdAt: share.createdAt, path: token && hash(token) === share.tokenHash ? `/api/public/${token}` : void 0 };
@@ -1641,15 +1744,15 @@ function createShareRouters(s3, protection = new BucketProtection(), store = mon
     next();
   });
   management.post("/", asyncRoute(async (req, res) => {
-    const { bucket, key, folder, duration, customHours } = req.body || {};
-    if (typeof bucket !== "string" || !bucket || typeof key !== "string" || !key || !safeKey(key) || typeof folder !== "boolean" || folder !== key.endsWith("/")) throw new BucketAccessError(400, "Select a valid file or folder");
+    const { bucket, key: key2, folder, duration, customHours } = req.body || {};
+    if (typeof bucket !== "string" || !bucket || typeof key2 !== "string" || !key2 || !safeKey(key2) || typeof folder !== "boolean" || folder !== key2.endsWith("/")) throw new BucketAccessError(400, "Select a valid file or folder");
     const metadata = await protection.authorize(req, bucket);
     const hours = duration === "custom" ? customHours : { "1h": 1, "6h": 6, "24h": 24 }[duration];
     if (duration !== "permanent" && (typeof hours !== "number" || !Number.isFinite(hours) || hours <= 0 || hours > 87600)) throw new BucketAccessError(400, "Choose an expiry between 0 and 87,600 hours");
     if (folder) {
-      const result = await s3.send(new ListObjectsV2Command({ Bucket: bucket, Prefix: key, MaxKeys: 1 }));
+      const result = await s3.send(new ListObjectsV2Command({ Bucket: bucket, Prefix: key2, MaxKeys: 1 }));
       if (!result.Contents?.length) throw new BucketAccessError(404, "Folder not found");
-    } else await s3.send(new HeadObjectCommand2({ Bucket: bucket, Key: key }));
+    } else await s3.send(new HeadObjectCommand2({ Bucket: bucket, Key: key2 }));
     const profile = await getSharer(bucketUser(req).id);
     const sharerName = profile?.name?.trim() || bucketUser(req).email.split("@")[0];
     const token = randomBytes2(32).toString("base64url");
@@ -1660,7 +1763,7 @@ function createShareRouters(s3, protection = new BucketProtection(), store = mon
       ownerId: bucketUser(req).id,
       sharerName,
       bucket,
-      key,
+      key: key2,
       folder,
       privateOwner: metadata?.ownerId,
       expiresAt: duration === "permanent" ? null : new Date(Date.now() + hours * 36e5),
@@ -1671,9 +1774,9 @@ function createShareRouters(s3, protection = new BucketProtection(), store = mon
     res.status(201).json({ ...summary(record2), path: `/api/public/${token}` });
   }));
   management.get("/", asyncRoute(async (req, res) => {
-    const { bucket, key } = req.query;
-    if (typeof bucket !== "string" || typeof key !== "string") throw new BucketAccessError(400, "Bucket and key required");
-    const records = await store.list(bucketUser(req).id, bucket, key);
+    const { bucket, key: key2 } = req.query;
+    if (typeof bucket !== "string" || typeof key2 !== "string") throw new BucketAccessError(400, "Bucket and key required");
+    const records = await store.list(bucketUser(req).id, bucket, key2);
     res.json({ shares: records.filter((s) => !s.expiresAt || s.expiresAt.getTime() > Date.now()).map(summary) });
   }));
   management.delete("/:id", asyncRoute(async (req, res) => {
@@ -1700,7 +1803,7 @@ function createShareRouters(s3, protection = new BucketProtection(), store = mon
       if (ttl < 1) throw new BucketAccessError(404, "Share unavailable or expired");
       await s3.send(new HeadObjectCommand2({ Bucket: share.bucket, Key: requested }));
       const filename = encodeURIComponent(requested.split("/").pop() || "download");
-      const url = await getSignedUrl2(s3, new GetObjectCommand2({ Bucket: share.bucket, Key: requested, ResponseContentDisposition: `attachment; filename="${filename}"; filename*=UTF-8''${filename}`, ResponseContentType: "application/octet-stream" }), { expiresIn: ttl });
+      const url = await getSignedUrl2(s3, new GetObjectCommand3({ Bucket: share.bucket, Key: requested, ResponseContentDisposition: `attachment; filename="${filename}"; filename*=UTF-8''${filename}`, ResponseContentType: "application/octet-stream" }), { expiresIn: ttl });
       res.redirect(303, url);
       return;
     }
@@ -1783,6 +1886,71 @@ function createShareRouters(s3, protection = new BucketProtection(), store = mon
   return { management, publicRouter };
 }
 
+// server/scratchpad.ts
+import { GetObjectCommand as GetObjectCommand4, PutObjectCommand } from "@aws-sdk/client-s3";
+var SCRATCHPAD_LIMIT = 64 * 1024;
+var key = "scratchpad.md";
+async function readScratchpad(s3, bucket) {
+  try {
+    const object = await s3.send(new GetObjectCommand4({ Bucket: bucket, Key: key }));
+    if (!object.ETag) throw new Error("Storage did not return a revision for this note.");
+    if ((object.ContentLength || 0) > SCRATCHPAD_LIMIT) {
+      object.Body?.destroy?.();
+      throw Object.assign(new Error("scratchpad.md exceeds the 64 KB note limit. Open it in Notebook instead."), { status: 413 });
+    }
+    const chunks = [];
+    let count = 0;
+    const body = object.Body;
+    try {
+      if (body) for await (const chunk of body) {
+        count += chunk.length;
+        if (count > SCRATCHPAD_LIMIT) throw Object.assign(new Error("scratchpad.md exceeds the 64 KB note limit. Open it in Notebook instead."), { status: 413 });
+        chunks.push(Buffer.from(chunk));
+      }
+      return { content: new TextDecoder("utf-8", { fatal: true }).decode(Buffer.concat(chunks)), etag: object.ETag };
+    } finally {
+      body?.destroy?.();
+    }
+  } catch (err) {
+    if (["NoSuchKey", "NotFound"].includes(err.name)) return { content: "", etag: null };
+    throw err;
+  }
+}
+async function writeScratchpad(s3, bucket, body) {
+  const value = body;
+  if (!value || typeof value.content !== "string" || Buffer.byteLength(value.content) > SCRATCHPAD_LIMIT || !(value.etag === null || typeof value.etag === "string" && value.etag.length > 0 && value.etag.length <= 256)) {
+    throw Object.assign(new Error("A note up to 64 KB and its current revision are required."), { status: 400 });
+  }
+  try {
+    const result = await s3.send(new PutObjectCommand({
+      Bucket: bucket,
+      Key: key,
+      Body: value.content,
+      ContentType: "text/markdown; charset=utf-8",
+      ...value.etag === null ? { IfNoneMatch: "*" } : { IfMatch: value.etag }
+    }));
+    if (!result.ETag) throw new Error("Storage did not confirm the saved revision. Reload the note before retrying.");
+    return { content: value.content, etag: result.ETag };
+  } catch (err) {
+    const status = err.$metadata?.httpStatusCode;
+    if (status === 412 || status === 409 || err.name === "PreconditionFailed") throw Object.assign(new Error("This note changed elsewhere. Review the latest version before saving."), { status: 409 });
+    throw err;
+  }
+}
+async function scratchpadRoute(s3, req, res) {
+  try {
+    const note = req.method === "GET" ? await readScratchpad(s3, res.locals.bucket) : await writeScratchpad(s3, res.locals.bucket, req.body);
+    res.json(note);
+  } catch (err) {
+    const status = err.status;
+    if (status) {
+      res.status(status).json({ error: err.message });
+      return;
+    }
+    throw err;
+  }
+}
+
 // server/uploads.ts
 import { createHash as createHash5 } from "node:crypto";
 import express4 from "express";
@@ -1826,15 +1994,15 @@ function createUploadRouter(s3, signer, protection, authenticate) {
   });
   router.post("/start", async (req, res, next) => {
     try {
-      const { bucket, key, size, contentType } = req.body || {};
-      if (typeof bucket !== "string" || !bucket || !validUploadKey(key) || !Number.isSafeInteger(size) || size <= 0 || size > MAX_UPLOAD_BYTES || typeof contentType !== "string" || contentType.length > 255 || /[\r\n]/.test(contentType)) {
+      const { bucket, key: key2, size, contentType } = req.body || {};
+      if (typeof bucket !== "string" || !bucket || !validUploadKey(key2) || !Number.isSafeInteger(size) || size <= 0 || size > MAX_UPLOAD_BYTES || typeof contentType !== "string" || contentType.length > 255 || /[\r\n]/.test(contentType)) {
         throw new BucketAccessError(400, "Invalid upload details or unsupported file size");
       }
       await protection.authorize(req, bucket);
       const owner = bucketUser(req).id, session = bucketSession(req), secret = ticketSecret();
-      const result = await s3.send(new CreateMultipartUploadCommand({ Bucket: bucket, Key: key, ContentType: contentType || "application/octet-stream" }));
+      const result = await s3.send(new CreateMultipartUploadCommand({ Bucket: bucket, Key: key2, ContentType: contentType || "application/octet-stream" }));
       if (!result.UploadId) throw Error("Storage returned no upload ID");
-      const ticket = { owner, session, bucket, key, uploadId: result.UploadId, size, partSize: uploadPartSize(size) };
+      const ticket = { owner, session, bucket, key: key2, uploadId: result.UploadId, size, partSize: uploadPartSize(size) };
       res.json({ ticket: jwt2.sign(ticket, secret, { audience, expiresIn: "24h", algorithm: "HS256" }), partSize: ticket.partSize, partCount: Math.ceil(size / ticket.partSize) });
     } catch (err) {
       next(err);
@@ -1896,11 +2064,11 @@ function createUploadRouter(s3, signer, protection, authenticate) {
 
 // server/object-metadata.ts
 import { HeadObjectCommand as HeadObjectCommand3, ListObjectsV2Command as ListObjectsV2Command2 } from "@aws-sdk/client-s3";
-async function getObjectMetadata(s3, bucket, key) {
-  if (!key.endsWith("/")) {
-    const object = await s3.send(new HeadObjectCommand3({ Bucket: bucket, Key: key }));
+async function getObjectMetadata(s3, bucket, key2) {
+  if (!key2.endsWith("/")) {
+    const object = await s3.send(new HeadObjectCommand3({ Bucket: bucket, Key: key2 }));
     return {
-      key,
+      key: key2,
       isFolder: false,
       size: object.ContentLength ?? 0,
       lastModified: object.LastModified?.toISOString(),
@@ -1915,14 +2083,14 @@ async function getObjectMetadata(s3, bucket, key) {
   let size = 0, fileCount = 0, latest = 0, pages = 0;
   const folders = /* @__PURE__ */ new Set();
   do {
-    const page = await s3.send(new ListObjectsV2Command2({ Bucket: bucket, Prefix: key, MaxKeys: 1e3, ContinuationToken: cursor }));
+    const page = await s3.send(new ListObjectsV2Command2({ Bucket: bucket, Prefix: key2, MaxKeys: 1e3, ContinuationToken: cursor }));
     for (const object of page.Contents || []) {
-      if (!object.Key?.startsWith(key)) continue;
+      if (!object.Key?.startsWith(key2)) continue;
       if (object.LastModified) latest = Math.max(latest, object.LastModified.getTime());
-      const relative = object.Key.slice(key.length);
+      const relative = object.Key.slice(key2.length);
       const parts = relative.split("/");
       for (let i = 1; i < parts.length; i++) folders.add(parts.slice(0, i).join("/"));
-      if (object.Key !== key && !object.Key.endsWith("/")) {
+      if (object.Key !== key2 && !object.Key.endsWith("/")) {
         fileCount++;
         size += object.Size || 0;
       }
@@ -1930,7 +2098,7 @@ async function getObjectMetadata(s3, bucket, key) {
     cursor = page.IsTruncated ? page.NextContinuationToken : void 0;
     pages++;
   } while (cursor && pages < 10);
-  return { key, isFolder: true, size, fileCount, folderCount: folders.size, lastModified: latest ? new Date(latest).toISOString() : void 0, partial: !!cursor };
+  return { key: key2, isFolder: true, size, fileCount, folderCount: folders.size, lastModified: latest ? new Date(latest).toISOString() : void 0, partial: !!cursor };
 }
 
 // server/s3.ts
@@ -1941,10 +2109,10 @@ import {
   CreateBucketCommand,
   DeleteBucketCommand,
   ListObjectsV2Command as ListObjectsV2Command3,
-  PutObjectCommand,
+  PutObjectCommand as PutObjectCommand2,
   DeleteObjectCommand,
   DeleteObjectsCommand,
-  GetObjectCommand as GetObjectCommand3,
+  GetObjectCommand as GetObjectCommand5,
   HeadBucketCommand
 } from "@aws-sdk/client-s3";
 import { getSignedUrl as getSignedUrl4 } from "@aws-sdk/s3-request-presigner";
@@ -2091,7 +2259,7 @@ function createS3Router(protection = new BucketProtection(), authenticate = (_re
     res.json({ success: true });
   }));
   router.use("/folders", express5.json());
-  const filePaths = /* @__PURE__ */ new Set(["/files", "/upload-url", "/upload", "/download", "/raw", "/folders", "/metadata"]);
+  const filePaths = /* @__PURE__ */ new Set(["/files", "/upload-url", "/upload", "/download", "/raw", "/folders", "/metadata", "/scratchpad"]);
   router.use((req, res, next) => {
     const routePath = req.path.toLowerCase().replace(/\/+$/, "");
     if (!filePaths.has(routePath)) {
@@ -2118,14 +2286,16 @@ function createS3Router(protection = new BucketProtection(), authenticate = (_re
       })().catch(next);
     });
   });
+  router.get("/scratchpad", wrap((req, res) => scratchpadRoute(s3, req, res)));
+  router.put("/scratchpad", express5.json({ limit: "128kb" }), wrap((req, res) => scratchpadRoute(s3, req, res)));
   router.get("/metadata", wrap(async (req, res) => {
-    const key = req.query.key;
-    if (typeof key !== "string" || !key) {
+    const key2 = req.query.key;
+    if (typeof key2 !== "string" || !key2) {
       res.status(400).json({ error: "A file or folder key is required" });
       return;
     }
     try {
-      res.json(await getObjectMetadata(s3, res.locals.bucket, key));
+      res.json(await getObjectMetadata(s3, res.locals.bucket, key2));
     } catch (err) {
       if (["NotFound", "NoSuchKey", "NoSuchBucket"].includes(err.name)) {
         res.status(404).json({ error: "This item no longer exists" });
@@ -2187,31 +2357,31 @@ function createS3Router(protection = new BucketProtection(), authenticate = (_re
   }));
   router.get("/upload-url", wrap(async (req, res) => {
     const bucket = res.locals.bucket;
-    const key = req.query.key || "";
+    const key2 = req.query.key || "";
     const contentType = req.query.contentType || "application/octet-stream";
-    if (!validUploadKey(key)) {
+    if (!validUploadKey(key2)) {
       res.status(400).json({ error: "A valid file key is required" });
       return;
     }
     const uploadUrl = await getSignedUrl4(
       uploadSigner,
-      new PutObjectCommand({
+      new PutObjectCommand2({
         Bucket: bucket,
-        Key: key,
+        Key: key2,
         ContentType: contentType
       }),
       { expiresIn: res.locals.urlTtl }
     );
-    res.json({ uploadUrl, bucket, key });
+    res.json({ uploadUrl, bucket, key: key2 });
   }));
   router.put("/upload", (_req, res) => {
     res.status(410).json({ error: "Proxy uploads are no longer supported. Refresh Vault to upload directly to storage." });
   });
   router.delete("/files", wrap(async (req, res) => {
     const bucket = res.locals.bucket;
-    const key = req.query.key || "";
-    if (key.endsWith("/")) {
-      const list = await s3.send(new ListObjectsV2Command3({ Bucket: bucket, Prefix: key }));
+    const key2 = req.query.key || "";
+    if (key2.endsWith("/")) {
+      const list = await s3.send(new ListObjectsV2Command3({ Bucket: bucket, Prefix: key2 }));
       if (list.Contents && list.Contents.length > 0) {
         await s3.send(
           new DeleteObjectsCommand({
@@ -2221,31 +2391,35 @@ function createS3Router(protection = new BucketProtection(), authenticate = (_re
         );
       }
     } else {
-      await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
+      await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key2 }));
     }
     res.json({ success: true });
   }));
   router.get("/download", wrap(async (req, res) => {
     const bucket = res.locals.bucket;
-    const key = req.query.key || "";
+    const key2 = req.query.key || "";
     const signedUrl = await getSignedUrl4(
       s3,
-      new GetObjectCommand3({ Bucket: bucket, Key: key }),
+      new GetObjectCommand5({ Bucket: bucket, Key: key2 }),
       { expiresIn: res.locals.urlTtl }
     );
     res.json({ url: signedUrl });
   }));
   router.get("/raw", wrap(async (req, res) => {
     const bucket = res.locals.bucket;
-    const key = req.query.key || "";
+    const key2 = req.query.key || "";
+    if (isInspectableArchive(key2) && req.headers.range) {
+      await sendArchiveRange(s3, bucket, key2, req, res);
+      return;
+    }
     const redirect = req.query.redirect === "true";
-    const mediaType = mediaMime[key.split(".").pop()?.toLowerCase() || ""];
+    const mediaType = mediaMime[key2.split(".").pop()?.toLowerCase() || ""];
     const isMedia = /^(audio|video)\//.test(mediaType || "");
     const shouldRedirect = redirect || Boolean(process.env.VERCEL) && isMedia;
     if (shouldRedirect) {
       const signedUrl = await getSignedUrl4(
         s3,
-        new GetObjectCommand3({ Bucket: bucket, Key: key, ...mediaType ? { ResponseContentType: mediaType, ResponseContentDisposition: "inline" } : {} }),
+        new GetObjectCommand5({ Bucket: bucket, Key: key2, ...mediaType ? { ResponseContentType: mediaType, ResponseContentDisposition: "inline" } : {} }),
         { expiresIn: res.locals.urlTtl }
       );
       res.redirect(307, signedUrl);
@@ -2253,13 +2427,13 @@ function createS3Router(protection = new BucketProtection(), authenticate = (_re
     }
     const rangeHeader = req.headers.range;
     const object = await s3.send(
-      new GetObjectCommand3({
+      new GetObjectCommand5({
         Bucket: bucket,
-        Key: key,
+        Key: key2,
         ...rangeHeader ? { Range: rangeHeader } : {}
       })
     );
-    const filename = key.split("/").pop() || "file";
+    const filename = key2.split("/").pop() || "file";
     const isPartial = !!rangeHeader && !!object.ContentRange;
     let mimeType = object.ContentType || "application/octet-stream";
     if (mediaType && mimeType === "application/octet-stream") {
@@ -2295,7 +2469,7 @@ function createS3Router(protection = new BucketProtection(), authenticate = (_re
     const path = req.body?.path || "";
     const folderPath = path.endsWith("/") ? path : path + "/";
     await s3.send(
-      new PutObjectCommand({ Bucket: bucket, Key: folderPath, Body: Buffer.alloc(0) })
+      new PutObjectCommand2({ Bucket: bucket, Key: folderPath, Body: Buffer.alloc(0) })
     );
     res.json({ success: true });
   }));

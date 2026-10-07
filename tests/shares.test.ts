@@ -25,6 +25,7 @@ const stub = mock.method(S3Client.prototype, 'send', async command => {
   calls.push({name:command.constructor.name,input:command.input})
   if(storageFailure) throw storageFailure
   if(command.constructor.name === 'HeadObjectCommand') return {ContentType:contentType,ContentLength:100}
+  if(command.constructor.name === 'GetObjectCommand' && String(command.input.Key).endsWith('.zip')) return { Body: Readable.from(['ZIP']), ContentLength: 3, ContentRange: 'bytes 0-2/100', ETag: '"archive-v1"' }
   if(command.constructor.name === 'GetObjectCommand') return {Body:Readable.from(['<script>alert(1)</script>'])}
   return command.constructor.name === 'ListObjectsV2Command' ? { Contents: [{Key:'photos/a.jpg'}], CommonPrefixes:[{Prefix:'photos/nested/'}], IsTruncated:true, NextContinuationToken:'next-page' } : {}
 })
@@ -170,4 +171,21 @@ test('deep folder preview loads its parent listing and view requests enforce sha
  }
  records.get(share.id)!.expiresAt=new Date(Date.now()-1)
  assert.equal((await request(share.path+'?view=1')).status,404)
+})
+
+
+test('archive ranges are bounded and remain scoped to live public tokens', async () => {
+ const share = await create({ key: 'bundle.zip' })
+ const res = await fetch(base + share.path + '?raw=1', { headers: { Range: 'bytes=0-2', 'If-Match': '"archive-v1"' } })
+ assert.equal(res.status, 206); assert.equal(await res.text(), 'ZIP')
+ assert.equal(res.headers.get('etag'), '"archive-v1"')
+ assert.equal(calls.at(-1)!.input.IfMatch, '"archive-v1"')
+ const before = calls.filter(c => c.name === 'GetObjectCommand').length
+ assert.equal((await fetch(base + share.path + '?raw=1', { headers: { Range: 'bytes=0-1048576' } })).status, 416)
+ assert.equal(calls.filter(c => c.name === 'GetObjectCommand').length, before)
+ assert.equal((await fetch(base + share.path + '?raw=1&key=other.zip', { headers: { Range: 'bytes=0-2' } })).status, 404)
+ await request(`/api/shares/${share.id}`, 'DELETE')
+ calls.length = 0
+ assert.equal((await fetch(base + share.path + '?raw=1', { headers: { Range: 'bytes=0-2' } })).status, 404)
+ assert.equal(calls.length, 0)
 })

@@ -1,0 +1,9 @@
+.notebook-diff { flex: 1; min-height: 0; overflow: auto; padding: 16px; background: var(--bg-1); }
+.notebook-diff__summary { margin: 0 0 12px; color: var(--text-2); }
+.notebook-diff__lines { font: 13px/1.7 var(--font-mono, monospace); min-width: max-content; }
+.notebook-diff__line { display: grid; grid-template-columns: 4ch 4ch 2ch 1fr; gap: 8px; padding: 0 8px; }
+.notebook-diff__line > span { opacity: .55; text-align: right; }
+.notebook-diff__line code { white-space: pre; }
+.notebook-diff__line small { opacity: .65; font-style: italic; }
+.notebook-diff__line.is-added { background: #22c55e20; box-shadow: inset 2px 0 #22c55e; }
+.notebook-diff__line.is-removed { background: #ef444420; box-shadow: inset 2px 0 #ef4444; }

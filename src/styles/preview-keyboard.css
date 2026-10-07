@@ -1,0 +1,3 @@
+[data-file-key]:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
+/* File-to-file Quick Look keeps the backdrop steady. */
+.modal-overlay.quick-look-overlay, .quick-look-overlay > .modal { animation: none; }
