@@ -179,3 +179,17 @@ test('Water preferences save and reload while invalid ripple size never reaches 
   assert.equal((await call('/me', 'PATCH', { preferences })).status, 400)
   assert.equal(updates.length, before)
 })
+
+
+test('Zen Garden element controls round-trip through account preferences', async () => {
+  const preferences = { ...DEFAULT_PREFERENCES, animations: { ...DEFAULT_PREFERENCES.animations, type: 'zen', settings: {
+    ...DEFAULT_PREFERENCES.animations.settings,
+    zen: { ...DEFAULT_PREFERENCES.animations.settings.zen, sceneHeight: 210, lantern: false, motes: false },
+  } } }
+  assert.equal((await call('/me', 'PATCH', { preferences })).status, 200)
+  assert.deepEqual((await (await call('/me', 'GET')).json()).user.preferences, preferences)
+  const before = updates.length
+  preferences.animations.settings.zen.sceneHeight = 500
+  assert.equal((await call('/me', 'PATCH', { preferences })).status, 400)
+  assert.equal(updates.length, before)
+})

@@ -1,3 +1,4 @@
+import { DEFAULT_ZEN, isZenSettings, ZEN_LIMITS, ZEN_SCENE_LIMITS } from './zen.ts'
 import { DEFAULT_WATER, isWaterSettings, WATER_LIMITS, RIPPLE_SIZE_LIMITS } from './water.ts'
 import type { AnimationAppearance, AnimationLimits } from './animationSettings.ts'
 import { DEFAULT_RAIN, isRainSettings, RAIN_LIMITS } from './rain.ts'
@@ -57,6 +58,20 @@ export const ANIMATION_CATALOG = {
     switches: [{ key: 'petals', label: 'Floating petals', description: 'Cherry blossom petals gently bob and sway with the ripples.' }],
     ranges: [{ key: 'rippleSize', label: 'Ripple size', ...RIPPLE_SIZE_LIMITS, unit: ' px' }],
     hint: 'A quiet water surface with slow currents. Turn petals off for ripples alone.',
+  }),
+  zen: defineAnimation({
+    label: 'Zen Garden', description: 'Growing bonsai, wind-carried leaves and lantern light', particle: 'Particle',
+    defaults: DEFAULT_ZEN, limits: ZEN_LIMITS, validate: isZenSettings,
+    controls: { direction: false, speedLabel: 'Garden speed', uniformSize: true },
+    switches: [
+      { key: 'bonsai', label: 'Bonsai', description: 'A repeating growth, bloom and falling-leaf cycle, with leaves carried across the sky.' },
+      { key: 'sand', label: 'Raked sand', description: 'Flowing rake patterns and expanding rings around the stones.' },
+      { key: 'rocks', label: 'Garden rocks', description: 'A small cluster of weathered stones.' },
+      { key: 'lantern', label: 'Lantern', description: 'A warm light that softly brightens and dims.' },
+      { key: 'motes', label: 'Breeze and motes', description: 'Visible wind trails and drifting specks throughout the background.' },
+    ],
+    ranges: [{ key: 'sceneHeight', label: 'Garden height', ...ZEN_SCENE_LIMITS, unit: ' px' }],
+    hint: 'Speed controls every motion, including tree growth and lantern flicker. Size and density affect airborne leaves and motes. Garden height scales the ground scene; previews and mobile screens use a smaller scale.',
   }),
   starfield: defineAnimation({
     label: 'Starfield', description: 'Twinkling stars and passing meteors', particle: 'Star',

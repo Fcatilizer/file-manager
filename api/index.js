@@ -385,6 +385,33 @@ function isLeafSettings(value) {
   return Object.keys(settings).every((key2) => Object.hasOwn(DEFAULT_LEAVES, key2)) && isAnimationAppearance(settings, LEAF_LIMITS) && typeof settings.breeze === "boolean";
 }
 
+// src/lib/zen.ts
+var ZEN_LIMITS = {
+  speed: { min: 0.5, max: 2, step: 0.1 },
+  height: { min: 2, max: 6, step: 0.5 },
+  width: { min: 2, max: 6, step: 0.5 }
+};
+var ZEN_SCENE_LIMITS = { min: 90, max: 240, step: 10 };
+var DEFAULT_ZEN = {
+  direction: "down",
+  density: "balanced",
+  speed: 1,
+  height: 3,
+  width: 3,
+  color: "theme",
+  bonsai: true,
+  sand: true,
+  rocks: true,
+  lantern: true,
+  motes: true,
+  sceneHeight: 170
+};
+function isZenSettings(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const settings = value;
+  return Object.keys(settings).every((key2) => Object.hasOwn(DEFAULT_ZEN, key2)) && isAnimationAppearance(settings, ZEN_LIMITS) && ["bonsai", "sand", "rocks", "lantern", "motes"].every((key2) => typeof settings[key2] === "boolean") && typeof settings.sceneHeight === "number" && Number.isFinite(settings.sceneHeight) && settings.sceneHeight >= ZEN_SCENE_LIMITS.min && settings.sceneHeight <= ZEN_SCENE_LIMITS.max;
+}
+
 // src/lib/water.ts
 var WATER_LIMITS = {
   speed: { min: 0.5, max: 2, step: 0.1 },
@@ -545,6 +572,24 @@ var ANIMATION_CATALOG = {
     switches: [{ key: "petals", label: "Floating petals", description: "Cherry blossom petals gently bob and sway with the ripples." }],
     ranges: [{ key: "rippleSize", label: "Ripple size", ...RIPPLE_SIZE_LIMITS, unit: " px" }],
     hint: "A quiet water surface with slow currents. Turn petals off for ripples alone."
+  }),
+  zen: defineAnimation({
+    label: "Zen Garden",
+    description: "Growing bonsai, wind-carried leaves and lantern light",
+    particle: "Particle",
+    defaults: DEFAULT_ZEN,
+    limits: ZEN_LIMITS,
+    validate: isZenSettings,
+    controls: { direction: false, speedLabel: "Garden speed", uniformSize: true },
+    switches: [
+      { key: "bonsai", label: "Bonsai", description: "A repeating growth, bloom and falling-leaf cycle, with leaves carried across the sky." },
+      { key: "sand", label: "Raked sand", description: "Flowing rake patterns and expanding rings around the stones." },
+      { key: "rocks", label: "Garden rocks", description: "A small cluster of weathered stones." },
+      { key: "lantern", label: "Lantern", description: "A warm light that softly brightens and dims." },
+      { key: "motes", label: "Breeze and motes", description: "Visible wind trails and drifting specks throughout the background." }
+    ],
+    ranges: [{ key: "sceneHeight", label: "Garden height", ...ZEN_SCENE_LIMITS, unit: " px" }],
+    hint: "Speed controls every motion, including tree growth and lantern flicker. Size and density affect airborne leaves and motes. Garden height scales the ground scene; previews and mobile screens use a smaller scale."
   }),
   starfield: defineAnimation({
     label: "Starfield",

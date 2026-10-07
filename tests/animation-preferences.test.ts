@@ -86,3 +86,19 @@ test('Water settings backfill for existing users and reject invalid surface cont
   assert.deepEqual(updated.animations.settings.water, water)
   assert.ok(isPreferences(updated))
 })
+
+
+test('Zen Garden settings backfill without changing selections and validate scene bounds', () => {
+  const zen = DEFAULT_PREFERENCES.animations.settings.zen
+  const validate = ANIMATION_CATALOG.zen.validate
+  assert.ok(validate({ ...zen, bonsai: false, sand: false, rocks: false, lantern: false, motes: false, color: '#779988' }))
+  for (const patch of [{ sceneHeight: 241 }, { sceneHeight: 89 }, { sceneHeight: NaN }, { lantern: 'yes' }, { bonsai: 1 }, { width: 0 }, { speed: Infinity }, { color: 'url(evil)' }, { extra: true }]) {
+    assert.equal(validate({ ...zen, ...patch }), false)
+  }
+  const { zen: _zen, ...previous } = DEFAULT_PREFERENCES.animations.settings
+  const updated = normalizePreferences({ ...DEFAULT_PREFERENCES, animations: { type: 'water', settings: previous } })!
+  assert.equal(updated.animations.type, 'water')
+  assert.deepEqual(updated.animations.settings.water, previous.water)
+  assert.deepEqual(updated.animations.settings.zen, zen)
+  assert.ok(isPreferences(updated))
+})

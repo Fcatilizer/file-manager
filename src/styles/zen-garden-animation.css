@@ -1,0 +1,52 @@
+/* Scene layout and palette. Motion lives in zen-garden-motion.css. */
+.zen-scene {
+  --zen-height: var(--zen-requested-height);
+  position: absolute; inset: 0; contain: strict; container-type: size; overflow: hidden;
+  pointer-events: none; user-select: none;
+  --zen-foliage: color-mix(in srgb, var(--zen-color) 52%, #77998a);
+  --zen-stone: color-mix(in srgb, var(--zen-color) 12%, #656f72);
+  --zen-sand: color-mix(in srgb, var(--zen-color) 30%, #a49c86);
+}
+.zen-background { position: fixed; z-index: -1; }
+.zen-ground { position: absolute; inset: auto 0 0; height: var(--zen-height); opacity: .9; }
+.zen-ground svg { position: absolute; display: block; overflow: visible; }
+.zen-bonsai { left: 2%; bottom: 5px; width: calc(var(--zen-height) * 1.3); height: var(--zen-height); }
+.zen-rocks { left: 62%; bottom: 2px; width: calc(var(--zen-height) * .65); height: calc(var(--zen-height) * .325); }
+.zen-lantern { right: 12%; bottom: 4px; width: calc(var(--zen-height) * .48); height: calc(var(--zen-height) * .76); }
+.zen-sand { left: 0; bottom: 0; width: 100%; height: calc(var(--zen-height) * .32); }
+.zen-shadow { fill: var(--zen-stone); opacity: .16; }
+.zen-trunk, .zen-lantern-frame { stroke: color-mix(in srgb, var(--zen-stone) 65%, #9d866c); }
+.zen-leaf { fill: var(--zen-foliage); }
+.zen-leaf-highlight { stroke: color-mix(in srgb, var(--zen-foliage) 60%, #e4eacb); opacity: .45; }
+.zen-pot { fill: var(--zen-stone); }
+.zen-pot-rim { fill: color-mix(in srgb, var(--zen-stone) 70%, #b5b5a4); }
+.zen-stone { fill: var(--zen-stone); }
+.zen-stone-light { fill: color-mix(in srgb, var(--zen-stone) 75%, #c5cbc2); }
+.zen-moss { stroke: var(--zen-foliage); opacity: .7; }
+.zen-sand-bed { fill: var(--zen-sand); opacity: .10; }
+.zen-sand-line, .zen-sand-rings { stroke: var(--zen-sand); stroke-width: 1; opacity: .48; }
+.zen-scene--preview { --zen-height: calc(min(75cqh, 36cqw) * var(--zen-scene-scale)); }
+.zen-scene--preview .zen-ground { opacity: .85; }
+.zen-scene--preview .zen-bonsai { left: 1%; }
+.zen-scene--preview .zen-lantern { right: 3%; }
+.zen-scene--preview .zen-rocks { left: 48%; }
+[data-theme="light"] .zen-scene {
+  --zen-foliage: color-mix(in srgb, var(--zen-color) 60%, #3e7351);
+  --zen-sand: color-mix(in srgb, var(--zen-color) 25%, #86704e);
+}
+.zen-atmosphere { position: absolute; inset: 0; }
+.zen-air-leaf { position: absolute; left: -24px; opacity: 0; }
+.zen-air-leaf i { display: block; width: 100%; height: 100%; border-radius: 90% 0 90% 0; background: var(--zen-foliage); border-bottom: 1px solid color-mix(in srgb, var(--zen-foliage), white 25%); }
+.zen-mote { position: absolute; border-radius: 50%; background: var(--zen-foliage); opacity: 0; }
+.zen-wind { position: absolute; width: clamp(90px, 18cqw, 270px); overflow: visible; stroke: var(--zen-foliage); stroke-width: 1.2; stroke-linecap: round; opacity: 0; }
+.zen-shed-leaf { fill: var(--zen-foliage); opacity: 0; }
+@media (max-width: 640px) {
+  .zen-background { --zen-height: calc(var(--zen-requested-height) * .7); }
+  .zen-background .zen-bonsai { left: -1%; }
+  .zen-background .zen-rocks { left: 43%; }
+  .zen-background .zen-lantern { right: 24%; }
+  .zen-background .zen-mote:nth-child(even), .zen-background .zen-air-leaf:nth-child(even) { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .zen-background { display: none; }
+}

@@ -1,0 +1,63 @@
+/* All durations inherit the garden speed. Transform/opacity motion stays bounded. */
+.zen-growth { transform-origin: 135px 201px; animation: zen-grow var(--zen-cycle-time) ease-in-out infinite; }
+.zen-canopy { transform-origin: 155px 140px; animation: zen-sway var(--zen-sway-time) ease-in-out infinite; }
+.zen-leaf-pad { transform-box: fill-box; transform-origin: center bottom; animation: zen-bloom var(--zen-cycle-time) ease-in-out infinite; }
+.zen-shed-leaf { animation: zen-shed var(--zen-cycle-time) ease-in-out infinite; }
+.zen-shed-leaf--1 { animation-delay: calc(var(--zen-cycle-time) * -.03); }
+.zen-shed-leaf--2 { animation-delay: calc(var(--zen-cycle-time) * -.06); }
+.zen-shed-leaf--3 { animation-delay: calc(var(--zen-cycle-time) * -.09); }
+.zen-shed-leaf--4 { animation-delay: calc(var(--zen-cycle-time) * -.12); }
+.zen-lantern-light { transform-origin: 60px 103px; animation: zen-glow var(--zen-glow-time) ease-in-out infinite; }
+.zen-flame { transform-origin: 60px 113px; animation: zen-flame calc(var(--zen-glow-time) * .45) ease-in-out infinite; }
+.zen-sand-line { stroke-dasharray: 65 12 15 8; animation: zen-rake var(--zen-sand-time) linear infinite; }
+.zen-sand-rings { transform-origin: 676px 72px; animation: zen-rings calc(var(--zen-sand-time) * .5) ease-out infinite; }
+.zen-mote { animation: zen-drift var(--zen-mote-time) var(--zen-delay) ease-in-out infinite; }
+.zen-air-leaf { animation: zen-flight var(--zen-flight-time) var(--zen-delay) linear infinite; }
+.zen-air-leaf i { animation: zen-tumble var(--zen-sway-time) var(--zen-delay) ease-in-out infinite; }
+.zen-wind { stroke-dasharray: 28 72; animation: zen-wind var(--zen-wind-time) var(--zen-delay) ease-in-out infinite; }
+@keyframes zen-grow {
+  0%, 100% { transform: scale(.68, .62); }
+  40%, 70% { transform: scale(1); }
+  90% { transform: scale(.72, .66); }
+}
+@keyframes zen-bloom {
+  0%, 100% { transform: scale(.55); opacity: .5; }
+  35%, 60% { transform: scale(1); opacity: 1; }
+  80% { transform: scale(.8); opacity: .65; }
+}
+@keyframes zen-sway { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(4deg); } }
+@keyframes zen-shed {
+  0%, 54%, 100% { opacity: 0; transform: translate(0, 0) rotate(-20deg); }
+  58% { opacity: .9; }
+  72% { opacity: .8; transform: translate(28px, 40px) rotate(95deg); }
+  90%, 99% { opacity: 0; transform: translate(70px, 95px) rotate(230deg); }
+}
+@keyframes zen-glow {
+  0%, 100% { opacity: .28; transform: scale(.8); }
+  45% { opacity: 1; transform: scale(1.18); }
+  65% { opacity: .6; transform: scale(.98); }
+}
+@keyframes zen-flame { 0%, 100% { transform: scale(.8, 1) rotate(-6deg); } 50% { transform: scale(1.15, .72) rotate(8deg); } }
+@keyframes zen-rake { to { stroke-dashoffset: -100; } }
+@keyframes zen-rings { 0% { opacity: .1; transform: scale(.8); } 40% { opacity: .55; } 100% { opacity: 0; transform: scale(1.18); } }
+@keyframes zen-drift {
+  0%, 100% { opacity: 0; transform: translate(0, 12px); }
+  25% { opacity: .65; }
+  60% { opacity: .5; transform: translate(35px, -24px); }
+  90% { opacity: 0; transform: translate(60px, -42px); }
+}
+@keyframes zen-flight {
+  0% { opacity: 0; transform: translate(0, -5cqh); }
+  10%, 80% { opacity: .55; }
+  100% { opacity: 0; transform: translate(calc(100cqw + 50px), 18cqh); }
+}
+@keyframes zen-tumble { 0%, 100% { transform: rotate(-30deg) scaleY(.6); } 50% { transform: rotate(110deg) scaleY(1); } }
+@keyframes zen-wind {
+  0%, 100% { opacity: 0; transform: translateX(0); stroke-dashoffset: 100; }
+  25%, 55% { opacity: .38; }
+  85% { opacity: 0; transform: translateX(30cqw); stroke-dashoffset: -100; }
+}
+.zen-scene--paused * { animation-play-state: paused !important; }
+@media (prefers-reduced-motion: reduce) {
+  .zen-scene * { animation: none !important; }
+}
