@@ -45,7 +45,7 @@ const collection = {
 const origConnect = MongoClient.prototype.connect
 const origDb = MongoClient.prototype.db
 
-MongoClient.prototype.connect = async function () { return this }
+MongoClient.prototype.connect = async function (this: InstanceType<typeof MongoClient>) { return this }
 MongoClient.prototype.db = function () {
   return { databaseName: 'test-only', collection: () => collection } as unknown as ReturnType<typeof origDb>
 }

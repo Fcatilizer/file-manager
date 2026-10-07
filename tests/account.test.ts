@@ -28,7 +28,7 @@ const collection = {
     account = { ...account, ...update.$set }; return { matchedCount: 1 }
   },
 }
-mock.method(MongoClient.prototype, 'connect', async function () { return this })
+mock.method(MongoClient.prototype, 'connect', async function (this: MongoClient) { return this })
 mock.method(MongoClient.prototype, 'db', () => ({ databaseName: 'test-only', collection: () => collection }))
 await connectDB()
 const app = express()
