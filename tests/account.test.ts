@@ -71,6 +71,30 @@ test('invalid names never reach the database', async () => {
   }
   assert.equal(updates.length, 0)
 })
+test('avatar selection persists through the account API and round-trips through session', async () => {
+  const response = await call('/me', 'PATCH', { avatar: 'cat' })
+  assert.equal(response.status, 200)
+  const { user } = await response.json()
+  assert.equal(user.avatar, 'cat')
+  assert.equal((await (await call('/me', 'GET')).json()).user.avatar, 'cat')
+  const reset = await call('/me', 'PATCH', { avatar: 'initial' })
+  assert.equal(reset.status, 200)
+  assert.equal((await reset.json()).user.avatar, 'initial')
+})
+test('invalid avatar choices are rejected before writing to database', async () => {
+  for (const avatar of ['hacker', 'custom-svg', 123, null, {}, '']) {
+    assert.equal((await call('/me', 'PATCH', { avatar })).status, 400)
+  }
+  assert.equal(updates.length, 0)
+})
+test('updating name and avatar simultaneously persists both', async () => {
+  const response = await call('/me', 'PATCH', { name: 'Gamer One', avatar: 'gamepad' })
+  assert.equal(response.status, 200)
+  const { user } = await response.json()
+  assert.equal(user.name, 'Gamer One')
+  assert.equal(user.avatar, 'gamepad')
+  assert.equal((await (await call('/me', 'GET')).json()).user.avatar, 'gamepad')
+})
 test('preferences save and round-trip without changing profile or role', async () => {
   const preferences = { ...DEFAULT_PREFERENCES, font: 'serif', accent: 'teal', animations: { ...DEFAULT_PREFERENCES.animations, type: 'rain' } }
   assert.equal((await call('/me', 'PATCH', { preferences })).status, 200)

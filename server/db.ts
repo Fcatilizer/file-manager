@@ -1,4 +1,5 @@
 import { normalizePreferences, type Preferences } from '../src/lib/preferences.ts'
+import { normalizeAvatar } from '../src/lib/avatars.ts'
 import { MongoClient, ObjectId } from 'mongodb'
 import type { Collection, Db } from 'mongodb'
 import bcrypt from 'bcryptjs'
@@ -9,6 +10,7 @@ export interface UserDoc {
   _id: ObjectId
   email: string
   name?: string
+  avatar?: string
   preferences?: Preferences
   passwordHash: string
   role: UserRole
@@ -19,6 +21,7 @@ export interface PublicUser {
   id: string
   email: string
   name?: string
+  avatar?: string
   preferences?: Preferences
   role: UserRole
   createdAt: string
@@ -91,6 +94,7 @@ export function toPublicUser(user: UserDoc): PublicUser {
     id: String(user._id),
     email: user.email,
     name: user.name || '',
+    avatar: normalizeAvatar(user.avatar),
     preferences: normalizePreferences(user.preferences),
     role: user.role,
     createdAt: user.createdAt.toISOString(),
@@ -173,7 +177,7 @@ export async function seedAdmin(): Promise<void> {
   console.log(`[vault] seeded admin user: ${email}`)
 }
 
-export async function updateUserProfile(id: string, updates: { name?: string; preferences?: Preferences }): Promise<PublicUser | null> {
+export async function updateUserProfile(id: string, updates: { name?: string; avatar?: string; preferences?: Preferences }): Promise<PublicUser | null> {
   if (!ObjectId.isValid(id)) return null
   const user = await getUsers().findOneAndUpdate(
     { _id: new ObjectId(id) }, { $set: updates }, { returnDocument: 'after' },

@@ -1,0 +1,19 @@
+.vault-avatar { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 32px; height: 32px; border-radius: 50%; overflow: hidden; background: var(--accent-soft); color: var(--accent); font-size: 14px; font-weight: 600; }
+.vault-avatar svg { display: block; width: 100%; height: 100%; }
+.user-chip__avatar.vault-avatar { width: 24px; height: 24px; font-size: 12px; }
+.user-row__avatar.vault-avatar { width: 30px; height: 30px; font-size: 12px; }
+.avatar-picker { border: 0; padding: 0; margin: 24px 0 0; min-width: 0; }
+.avatar-picker legend { font-size: 13px; font-weight: 600; }
+.avatar-picker__current { display: flex; align-items: center; gap: 12px; padding: 16px 0; font-size: 13px; }
+.avatar-picker__current .vault-avatar { width: 56px; height: 56px; font-size: 24px; }
+.avatar-picker__current small { display: block; margin-top: 5px; color: var(--text-2); font-size: 11px; line-height: 1.5; }
+.avatar-picker__group > p { color: var(--text-2); font-size: 11px; margin: 10px 0 8px; }
+.avatar-picker__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 8px; }
+.avatar-picker__option { position: relative; cursor: pointer; }
+.avatar-picker__option input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.avatar-picker__tile { display: flex; flex-direction: column; align-items: center; gap: 7px; height: 100%; padding: 10px 4px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 10px; text-align: center; color: var(--text-2); }
+.avatar-picker__tile .vault-avatar { width: 42px; height: 42px; font-size: 20px; }
+.avatar-picker__option input:checked + .avatar-picker__tile { border-color: var(--accent); background: var(--accent-soft); color: var(--text-1); box-shadow: inset 0 0 0 1px var(--accent); }
+.avatar-picker__option input:focus-visible + .avatar-picker__tile { outline: 2px solid var(--accent); outline-offset: 3px; }
+.avatar-picker:disabled { opacity: .6; }
+.avatar-picker:disabled label { cursor: default; }

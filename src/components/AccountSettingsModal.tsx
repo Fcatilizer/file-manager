@@ -1,11 +1,13 @@
 import PasswordInput from './PasswordInput'
 import '../styles/account-settings.css'
 import PreferencesPanel from './settings/PreferencesPanel'
+import AvatarPicker from './settings/AvatarPicker'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import Modal, { ModalCloseButton } from './Modal'
 import { Icon } from './Icon'
 import { changePassword, updateAccount, type SessionUser } from '../lib/api'
 import { DEFAULT_PREFERENCES, type Preferences } from '../lib/preferences'
+import { normalizeAvatar, type AvatarId } from '../lib/avatars'
 
 const SECTIONS = [
   { id: 'profile', label: 'Profile', icon: 'users' },
@@ -24,6 +26,7 @@ type Props = {
 export default function AccountSettingsModal({ user, preferences, onPreferencesChange, onUserUpdated, onClose }: Props) {
   const [section, setSection] = useState<typeof SECTIONS[number]['id']>('profile')
   const [name, setName] = useState(user.name || '')
+  const [avatar, setAvatar] = useState<AvatarId>(normalizeAvatar(user.avatar))
   const [draft, setDraft] = useState(preferences)
   const savedPreferences = useRef(preferences)
   const [currentPassword, setCurrentPassword] = useState('')
@@ -33,6 +36,11 @@ export default function AccountSettingsModal({ user, preferences, onPreferencesC
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const contentRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    setName(user.name || '')
+    setAvatar(normalizeAvatar(user.avatar))
+  }, [user.name, user.avatar])
 
   useEffect(() => {
     const previousFocus = document.activeElement as HTMLElement | null
@@ -54,8 +62,8 @@ export default function AccountSettingsModal({ user, preferences, onPreferencesC
   const saveProfile = (event: FormEvent) => {
     event.preventDefault()
     void run(async () => {
-      const updated = await updateAccount({ name: name.trim() })
-      onUserUpdated(updated); setName(updated.name || ''); setMessage('Profile saved')
+      const updated = await updateAccount({ name: name.trim(), avatar })
+      onUserUpdated(updated); setName(updated.name || ''); setAvatar(normalizeAvatar(updated.avatar)); setMessage('Profile saved')
     })
   }
   const savePassword = (event: FormEvent) => {
@@ -93,9 +101,10 @@ export default function AccountSettingsModal({ user, preferences, onPreferencesC
         </nav>
         <div className="account-settings__body" aria-busy={busy}>
           {section === 'profile' && <form onSubmit={saveProfile}>
-            <h3>Your profile</h3><p className="account-settings__hint">Choose the name shown in your vault.</p>
+            <h3>Your profile</h3><p className="account-settings__hint">Choose the name and avatar shown in your vault.</p>
             <label className="auth__field"><span className="auth__label">Display name</span><input className="auth__input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" autoComplete="name" required maxLength={80} disabled={busy} /></label>
             <label className="auth__field"><span className="auth__label">Email</span><input className="auth__input" value={user.email} readOnly type="email" /></label>
+            <AvatarPicker value={avatar} name={name || user.email} disabled={busy} onChange={setAvatar} />
             <div className="account-settings__actions"><button className="btn btn--primary" disabled={busy || !name.trim()}>{busy ? 'Saving…' : 'Save profile'}</button></div>
           </form>}
           {section === 'password' && <form onSubmit={savePassword}>

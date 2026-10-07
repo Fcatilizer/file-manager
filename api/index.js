@@ -900,6 +900,29 @@ function notFound(req, res) {
 import express6 from "express";
 import cookieParser from "cookie-parser";
 
+// src/lib/avatars.ts
+var AVATARS = [
+  { id: "initial", label: "Your initial", group: "Default" },
+  { id: "cat", label: "Cosmic cat", group: "Characters" },
+  { id: "fox", label: "Forest fox", group: "Characters" },
+  { id: "panda", label: "Sleepy panda", group: "Characters" },
+  { id: "frog", label: "Happy frog", group: "Characters" },
+  { id: "robot", label: "Little robot", group: "Gaming" },
+  { id: "ninja", label: "Night ninja", group: "Gaming" },
+  { id: "astronaut", label: "Space explorer", group: "Gaming" },
+  { id: "ghost", label: "Friendly ghost", group: "Gaming" },
+  { id: "gamepad", label: "Player one", group: "Gaming" },
+  { id: "yin-yang", label: "Yin-yang", group: "Symbols" },
+  { id: "lotus", label: "Lotus", group: "Symbols" },
+  { id: "star", label: "Lucky star", group: "Symbols" }
+];
+function isAvatarId(value) {
+  return typeof value === "string" && AVATARS.some((avatar) => avatar.id === value);
+}
+function normalizeAvatar(value) {
+  return isAvatarId(value) ? value : "initial";
+}
+
 // server/db.ts
 import { MongoClient, ObjectId } from "mongodb";
 import bcrypt from "bcryptjs";
@@ -954,6 +977,7 @@ function toPublicUser(user) {
     id: String(user._id),
     email: user.email,
     name: user.name || "",
+    avatar: normalizeAvatar(user.avatar),
     preferences: normalizePreferences(user.preferences),
     role: user.role,
     createdAt: user.createdAt.toISOString()
@@ -1308,12 +1332,16 @@ authRouter.post("/password", requireAuth, async (req, res) => {
 authRouter.patch("/me", requireAuth, async (req, res) => {
   const user = req.user;
   const body = req.body;
-  if (!body || typeof body !== "object" || Array.isArray(body) || !Object.keys(body).length || Object.keys(body).some((key2) => !["name", "preferences"].includes(key2))) {
-    res.status(400).json({ error: "Provide a name or preferences to update" });
+  if (!body || typeof body !== "object" || Array.isArray(body) || !Object.keys(body).length || Object.keys(body).some((key2) => !["name", "preferences", "avatar"].includes(key2))) {
+    res.status(400).json({ error: "Provide a name, avatar, or preferences to update" });
     return;
   }
   if ("name" in body && (typeof body.name !== "string" || !body.name.trim() || body.name.trim().length > 80 || Array.from(body.name).some((character) => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127))) {
     res.status(400).json({ error: "Name must contain 1\u201380 characters without control characters" });
+    return;
+  }
+  if ("avatar" in body && (typeof body.avatar !== "string" || !isAvatarId(body.avatar))) {
+    res.status(400).json({ error: "Invalid avatar selection" });
     return;
   }
   const preferences = "preferences" in body ? normalizePreferences(body.preferences) : void 0;
@@ -1323,6 +1351,7 @@ authRouter.patch("/me", requireAuth, async (req, res) => {
   }
   const updated = await updateUserProfile(user.id, {
     ..."name" in body ? { name: body.name.trim() } : {},
+    ..."avatar" in body ? { avatar: body.avatar } : {},
     ...preferences ? { preferences } : {}
   });
   if (!updated) {

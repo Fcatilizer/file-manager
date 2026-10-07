@@ -9,6 +9,7 @@ import BucketPasswordDialog from './buckets/BucketPasswordDialog'
 import AppearanceControls from './AppearanceControls'
 import VaultBrandButton from './VaultBrandButton'
 import NewFileModal from './NewFileModal'
+import Avatar from './Avatar'
 import '../styles/new-dropdown.css'
 import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef, Fragment, type DragEvent } from 'react'
 import {
@@ -668,7 +669,7 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
           )}
           <div className="user-chip" title={user.email}>
             <button type="button" className="user-chip__profile" onClick={() => setShowAccount(true)} aria-label="Account settings" title="Account settings">
-              <span className="user-chip__avatar" aria-hidden="true">{(user.name || user.email).charAt(0).toUpperCase()}</span>
+              <Avatar avatar={user.avatar} name={user.name || user.email} className="user-chip__avatar" />
               <span className="user-chip__email">{user.name || user.email}</span>
             </button>
             <button className="user-chip__logout" onClick={() => { if (!scratchpadDirty || window.confirm('Some scratchpad notes are not saved. Sign out and discard these drafts?')) onLogout() }} title="Sign out" aria-label="Sign out">

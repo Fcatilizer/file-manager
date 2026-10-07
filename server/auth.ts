@@ -1,6 +1,7 @@
 import { randomUUID, createHash } from 'node:crypto'
 import { mongoBucketStore } from './bucket-store.ts'
 import { normalizePreferences } from '../src/lib/preferences.ts'
+import { isAvatarId } from '../src/lib/avatars.ts'
 import express from 'express'
 import type { Request, Response, NextFunction } from 'express'
 import jwt from 'jsonwebtoken'
@@ -263,12 +264,16 @@ authRouter.patch('/me', requireAuth, async (req: Request, res: Response) => {
   const user = (req as AuthedRequest).user!
   const body = req.body
   if (!body || typeof body !== 'object' || Array.isArray(body)
-    || !Object.keys(body).length || Object.keys(body).some((key) => !['name', 'preferences'].includes(key))) {
-    res.status(400).json({ error: 'Provide a name or preferences to update' })
+    || !Object.keys(body).length || Object.keys(body).some((key) => !['name', 'preferences', 'avatar'].includes(key))) {
+    res.status(400).json({ error: 'Provide a name, avatar, or preferences to update' })
     return
   }
   if ('name' in body && (typeof body.name !== 'string' || !body.name.trim() || body.name.trim().length > 80 || Array.from(body.name as string).some((character) => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127))) {
     res.status(400).json({ error: 'Name must contain 1–80 characters without control characters' })
+    return
+  }
+  if ('avatar' in body && (typeof body.avatar !== 'string' || !isAvatarId(body.avatar))) {
+    res.status(400).json({ error: 'Invalid avatar selection' })
     return
   }
   const preferences = 'preferences' in body ? normalizePreferences(body.preferences) : undefined
@@ -278,6 +283,7 @@ authRouter.patch('/me', requireAuth, async (req: Request, res: Response) => {
   }
   const updated = await updateUserProfile(user.id, {
     ...('name' in body ? { name: body.name.trim() } : {}),
+    ...('avatar' in body ? { avatar: body.avatar } : {}),
     ...(preferences ? { preferences } : {}),
   })
   if (!updated) { res.status(404).json({ error: 'User not found' }); return }

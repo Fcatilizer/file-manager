@@ -21,6 +21,7 @@ export type UserRole = 'admin' | 'user'
 
 export interface SessionUser {
   name?: string
+  avatar?: string
   preferences?: Preferences
   id: string
   email: string
@@ -247,7 +248,7 @@ export async function createFolder(bucket: string, path: string): Promise<void> 
   })
 }
 
-export async function updateAccount(updates: { name?: string; preferences?: Preferences }): Promise<SessionUser> {
+export async function updateAccount(updates: { name?: string; avatar?: string; preferences?: Preferences }): Promise<SessionUser> {
   const data = await request<{ user: SessionUser }>('/api/auth/me', {
     method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updates),
   })

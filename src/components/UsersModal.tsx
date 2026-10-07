@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { Icon } from './Icon'
 import Modal, { ModalCloseButton } from './Modal'
 import ChangePasswordModal from './ChangePasswordModal'
+import Avatar from './Avatar'
 import {
   createUser,
   deleteUser,
@@ -157,7 +158,7 @@ export default function UsersModal({ currentUser, onClose, onToast }: Props) {
               const deleteDisabled = isSelf || isLastAdmin
               return (
                 <div key={u.id} className="user-row">
-                  <span className="user-row__avatar">{u.email.charAt(0).toUpperCase()}</span>
+                  <Avatar avatar={u.avatar} name={u.name || u.email} className="user-row__avatar" />
                   <div className="user-row__info">
                     <div className="user-row__email">
                       {u.email}
