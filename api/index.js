@@ -344,6 +344,30 @@ function isLeafSettings(value) {
   return Object.keys(settings).every((key) => Object.hasOwn(DEFAULT_LEAVES, key)) && isAnimationAppearance(settings, LEAF_LIMITS) && typeof settings.breeze === "boolean";
 }
 
+// src/lib/snow.ts
+var SNOW_LIMITS = {
+  speed: { min: 0.5, max: 2, step: 0.1 },
+  height: { min: 2, max: 10, step: 0.5 },
+  width: { min: 2, max: 10, step: 0.5 }
+};
+var FROST_HEIGHT_LIMITS = { min: 8, max: 48, step: 1 };
+var DEFAULT_SNOW = {
+  direction: "down",
+  density: "balanced",
+  speed: 1,
+  height: 5,
+  width: 5,
+  color: "theme",
+  accumulation: true,
+  glisten: true,
+  frostHeight: 24
+};
+function isSnowSettings(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const settings = value;
+  return Object.keys(settings).every((key) => Object.hasOwn(DEFAULT_SNOW, key)) && isAnimationAppearance(settings, SNOW_LIMITS) && typeof settings.accumulation === "boolean" && typeof settings.glisten === "boolean" && typeof settings.frostHeight === "number" && Number.isFinite(settings.frostHeight) && settings.frostHeight >= FROST_HEIGHT_LIMITS.min && settings.frostHeight <= FROST_HEIGHT_LIMITS.max;
+}
+
 // src/lib/starfield.ts
 var STARFIELD_LIMITS = {
   speed: { min: 0.5, max: 2, step: 0.1 },
@@ -430,6 +454,21 @@ var ANIMATION_CATALOG = {
       { key: "breeze", label: "Wind sweep", description: "An occasional swirl clears the pile, making room for new leaves." }
     ],
     hint: "With wind off, the pile fills and stays. Previews cycle faster so you can see the sweep."
+  }),
+  snow: defineAnimation({
+    label: "Snow",
+    description: "Glistening flakes and a soft frost layer",
+    particle: "Flake",
+    defaults: DEFAULT_SNOW,
+    limits: SNOW_LIMITS,
+    validate: isSnowSettings,
+    controls: { uniformSize: true },
+    switches: [
+      { key: "accumulation", label: "Frost layer", description: "Snow settles into a soft, glowing bank along the bottom edge." },
+      { key: "glisten", label: "Glisten", description: "Brighter flakes softly twinkle as they fall." }
+    ],
+    ranges: [{ key: "frostHeight", label: "Frost height", ...FROST_HEIGHT_LIMITS, unit: " px", enabledBy: "accumulation" }],
+    hint: "The frost builds gradually and stays shallow. Previews accumulate faster."
   }),
   starfield: defineAnimation({
     label: "Starfield",

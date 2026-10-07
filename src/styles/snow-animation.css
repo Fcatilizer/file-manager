@@ -1,0 +1,74 @@
+/* Local fall/sway/glint layers; no frame loop or accumulating particle array. */
+.snow-scene {
+  --snow-ink: color-mix(in srgb, var(--snow-color) 35%, white);
+  --snow-travel: calc(100cqh + 12px - var(--snow-floor));
+  --snow-drift: calc(var(--snow-travel) * .16);
+  position: absolute; inset: 0; contain: strict; container-type: size;
+  overflow: hidden; pointer-events: none; user-select: none; color: var(--snow-ink);
+}
+.snow-background { position: fixed; z-index: -1; }
+.snow-scene[data-direction="down"] { --snow-drift: 0px; }
+.snow-scene[data-direction="down-left"] { --snow-drift: calc(var(--snow-travel) * -.16); }
+.snow-track {
+  position: absolute; top: 0; height: 100%; width: 1px;
+  left: calc(var(--snow-position) * (100cqw + var(--snow-travel) * .16) - var(--snow-travel) * .16);
+}
+.snow-scene[data-direction="down"] .snow-track { left: calc(var(--snow-position) * 100cqw); }
+.snow-scene[data-direction="down-left"] .snow-track { left: calc(var(--snow-position) * (100cqw + var(--snow-travel) * .16)); }
+.snow-falling { position: absolute; top: -12px; animation: snow-fall var(--snow-duration) var(--snow-delay) linear infinite; }
+.snow-sway { display: block; animation: snow-sway var(--snow-sway-duration) var(--snow-delay) ease-in-out infinite alternate; }
+.snow-flake {
+  display: block; width: var(--snow-size-x); height: var(--snow-size-y); border-radius: 50%;
+  background: currentColor; opacity: .75; box-shadow: 0 0 4px color-mix(in srgb, currentColor 25%, transparent);
+}
+.snow-flake--crystal { background: none; box-shadow: none; }
+.snow-flake svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.snow-scene[data-glisten="true"] .snow-flake { animation: snow-glisten var(--snow-glint-duration) var(--snow-delay) ease-in-out infinite; }
+.snow-settle {
+  position: absolute; bottom: calc(var(--snow-floor) - 2px); left: 0; width: 9px; height: 3px;
+  border-radius: 50%; background: currentColor; opacity: 0;
+  animation: snow-settle var(--snow-duration) var(--snow-delay) linear infinite;
+}
+.snow-bank {
+  position: absolute; bottom: -2px; left: 0; width: 100%; height: var(--snow-bank-height);
+  transform-origin: center bottom;
+  animation: snow-build var(--snow-build-duration) var(--snow-build-delay) ease-out both;
+  background: radial-gradient(ellipse at center bottom, color-mix(in srgb, currentColor 12%, transparent), transparent 72%);
+}
+.snow-bank svg { display: block; width: 100%; height: 100%; filter: drop-shadow(0 -2px 3px color-mix(in srgb, currentColor 15%, transparent)); }
+@keyframes snow-fall {
+  0% { transform: translate3d(0, 0, 0); opacity: 0; }
+  8%, 95% { opacity: 1; }
+  99%, 100% { transform: translate3d(var(--snow-drift), var(--snow-travel), 0); opacity: 0; }
+}
+@keyframes snow-sway {
+  from { transform: translateX(-9px) rotate(-12deg); }
+  to { transform: translateX(9px) rotate(16deg); }
+}
+@keyframes snow-glisten {
+  0%, 50%, 100% { opacity: .65; }
+  68% { opacity: 1; }
+  82% { opacity: .85; }
+}
+@keyframes snow-settle {
+  0%, 95% { transform: translateX(var(--snow-drift)) scale(.35); opacity: 0; }
+  97% { transform: translateX(var(--snow-drift)) scale(.8); opacity: .55; }
+  100% { transform: translateX(var(--snow-drift)) scale(1.6); opacity: 0; }
+}
+@keyframes snow-build {
+  from { transform: scaleY(.05); opacity: .15; }
+  to { transform: scaleY(1); opacity: 1; }
+}
+[data-theme="light"] .snow-scene { --snow-ink: color-mix(in srgb, var(--snow-color) 65%, #60758a); }
+.snow-scene--paused .snow-falling,
+.snow-scene--paused .snow-sway,
+.snow-scene--paused .snow-flake,
+.snow-scene--paused .snow-settle,
+.snow-scene--paused .snow-bank { animation-play-state: paused; }
+@media (max-width: 640px) {
+  .snow-background .snow-track:nth-child(even) { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .snow-background { display: none; }
+  .snow-falling, .snow-sway, .snow-flake, .snow-settle, .snow-bank { animation-play-state: paused; }
+}

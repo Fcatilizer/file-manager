@@ -1,6 +1,7 @@
 import type { AnimationAppearance, AnimationLimits } from './animationSettings.ts'
 import { DEFAULT_RAIN, isRainSettings, RAIN_LIMITS } from './rain.ts'
 import { DEFAULT_LEAVES, isLeafSettings, LEAF_LIMITS } from './leaves.ts'
+import { DEFAULT_SNOW, isSnowSettings, SNOW_LIMITS, FROST_HEIGHT_LIMITS } from './snow.ts'
 import { DEFAULT_STARFIELD, isStarfieldSettings, STARFIELD_LIMITS, STARFIELD_EXTRA_LIMITS } from './starfield.ts'
 import { DEFAULT_AUTUMN, isAutumnSettings, AUTUMN_LIMITS } from './autumn.ts'
 
@@ -36,6 +37,17 @@ export const ANIMATION_CATALOG = {
       { key: 'breeze', label: 'Wind sweep', description: 'An occasional swirl clears the pile, making room for new leaves.' },
     ],
     hint: 'With wind off, the pile fills and stays. Previews cycle faster so you can see the sweep.',
+  }),
+  snow: defineAnimation({
+    label: 'Snow', description: 'Glistening flakes and a soft frost layer', particle: 'Flake',
+    defaults: DEFAULT_SNOW, limits: SNOW_LIMITS, validate: isSnowSettings,
+    controls: { uniformSize: true },
+    switches: [
+      { key: 'accumulation', label: 'Frost layer', description: 'Snow settles into a soft, glowing bank along the bottom edge.' },
+      { key: 'glisten', label: 'Glisten', description: 'Brighter flakes softly twinkle as they fall.' },
+    ],
+    ranges: [{ key: 'frostHeight', label: 'Frost height', ...FROST_HEIGHT_LIMITS, unit: ' px', enabledBy: 'accumulation' }],
+    hint: 'The frost builds gradually and stays shallow. Previews accumulate faster.',
   }),
   starfield: defineAnimation({
     label: 'Starfield', description: 'Twinkling stars and passing meteors', particle: 'Star',

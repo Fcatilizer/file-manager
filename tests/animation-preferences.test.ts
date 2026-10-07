@@ -32,7 +32,7 @@ test('leaf validation rejects unsupported options, extreme values and injected s
     { height: 41 }, { width: 7 }, { width: '14' }, { breeze: 'yes' },
     { color: 'url(https://example.com)' }, { color: '#123' }, { splash: true },
   ]) assert.equal(isLeafSettings({ ...DEFAULT_LEAVES, ...patch }), false)
-  for (const animation of ['snow', '', null, 1]) assert.equal(isPreferences({ ...DEFAULT_PREFERENCES, animations: { ...DEFAULT_PREFERENCES.animations, type: animation } }), false)
+  for (const animation of ['unknown-effect', '', null, 1]) assert.equal(isPreferences({ ...DEFAULT_PREFERENCES, animations: { ...DEFAULT_PREFERENCES.animations, type: animation } }), false)
 })
 
 
@@ -52,4 +52,21 @@ test('registered defaults and Autumn controls validate without accepting excessi
     assert.equal(isAutumnSettings({ ...DEFAULT_AUTUMN, ...patch }), false)
   }
   assert.ok(isAutumnSettings({ ...DEFAULT_AUTUMN, pile: false, breeze: false, color: 'theme' }))
+})
+
+
+test('Snow settings validate and backfill without changing existing selections', () => {
+  const snow = DEFAULT_PREFERENCES.animations.settings.snow
+  const validate = ANIMATION_CATALOG.snow.validate
+  assert.ok(validate({ ...snow, accumulation: false, glisten: false, color: '#abc123' }))
+  for (const patch of [{ frostHeight: 49 }, { frostHeight: 7 }, { frostHeight: NaN }, { speed: 0 }, { width: 11 }, { glisten: 'yes' }, { accumulation: 1 }, { color: 'url(evil)' }, { extra: true }]) {
+    assert.equal(validate({ ...snow, ...patch }), false)
+  }
+  const { snow: _snow, ...previousSettings } = DEFAULT_PREFERENCES.animations.settings
+  const previous = { ...DEFAULT_PREFERENCES, animations: { type: 'starfield', settings: previousSettings } }
+  const updated = normalizePreferences(previous)!
+  assert.equal(updated.animations.type, 'starfield')
+  assert.deepEqual(updated.animations.settings.starfield, previousSettings.starfield)
+  assert.deepEqual(updated.animations.settings.snow, snow)
+  assert.ok(isPreferences(updated))
 })
