@@ -27,6 +27,32 @@ export interface PublicUser {
   createdAt: string
 }
 
+export type PinScope = 'global' | 'personal'
+
+export interface FilePinDoc {
+  _id: ObjectId
+  bucket: string
+  key: string
+  scope: PinScope
+  userId: string
+  userEmail: string
+  userName?: string
+  userAvatar?: string
+  createdAt: Date
+}
+
+export interface PublicPin {
+  id: string
+  bucket: string
+  key: string
+  scope: PinScope
+  userId: string
+  userEmail: string
+  userName?: string
+  userAvatar?: string
+  createdAt: string
+}
+
 declare global {
   // eslint-disable-next-line no-var
   var _mongoClientPromise: Promise<MongoClient> | undefined
@@ -34,6 +60,7 @@ declare global {
 
 let db: Db
 let users: Collection<UserDoc>
+let pins: Collection<FilePinDoc>
 let initialized = false
 
 const BCRYPT_ROUNDS = 12
@@ -68,12 +95,15 @@ export async function connectDB(): Promise<Db> {
   const client = await globalThis._mongoClientPromise
   db = client.db(process.env.MONGO_DB || 'vault')
   users = db.collection<UserDoc>('users')
+  pins = db.collection<FilePinDoc>('file_pins')
 
   if (!initialized) {
     try {
       await users.createIndex({ email: 1 }, { unique: true })
       // Migrate any pre-roles records (all of which were seeded admins).
       await users.updateMany({ role: { $exists: false } }, { $set: { role: 'admin' } })
+      await pins.createIndex({ bucket: 1, key: 1, scope: 1, userId: 1 })
+      await pins.createIndex({ bucket: 1, scope: 1 })
     } catch {
       // Ignore if index already exists or migration was run
     }
@@ -188,4 +218,99 @@ export async function updateUserProfile(id: string, updates: { name?: string; av
 export function getDatabase(): Db {
   if (!db) throw new Error('Database not connected')
   return db
+}
+
+export function getPinsCollection(): Collection<FilePinDoc> {
+  if (!pins) {
+    if (db) pins = db.collection<FilePinDoc>('file_pins')
+    else throw new Error('Database not connected')
+  }
+  return pins
+}
+
+export function toPublicPin(doc: FilePinDoc): PublicPin {
+  return {
+    id: String(doc._id),
+    bucket: doc.bucket,
+    key: doc.key,
+    scope: doc.scope,
+    userId: doc.userId,
+    userEmail: doc.userEmail,
+    userName: doc.userName || '',
+    userAvatar: normalizeAvatar(doc.userAvatar),
+    createdAt: doc.createdAt instanceof Date ? doc.createdAt.toISOString() : new Date(doc.createdAt).toISOString(),
+  }
+}
+
+export async function listFilePins(bucket: string, userId: string): Promise<PublicPin[]> {
+  if (!db) return []
+  const docs = await getPinsCollection().find({
+    bucket,
+    $or: [{ scope: 'global' }, { scope: 'personal', userId }],
+  }).sort({ createdAt: -1 }).toArray()
+  return docs.map(toPublicPin)
+}
+
+export async function addFilePin(params: {
+  bucket: string
+  key: string
+  scope: PinScope
+  userId: string
+  userEmail: string
+  userName?: string
+  userAvatar?: string
+}): Promise<PublicPin> {
+  const filter = params.scope === 'global'
+    ? { bucket: params.bucket, key: params.key, scope: 'global' as const }
+    : { bucket: params.bucket, key: params.key, scope: 'personal' as const, userId: params.userId }
+
+  const doc = await getPinsCollection().findOneAndUpdate(
+    filter,
+    {
+      $set: {
+        bucket: params.bucket,
+        key: params.key,
+        scope: params.scope,
+        userId: params.userId,
+        userEmail: params.userEmail,
+        userName: params.userName || '',
+        userAvatar: normalizeAvatar(params.userAvatar),
+      },
+      $setOnInsert: { createdAt: new Date() },
+    },
+    { upsert: true, returnDocument: 'after' },
+  )
+  return toPublicPin(doc!)
+}
+
+export async function removeFilePin(params: {
+  bucket: string
+  key: string
+  scope: PinScope
+  userId: string
+  isAdmin: boolean
+}): Promise<boolean> {
+  if (!db) return false
+  const filter = params.scope === 'global'
+    ? { bucket: params.bucket, key: params.key, scope: 'global' as const, ...(params.isAdmin ? {} : { userId: params.userId }) }
+    : { bucket: params.bucket, key: params.key, scope: 'personal' as const, userId: params.userId }
+
+  const result = await getPinsCollection().deleteOne(filter)
+  return result.deletedCount > 0
+}
+
+export async function deletePinsForFile(bucket: string, key: string): Promise<number> {
+  if (!db) return 0
+  const isPrefix = key.endsWith('/')
+  const filter = isPrefix
+    ? { bucket, key: { $regex: '^' + key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') } }
+    : { bucket, key }
+  const result = await getPinsCollection().deleteMany(filter)
+  return result.deletedCount
+}
+
+export async function deletePinsForBucket(bucket: string): Promise<number> {
+  if (!db) return 0
+  const result = await getPinsCollection().deleteMany({ bucket })
+  return result.deletedCount
 }

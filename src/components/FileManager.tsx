@@ -11,6 +11,7 @@ import VaultBrandButton from './VaultBrandButton'
 import NewFileModal from './NewFileModal'
 import Avatar from './Avatar'
 import '../styles/new-dropdown.css'
+import '../styles/pinned-files.css'
 import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef, Fragment, type DragEvent } from 'react'
 import {
   fetchBuckets,
@@ -29,6 +30,11 @@ import {
   deleteBucket,
   type FileItem,
   type SessionUser,
+  fetchPins,
+  addPin,
+  removePin,
+  type PublicPin,
+  type PinScope,
 } from '../lib/api'
 import { getFileTypeInfo, getCategoryInfo, CATEGORY_ORDER, type FileCategory } from '../lib/fileIcons'
 import { isEditableFile } from '../lib/filetype'
@@ -110,7 +116,10 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
   const [showUsers, setShowUsers] = useState(false)
   const [showAccount, setShowAccount] = useState(false)
   const [query, setQuery] = useState('')
-  const [activeCategory, setActiveCategory] = useState<FileCategory | null>(null)
+  const [activeCategory, setActiveCategory] = useState<FileCategory | 'pinned' | null>(null)
+  const [pins, setPins] = useState<PublicPin[]>([])
+  const [pinMenuKey, setPinMenuKey] = useState<string | null>(null)
+  const [pinningKey, setPinningKey] = useState<string | null>(null)
   const [showNewFolder, setShowNewFolder] = useState(false)
   const [showNewFile, setShowNewFile] = useState(false)
   const [editingFile, setEditingFile] = useState<{ file: FileItem; content: string } | null>(null)
@@ -135,6 +144,7 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
       setEditingFile(null)
       setShowNewMenu(false)
       setLoading(false)
+      setPins([])
     }
   }, [activeBucket])
 
@@ -308,6 +318,65 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
     setPrefix('')
   }, [activeBucket])
 
+  // ─── Pinned Files ───────────────────────────────────────
+  const loadPins = useCallback(async () => {
+    if (!activeBucket || activeLocked) {
+      setPins([])
+      return
+    }
+    try {
+      const result = await fetchPins(activeBucket)
+      setPins(result)
+    } catch {
+      // Bucket locked or inaccessible
+    }
+  }, [activeBucket, activeLocked])
+
+  useEffect(() => {
+    void loadPins()
+  }, [loadPins])
+
+  const handleTogglePin = useCallback(async (key: string, scope: PinScope, shouldPin: boolean) => {
+    if (!activeBucket) return
+    setPinningKey(key)
+    try {
+      if (shouldPin) {
+        const newPin = await addPin(activeBucket, key, scope)
+        setPins(prev => [...prev.filter(p => !(p.key === key && p.scope === scope && (scope === 'global' || p.userId === user.id))), newPin])
+        showToast(scope === 'global' ? 'Pinned for everyone' : 'Pinned for you', 'success')
+      } else {
+        await removePin(activeBucket, key, scope)
+        setPins(prev => prev.filter(p => !(p.key === key && p.scope === scope && (scope === 'global' || p.userId === user.id))))
+        showToast('Pin removed', 'success')
+      }
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Could not update pin', 'error')
+    } finally {
+      setPinningKey(null)
+      setPinMenuKey(null)
+    }
+  }, [activeBucket, user.id, showToast])
+
+  // Dismiss Pin Popover on outside click or Escape
+  useEffect(() => {
+    if (!pinMenuKey) return
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as HTMLElement
+      if (!target.closest('.pin-action-wrap')) {
+        setPinMenuKey(null)
+      }
+    }
+    const onKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key === 'Escape') setPinMenuKey(null)
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    window.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown)
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [pinMenuKey])
+
   // ─── Refresh / Reload via Brand Logo ────────────────────
   const handleRefreshVault = useCallback(() => {
     setQuery('')
@@ -317,7 +386,8 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
 
     void refreshBuckets()
     void loadFiles()
-  }, [refreshBuckets, loadFiles])
+    void loadPins()
+  }, [refreshBuckets, loadFiles, loadPins])
 
   // ─── Upload ─────────────────────────────────────────────
 
@@ -540,17 +610,63 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
     [categoryCounts],
   )
 
+  const pinsByKey = useMemo(() => {
+    const map = new Map<string, { global?: PublicPin; personal?: PublicPin }>()
+    for (const p of pins) {
+      const existing = map.get(p.key) || {}
+      if (p.scope === 'global') existing.global = p
+      if (p.scope === 'personal') existing.personal = p
+      map.set(p.key, existing)
+    }
+    return map
+  }, [pins])
+
+  const pinnedCards = useMemo(() => {
+    const cards: Array<{
+      key: string
+      name: string
+      isFolder: boolean
+      size: number
+      iconName: string
+      iconColor: string
+      globalPin?: PublicPin
+      personalPin?: PublicPin
+    }> = []
+
+    for (const [key, { global: gPin, personal: pPin }] of pinsByKey.entries()) {
+      const isFolder = key.endsWith('/')
+      const existing = files.find((f) => f.key === key)
+      const name = existing ? existing.name : key.split('/').filter(Boolean).pop() || key
+      const size = existing ? existing.size : 0
+      const fileInfo = getFileTypeInfo(name, isFolder)
+      const iconColor = theme === 'dark' ? fileInfo.colorDark : fileInfo.colorLight
+      cards.push({
+        key,
+        name,
+        isFolder,
+        size,
+        iconName: fileInfo.iconName,
+        iconColor,
+        globalPin: gPin,
+        personalPin: pPin,
+      })
+    }
+    return cards
+  }, [pinsByKey, files, theme])
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
     return files.filter((f) => {
-      if (activeCategory) {
+      if (activeCategory === 'pinned') {
+        if (!pinsByKey.has(f.key)) return false
+      } else if (activeCategory) {
         const { category } = getFileTypeInfo(f.name, f.isFolder)
         if (category !== activeCategory) return false
       }
       if (q && !f.name.toLowerCase().includes(q)) return false
       return true
     })
-  }, [files, query, activeCategory])
+  }, [files, query, activeCategory, pinsByKey])
 
   const isFiltering = query.trim().length > 0 || activeCategory !== null
 
@@ -590,6 +706,20 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
     },
     [previewable.length],
   )
+
+  const handleOpenPinnedCard = useCallback((card: { key: string; isFolder: boolean }) => {
+    if (card.isFolder) {
+      setPrefix(card.key)
+    } else {
+      const existing = files.find((f) => f.key === card.key)
+      if (existing) {
+        openPreview(existing)
+      } else {
+        const parentFolder = card.key.includes('/') ? card.key.substring(0, card.key.lastIndexOf('/') + 1) : ''
+        setPrefix(parentFolder)
+      }
+    }
+  }, [files, openPreview])
 
   // Reset filters when navigating folders / changing bucket
   useEffect(() => {
@@ -812,6 +942,17 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
               All
               <span className="chip__count">{files.length}</span>
             </button>
+            {pins.length > 0 && (
+              <button
+                className={`chip${activeCategory === 'pinned' ? ' chip--active' : ''}`}
+                onClick={() => setActiveCategory(activeCategory === 'pinned' ? null : 'pinned')}
+                title="Show only pinned files"
+              >
+                <Icon name="pin" size={13} color="currentColor" />
+                Pinned
+                <span className="chip__count">{pins.length}</span>
+              </button>
+            )}
             {presentCategories.map((cat) => {
               const meta = getCategoryInfo(cat)
               const color = theme === 'dark' ? meta.colorDark : meta.colorLight
@@ -829,6 +970,49 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
                 </button>
               )
             })}
+          </div>
+        </div>
+      )}
+
+      {/* Quick-Access Pinned Shelf */}
+      {activeBucket && !activeLocked && pinnedCards.length > 0 && activeCategory !== 'pinned' && (
+        <div className="pinned-shelf" aria-label="Pinned favorites">
+          <div className="pinned-shelf__header">
+            <span className="pinned-shelf__title"><Icon name="pin" size={13} /> Pinned</span>
+            <span className="pinned-shelf__hint">{pinnedCards.length} {pinnedCards.length === 1 ? 'item' : 'items'}</span>
+          </div>
+          <div className="pinned-shelf__track">
+            {pinnedCards.map((card) => (
+              <button
+                key={card.key}
+                type="button"
+                className="pinned-card"
+                onClick={() => handleOpenPinnedCard(card)}
+                title={`Open ${card.name}`}
+              >
+                <div className="pinned-card__top">
+                  <span style={{ color: card.iconColor, display: 'inline-flex' }}>
+                    <Icon name={card.iconName} size={16} color={card.iconColor} />
+                  </span>
+                  {card.globalPin && (
+                    <span className="pinned-card__pinner" title={`Pinned globally by ${card.globalPin.userName || card.globalPin.userEmail}`}>
+                      <Avatar
+                        avatar={card.globalPin.userAvatar}
+                        name={card.globalPin.userName || card.globalPin.userEmail}
+                        className="pinned-card__avatar"
+                      />
+                    </span>
+                  )}
+                  {!card.globalPin && card.personalPin && (
+                    <span className="pinned-card__badge" title="Pinned for you">You</span>
+                  )}
+                </div>
+                <span className="pinned-card__name">{card.name}</span>
+                <div className="pinned-card__meta">
+                  {card.size > 0 && <span>{formatSize(card.size)}</span>}
+                </div>
+              </button>
+            ))}
           </div>
         </div>
       )}
@@ -911,10 +1095,113 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
                     <span className="file-row__icon" style={{ color: iconColor }}>
                       <Icon name={fileInfo.iconName} size={17} color={iconColor} />
                     </span>
-                    <span className="file-row__name">{f.name}</span>
+                    <span className="file-row__name">
+                      {f.name}
+                      {pinsByKey.get(f.key)?.global && (
+                        <span
+                          className="file-pin-badge file-pin-badge--global"
+                          title={`Pinned for everyone by ${pinsByKey.get(f.key)!.global!.userName || pinsByKey.get(f.key)!.global!.userEmail}`}
+                        >
+                          <Avatar
+                            avatar={pinsByKey.get(f.key)!.global!.userAvatar}
+                            name={pinsByKey.get(f.key)!.global!.userName || pinsByKey.get(f.key)!.global!.userEmail}
+                          />
+                          <Icon name="pin" size={11} />
+                          <span className="file-pin-badge__label">
+                            {pinsByKey.get(f.key)!.global!.userName || pinsByKey.get(f.key)!.global!.userEmail.split('@')[0]}
+                          </span>
+                        </span>
+                      )}
+                      {pinsByKey.get(f.key)?.personal && (
+                        <span className="file-pin-badge file-pin-badge--personal" title="Pinned for you">
+                          <Icon name="pin" size={11} />
+                        </span>
+                      )}
+                    </span>
                     <span className="file-row__size">{formatSize(f.size)}</span>
                     <span className="file-row__date">{formatDate(f.lastModified)}</span>
                     <div className="file-row__actions">
+                      <div className="pin-action-wrap" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          className={`btn btn--icon${pinsByKey.get(f.key)?.global ? ' btn--pinned-global' : pinsByKey.get(f.key)?.personal ? ' btn--pinned' : ''}`}
+                          title={
+                            pinsByKey.get(f.key)?.global && pinsByKey.get(f.key)?.personal
+                              ? 'Pinned globally and personally'
+                              : pinsByKey.get(f.key)?.global
+                              ? `Pinned globally by ${pinsByKey.get(f.key)!.global!.userName || pinsByKey.get(f.key)!.global!.userEmail}`
+                              : pinsByKey.get(f.key)?.personal
+                              ? 'Pinned for you'
+                              : 'Pin / Favorite'
+                          }
+                          aria-label={`Pin ${f.name}`}
+                          disabled={pinningKey === f.key}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            if (activeDetails?.isPrivate) {
+                              void handleTogglePin(f.key, 'personal', !pinsByKey.get(f.key)?.personal)
+                            } else {
+                              setPinMenuKey(pinMenuKey === f.key ? null : f.key)
+                            }
+                          }}
+                        >
+                          {pinningKey === f.key ? <span className="spinner spinner--sm" /> : <Icon name="pin" size={14} />}
+                        </button>
+                        {!activeDetails?.isPrivate && pinMenuKey === f.key && (
+                          <div className="pin-popover" role="menu" aria-label="Pin options">
+                            <button
+                              type="button"
+                              role="menuitemcheckbox"
+                              aria-checked={!!pinsByKey.get(f.key)?.personal}
+                              className="pin-popover__option"
+                              onClick={() => void handleTogglePin(f.key, 'personal', !pinsByKey.get(f.key)?.personal)}
+                            >
+                              <div className="pin-popover__option-left">
+                                <div className="pin-popover__option-title">
+                                  <Icon name="pin" size={13} color="#f59e0b" />
+                                  <span>Pin for me</span>
+                                </div>
+                                <span className="pin-popover__option-hint">Visible only in your favorites</span>
+                              </div>
+                              <span className={`pin-popover__status${pinsByKey.get(f.key)?.personal ? ' pin-popover__status--active' : ''}`}>
+                                {pinsByKey.get(f.key)?.personal ? '✓' : ''}
+                              </span>
+                            </button>
+
+                            <button
+                              type="button"
+                              role="menuitemcheckbox"
+                              aria-checked={!!pinsByKey.get(f.key)?.global}
+                              className="pin-popover__option"
+                              onClick={() => void handleTogglePin(f.key, 'global', !pinsByKey.get(f.key)?.global)}
+                            >
+                              <div className="pin-popover__option-left">
+                                <div className="pin-popover__option-title">
+                                  <Icon name="pin" size={13} />
+                                  <span>Pin for everyone</span>
+                                </div>
+                                <span className="pin-popover__option-hint">
+                                  {pinsByKey.get(f.key)?.global ? (
+                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                      Pinned by
+                                      <Avatar
+                                        avatar={pinsByKey.get(f.key)!.global!.userAvatar}
+                                        name={pinsByKey.get(f.key)!.global!.userName || pinsByKey.get(f.key)!.global!.userEmail}
+                                        className="pin-popover__avatar"
+                                      />
+                                      {pinsByKey.get(f.key)!.global!.userName || pinsByKey.get(f.key)!.global!.userEmail.split('@')[0]}
+                                    </span>
+                                  ) : (
+                                    'Shows with your avatar in shared bucket'
+                                  )}
+                                </span>
+                              </div>
+                              <span className={`pin-popover__status${pinsByKey.get(f.key)?.global ? ' pin-popover__status--active' : ''}`}>
+                                {pinsByKey.get(f.key)?.global ? '✓' : ''}
+                              </span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
                       <button className="btn btn--icon" title="Details" aria-label={`Details for ${f.name}`} onClick={(e) => { e.stopPropagation(); setDetailsItem(f) }}><Icon name="info" size={14} /></button>
                       <button className="btn btn--icon" title="Share publicly" aria-label={`Share ${f.name}`} onClick={(e) => { e.stopPropagation(); setShareItem(f) }}><Icon name="link" size={14} /></button>
                       {!f.isFolder && (

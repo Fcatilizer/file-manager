@@ -197,7 +197,7 @@ export default function PreviewModal({
 
   // ─── Body ───────────────────────────────────────────────
   const renderBody = () => {
-    if (isInspectableArchive(file.name)) return <Suspense fallback={<div className="preview__loader">Loading archive inspector…</div>}><ArchivePreview key={src} src={src} name={file.name} size={file.size} /></Suspense>
+    if (isInspectableArchive(file.name)) return <Suspense fallback={<div className="preview__loader">Loading archive inspector…</div>}><ArchivePreview key={src} src={src} name={file.name} size={file.size} theme={theme} /></Suspense>
     switch (kind) {
       case 'image':
         return (

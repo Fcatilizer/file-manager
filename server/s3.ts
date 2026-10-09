@@ -19,11 +19,20 @@ import {
   HeadBucketCommand,
 } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
-import { requireAdmin } from './auth.ts'
+import { requireAdmin, type AuthedRequest } from './auth.ts'
 import bcrypt from 'bcryptjs'
 import { BucketProtection, BucketAccessError, bucketUser } from './bucket-protection.ts'
 import { PRIVATE_BUCKET_PREFIX, PRIVATE_URL_SECONDS, validateBucketPassword } from '../src/lib/bucketProtection.ts'
 import { validateBucketName } from '../src/lib/buckets.ts'
+import {
+  getUserById,
+  listFilePins,
+  addFilePin,
+  removeFilePin,
+  deletePinsForFile,
+  deletePinsForBucket,
+  type PinScope,
+} from './db.ts'
 
 function bucketError(res: Response, err: unknown): void {
   const error = err as { name?: string; $metadata?: { httpStatusCode?: number } }
@@ -161,13 +170,14 @@ export function createS3Router(protection = new BucketProtection(), authenticate
       if (!bucket || (err as { name?: string }).name !== 'NoSuchBucket') { bucketError(res, err); return }
     }
     if (bucket) await protection.store.markDeleted(name)
+    await deletePinsForBucket(name)
     res.json({ success: true })
   }))
 
   // Resolve one canonical bucket before any storage access, signing or upload
   // buffering. Body/query disagreements can never select a different bucket.
   router.use('/folders', express.json())
-  const filePaths = new Set(['/files', '/upload-url', '/upload', '/download', '/raw', '/folders', '/metadata', '/scratchpad'])
+  const filePaths = new Set(['/files', '/pins', '/upload-url', '/upload', '/download', '/raw', '/folders', '/metadata', '/scratchpad'])
   router.use((req, res, next) => {
     const routePath = req.path.toLowerCase().replace(/\/+$/, '')
     if (!filePaths.has(routePath)) { next(); return }
@@ -262,6 +272,73 @@ export function createS3Router(protection = new BucketProtection(), authenticate
     res.json({ items: [...folders, ...files], prefix })
   }))
 
+  // ─── Pinned Files ───────────────────────────────────────
+  router.get('/pins', wrap(async (req, res) => {
+    const bucket = res.locals.bucket as string
+    const user = (req as AuthedRequest).user!
+    const pins = await listFilePins(bucket, user.id)
+    res.json({ pins })
+  }))
+
+  router.post('/pins', express.json(), wrap(async (req, res) => {
+    const bucket = res.locals.bucket as string
+    const user = (req as AuthedRequest).user!
+    const key = req.body?.key
+    const scope = req.body?.scope as PinScope
+    if (typeof key !== 'string' || !key) {
+      res.status(400).json({ error: 'A valid file key is required' })
+      return
+    }
+    if (scope !== 'global' && scope !== 'personal') {
+      res.status(400).json({ error: 'Scope must be either "global" or "personal"' })
+      return
+    }
+    if (res.locals.privateBucket && scope === 'global') {
+      res.status(400).json({ error: 'Private buckets only support personal pins' })
+      return
+    }
+
+    const fullUser = await getUserById(user.id)
+    const pin = await addFilePin({
+      bucket,
+      key,
+      scope,
+      userId: user.id,
+      userEmail: user.email,
+      userName: fullUser?.name || user.email.split('@')[0],
+      userAvatar: fullUser?.avatar || 'initial',
+    })
+    res.status(201).json({ pin })
+  }))
+
+  router.delete('/pins', wrap(async (req, res) => {
+    const bucket = res.locals.bucket as string
+    const user = (req as AuthedRequest).user!
+    const key = req.query.key as string
+    const scope = req.query.scope as PinScope
+    if (typeof key !== 'string' || !key) {
+      res.status(400).json({ error: 'A valid file key is required' })
+      return
+    }
+    if (scope !== 'global' && scope !== 'personal') {
+      res.status(400).json({ error: 'Scope must be either "global" or "personal"' })
+      return
+    }
+
+    const removed = await removeFilePin({
+      bucket,
+      key,
+      scope,
+      userId: user.id,
+      isAdmin: user.role === 'admin',
+    })
+    if (!removed) {
+      res.status(404).json({ error: 'Pin not found or not permitted to unpin' })
+      return
+    }
+    res.json({ success: true })
+  }))
+
   // ─── Direct Upload URL (Presigned PutObject) ───────────
   router.get('/upload-url', wrap(async (req, res) => {
     const bucket = res.locals.bucket as string
@@ -309,6 +386,7 @@ export function createS3Router(protection = new BucketProtection(), authenticate
     } else {
       await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }))
     }
+    await deletePinsForFile(bucket, key)
     res.json({ success: true })
   }))
 

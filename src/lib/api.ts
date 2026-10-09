@@ -283,3 +283,38 @@ export function saveScratchpad(bucket: string, note: ScratchpadNote, signal?: Ab
     method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(note), signal,
   })
 }
+
+export type PinScope = 'global' | 'personal'
+
+export interface PublicPin {
+  id: string
+  bucket: string
+  key: string
+  scope: PinScope
+  userId: string
+  userEmail: string
+  userName?: string
+  userAvatar?: string
+  createdAt: string
+}
+
+export async function fetchPins(bucket: string, signal?: AbortSignal): Promise<PublicPin[]> {
+  const data = await request<{ pins: PublicPin[] }>(`/api/pins?bucket=${encodeURIComponent(bucket)}`, { signal })
+  return data.pins
+}
+
+export async function addPin(bucket: string, key: string, scope: PinScope): Promise<PublicPin> {
+  const data = await request<{ pin: PublicPin }>(`/api/pins?bucket=${encodeURIComponent(bucket)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key, scope }),
+  })
+  return data.pin
+}
+
+export async function removePin(bucket: string, key: string, scope: PinScope): Promise<void> {
+  await request(`/api/pins?${new URLSearchParams({ bucket, key, scope })}`, {
+    method: 'DELETE',
+  })
+}
+

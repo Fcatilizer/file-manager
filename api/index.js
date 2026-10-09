@@ -1,7 +1,12 @@
 // src/lib/iconPaths.ts
 var ICON_PATHS = {
+  pin: [
+    "M12 17v5",
+    "M9 10.76a2 2 0 01-1.11 1.79l-1.78.9A2 2 0 005 15.24V16a1 1 0 001 1h12a1 1 0 001-1v-.76a2 2 0 00-1.11-1.79l-1.78-.9A2 2 0 0115 10.76V5h1a1 1 0 000-2H8a1 1 0 000 2h1v5.76z"
+  ],
   info: ["M12 22a10 10 0 100-20 10 10 0 000 20", "M12 11v6", "M12 7h.01"],
   link: ["M10 13a5 5 0 007 .5l3-3a5 5 0 00-7-7l-1.7 1.7", "M14 11a5 5 0 00-7-.5l-3 3a5 5 0 007 7l1.7-1.7"],
+  list: ["M8 6h13", "M8 12h13", "M8 18h13", "M3 6h.01", "M3 12h.01", "M3 18h.01"],
   folder: [
     "M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"
   ],
@@ -928,6 +933,7 @@ import { MongoClient, ObjectId } from "mongodb";
 import bcrypt from "bcryptjs";
 var db;
 var users;
+var pins;
 var initialized = false;
 var BCRYPT_ROUNDS = 12;
 async function connectDB() {
@@ -957,10 +963,13 @@ async function connectDB() {
   const client = await globalThis._mongoClientPromise;
   db = client.db(process.env.MONGO_DB || "vault");
   users = db.collection("users");
+  pins = db.collection("file_pins");
   if (!initialized) {
     try {
       await users.createIndex({ email: 1 }, { unique: true });
       await users.updateMany({ role: { $exists: false } }, { $set: { role: "admin" } });
+      await pins.createIndex({ bucket: 1, key: 1, scope: 1, userId: 1 });
+      await pins.createIndex({ bucket: 1, scope: 1 });
     } catch {
     }
     initialized = true;
@@ -1056,6 +1065,72 @@ async function updateUserProfile(id, updates) {
 function getDatabase() {
   if (!db) throw new Error("Database not connected");
   return db;
+}
+function getPinsCollection() {
+  if (!pins) {
+    if (db) pins = db.collection("file_pins");
+    else throw new Error("Database not connected");
+  }
+  return pins;
+}
+function toPublicPin(doc) {
+  return {
+    id: String(doc._id),
+    bucket: doc.bucket,
+    key: doc.key,
+    scope: doc.scope,
+    userId: doc.userId,
+    userEmail: doc.userEmail,
+    userName: doc.userName || "",
+    userAvatar: normalizeAvatar(doc.userAvatar),
+    createdAt: doc.createdAt instanceof Date ? doc.createdAt.toISOString() : new Date(doc.createdAt).toISOString()
+  };
+}
+async function listFilePins(bucket, userId) {
+  if (!db) return [];
+  const docs = await getPinsCollection().find({
+    bucket,
+    $or: [{ scope: "global" }, { scope: "personal", userId }]
+  }).sort({ createdAt: -1 }).toArray();
+  return docs.map(toPublicPin);
+}
+async function addFilePin(params) {
+  const filter = params.scope === "global" ? { bucket: params.bucket, key: params.key, scope: "global" } : { bucket: params.bucket, key: params.key, scope: "personal", userId: params.userId };
+  const doc = await getPinsCollection().findOneAndUpdate(
+    filter,
+    {
+      $set: {
+        bucket: params.bucket,
+        key: params.key,
+        scope: params.scope,
+        userId: params.userId,
+        userEmail: params.userEmail,
+        userName: params.userName || "",
+        userAvatar: normalizeAvatar(params.userAvatar)
+      },
+      $setOnInsert: { createdAt: /* @__PURE__ */ new Date() }
+    },
+    { upsert: true, returnDocument: "after" }
+  );
+  return toPublicPin(doc);
+}
+async function removeFilePin(params) {
+  if (!db) return false;
+  const filter = params.scope === "global" ? { bucket: params.bucket, key: params.key, scope: "global", ...params.isAdmin ? {} : { userId: params.userId } } : { bucket: params.bucket, key: params.key, scope: "personal", userId: params.userId };
+  const result = await getPinsCollection().deleteOne(filter);
+  return result.deletedCount > 0;
+}
+async function deletePinsForFile(bucket, key2) {
+  if (!db) return 0;
+  const isPrefix = key2.endsWith("/");
+  const filter = isPrefix ? { bucket, key: { $regex: "^" + key2.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") } } : { bucket, key: key2 };
+  const result = await getPinsCollection().deleteMany(filter);
+  return result.deletedCount;
+}
+async function deletePinsForBucket(bucket) {
+  if (!db) return 0;
+  const result = await getPinsCollection().deleteMany({ bucket });
+  return result.deletedCount;
 }
 
 // server/auth.ts
@@ -2330,10 +2405,11 @@ function createS3Router(protection = new BucketProtection(), authenticate = (_re
       }
     }
     if (bucket) await protection.store.markDeleted(name);
+    await deletePinsForBucket(name);
     res.json({ success: true });
   }));
   router.use("/folders", express5.json());
-  const filePaths = /* @__PURE__ */ new Set(["/files", "/upload-url", "/upload", "/download", "/raw", "/folders", "/metadata", "/scratchpad"]);
+  const filePaths = /* @__PURE__ */ new Set(["/files", "/pins", "/upload-url", "/upload", "/download", "/raw", "/folders", "/metadata", "/scratchpad"]);
   router.use((req, res, next) => {
     const routePath = req.path.toLowerCase().replace(/\/+$/, "");
     if (!filePaths.has(routePath)) {
@@ -2429,6 +2505,67 @@ function createS3Router(protection = new BucketProtection(), authenticate = (_re
     }));
     res.json({ items: [...folders, ...files], prefix });
   }));
+  router.get("/pins", wrap(async (req, res) => {
+    const bucket = res.locals.bucket;
+    const user = req.user;
+    const pins2 = await listFilePins(bucket, user.id);
+    res.json({ pins: pins2 });
+  }));
+  router.post("/pins", express5.json(), wrap(async (req, res) => {
+    const bucket = res.locals.bucket;
+    const user = req.user;
+    const key2 = req.body?.key;
+    const scope = req.body?.scope;
+    if (typeof key2 !== "string" || !key2) {
+      res.status(400).json({ error: "A valid file key is required" });
+      return;
+    }
+    if (scope !== "global" && scope !== "personal") {
+      res.status(400).json({ error: 'Scope must be either "global" or "personal"' });
+      return;
+    }
+    if (res.locals.privateBucket && scope === "global") {
+      res.status(400).json({ error: "Private buckets only support personal pins" });
+      return;
+    }
+    const fullUser = await getUserById(user.id);
+    const pin = await addFilePin({
+      bucket,
+      key: key2,
+      scope,
+      userId: user.id,
+      userEmail: user.email,
+      userName: fullUser?.name || user.email.split("@")[0],
+      userAvatar: fullUser?.avatar || "initial"
+    });
+    res.status(201).json({ pin });
+  }));
+  router.delete("/pins", wrap(async (req, res) => {
+    const bucket = res.locals.bucket;
+    const user = req.user;
+    const key2 = req.query.key;
+    const scope = req.query.scope;
+    if (typeof key2 !== "string" || !key2) {
+      res.status(400).json({ error: "A valid file key is required" });
+      return;
+    }
+    if (scope !== "global" && scope !== "personal") {
+      res.status(400).json({ error: 'Scope must be either "global" or "personal"' });
+      return;
+    }
+    const removed = await removeFilePin({
+      bucket,
+      key: key2,
+      scope,
+      userId: user.id,
+      isAdmin: user.role === "admin"
+    });
+    if (!removed) {
+      res.status(404).json({ error: "Pin not found or not permitted to unpin" });
+      return;
+    }
+    res.json({ success: true });
+  }));
   router.get("/upload-url", wrap(async (req, res) => {
     const bucket = res.locals.bucket;
     const key2 = req.query.key || "";
@@ -2467,6 +2604,7 @@ function createS3Router(protection = new BucketProtection(), authenticate = (_re
     } else {
       await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key2 }));
     }
+    await deletePinsForFile(bucket, key2);
     res.json({ success: true });
   }));
   router.get("/download", wrap(async (req, res) => {
