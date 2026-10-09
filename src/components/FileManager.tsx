@@ -721,6 +721,32 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
     }
   }, [files, openPreview])
 
+  const handleQuickUnpinCard = useCallback(async (e: React.MouseEvent, card: {
+    key: string
+    name: string
+    globalPin?: PublicPin
+    personalPin?: PublicPin
+  }) => {
+    e.stopPropagation()
+    if (!activeBucket || pinningKey === card.key) return
+    setPinningKey(card.key)
+    try {
+      if (card.personalPin) {
+        await removePin(activeBucket, card.key, 'personal')
+        setPins(prev => prev.filter(p => !(p.key === card.key && p.scope === 'personal' && p.userId === user.id)))
+      }
+      if (card.globalPin && (card.globalPin.userId === user.id || user.role === 'admin')) {
+        await removePin(activeBucket, card.key, 'global')
+        setPins(prev => prev.filter(p => !(p.key === card.key && p.scope === 'global')))
+      }
+      showToast(`Unpinned ${card.name}`, 'success')
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Could not unpin file', 'error')
+    } finally {
+      setPinningKey(null)
+    }
+  }, [activeBucket, pinningKey, user.id, user.role, showToast])
+
   // Reset filters when navigating folders / changing bucket
   useEffect(() => {
     setQuery('')
@@ -982,37 +1008,64 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
             <span className="pinned-shelf__hint">{pinnedCards.length} {pinnedCards.length === 1 ? 'item' : 'items'}</span>
           </div>
           <div className="pinned-shelf__track">
-            {pinnedCards.map((card) => (
-              <button
-                key={card.key}
-                type="button"
-                className="pinned-card"
-                onClick={() => handleOpenPinnedCard(card)}
-                title={`Open ${card.name}`}
-              >
-                <div className="pinned-card__top">
-                  <span style={{ color: card.iconColor, display: 'inline-flex' }}>
-                    <Icon name={card.iconName} size={16} color={card.iconColor} />
-                  </span>
-                  {card.globalPin && (
-                    <span className="pinned-card__pinner" title={`Pinned globally by ${card.globalPin.userName || card.globalPin.userEmail}`}>
-                      <Avatar
-                        avatar={card.globalPin.userAvatar}
-                        name={card.globalPin.userName || card.globalPin.userEmail}
-                        className="pinned-card__avatar"
-                      />
+            {pinnedCards.map((card) => {
+              const canUnpin = Boolean(
+                card.personalPin ||
+                (card.globalPin && (card.globalPin.userId === user.id || user.role === 'admin'))
+              )
+              return (
+                <div
+                  key={card.key}
+                  role="button"
+                  tabIndex={0}
+                  className="pinned-card"
+                  onClick={() => handleOpenPinnedCard(card)}
+                  onKeyDown={(e) => {
+                    if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) {
+                      e.preventDefault()
+                      handleOpenPinnedCard(card)
+                    }
+                  }}
+                  title={`Open ${card.name}`}
+                >
+                  <div className="pinned-card__top">
+                    <span style={{ color: card.iconColor, display: 'inline-flex' }}>
+                      <Icon name={card.iconName} size={16} color={card.iconColor} />
                     </span>
-                  )}
-                  {!card.globalPin && card.personalPin && (
-                    <span className="pinned-card__badge" title="Pinned for you">You</span>
-                  )}
+                    <div className="pinned-card__top-actions">
+                      {card.globalPin && (
+                        <span className="pinned-card__pinner" title={`Pinned globally by ${card.globalPin.userName || card.globalPin.userEmail}`}>
+                          <Avatar
+                            avatar={card.globalPin.userAvatar}
+                            name={card.globalPin.userName || card.globalPin.userEmail}
+                            className="pinned-card__avatar"
+                          />
+                        </span>
+                      )}
+                      {!card.globalPin && card.personalPin && (
+                        <span className="pinned-card__badge" title="Pinned for you">You</span>
+                      )}
+                      {canUnpin && (
+                        <button
+                          type="button"
+                          className="pinned-card__unpin-btn"
+                          disabled={pinningKey === card.key}
+                          onClick={(e) => void handleQuickUnpinCard(e, card)}
+                          title={`Unpin ${card.name}`}
+                          aria-label={`Unpin ${card.name}`}
+                        >
+                          <Icon name="close" size={10} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <span className="pinned-card__name">{card.name}</span>
+                  <div className="pinned-card__meta">
+                    {card.size > 0 && <span>{formatSize(card.size)}</span>}
+                  </div>
                 </div>
-                <span className="pinned-card__name">{card.name}</span>
-                <div className="pinned-card__meta">
-                  {card.size > 0 && <span>{formatSize(card.size)}</span>}
-                </div>
-              </button>
-            ))}
+              )
+            })}
           </div>
         </div>
       )}

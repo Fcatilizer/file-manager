@@ -35,7 +35,8 @@
   display: flex;
   gap: 10px;
   overflow-x: auto;
-  padding-bottom: 4px;
+  padding: 8px 6px 10px 6px;
+  margin: -6px -6px -6px -6px;
   scroll-snap-type: x mandatory;
   -webkit-overflow-scrolling: touch;
 }
@@ -69,6 +70,7 @@
   font: inherit;
   cursor: pointer;
   text-align: left;
+  user-select: none;
   transition: transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease, background 140ms ease;
 }
 
@@ -89,6 +91,47 @@
   align-items: center;
   justify-content: space-between;
   gap: 6px;
+}
+
+.pinned-card__top-actions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+}
+
+.pinned-card__unpin-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  color: var(--text-3);
+  padding: 0;
+  cursor: pointer;
+  opacity: 0.65;
+  transition: all 140ms ease;
+  flex-shrink: 0;
+}
+
+.pinned-card:hover .pinned-card__unpin-btn,
+.pinned-card:focus-within .pinned-card__unpin-btn {
+  opacity: 1;
+}
+
+.pinned-card__unpin-btn:hover {
+  background: color-mix(in srgb, #ef4444 20%, var(--bg-2));
+  color: #ef4444;
+  border-color: color-mix(in srgb, #ef4444 40%, transparent);
+  transform: scale(1.12);
+}
+
+.pinned-card__unpin-btn:focus-visible {
+  outline: 2px solid #ef4444;
+  outline-offset: 1px;
 }
 
 .pinned-card__name {

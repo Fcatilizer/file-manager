@@ -178,13 +178,13 @@ bucketStore.buckets.set(privateBucketName, {
   _id: privateBucketName,
   label: 'alice-personal',
   ownerId: String(testUserIdA),
-  isPrivate: true,
   passwordHash: 'hash',
   version: 1,
   state: 'active',
 })
 bucketStore.grants.set(`${privateBucketName}:${testSessionHash}`, {
   _id: `${privateBucketName}:${testSessionHash}`,
+  bucket: privateBucketName,
   version: 1,
   session: testSessionHash,
   expiresAt: new Date(Date.now() + 3600000),
@@ -250,7 +250,10 @@ test('pin icon exists in ICON_PATHS and is valid SVG path', () => {
 test('pinned-files.css contains core styling rules for shelf, cards, badges and popover', () => {
   const cssContent = readFileSync(resolve('src/styles/pinned-files.css'), 'utf-8')
   assert.ok(cssContent.includes('.pinned-shelf'), 'contains .pinned-shelf')
+  assert.ok(cssContent.includes('.pinned-shelf__track'), 'contains .pinned-shelf__track')
+  assert.ok(cssContent.includes('padding: 8px 6px 10px 6px'), 'track has top padding to prevent card clipping on hover')
   assert.ok(cssContent.includes('.pinned-card'), 'contains .pinned-card')
+  assert.ok(cssContent.includes('.pinned-card__unpin-btn'), 'contains .pinned-card__unpin-btn')
   assert.ok(cssContent.includes('.file-pin-badge'), 'contains .file-pin-badge')
   assert.ok(cssContent.includes('.pin-popover'), 'contains .pin-popover')
 })
