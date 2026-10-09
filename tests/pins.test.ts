@@ -256,6 +256,7 @@ test('pinned-files.css contains core styling rules for shelf, cards, badges and 
   assert.ok(cssContent.includes('.pinned-card__unpin-btn'), 'contains .pinned-card__unpin-btn')
   assert.ok(cssContent.includes('.file-pin-badge'), 'contains .file-pin-badge')
   assert.ok(cssContent.includes('.pin-popover'), 'contains .pin-popover')
+  assert.ok(cssContent.includes('.pin-popover--up'), 'contains .pin-popover--up')
 })
 
 test('global pin in shared bucket records user attribution and custom avatar', async () => {

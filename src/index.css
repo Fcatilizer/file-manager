@@ -468,8 +468,31 @@ body {
 .file-list {
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  overflow: hidden;
   background: var(--bg-2);
+  position: relative;
+}
+
+.file-row:first-child {
+  border-top-left-radius: var(--radius);
+  border-top-right-radius: var(--radius);
+}
+
+.file-row:last-child {
+  border-bottom-left-radius: var(--radius);
+  border-bottom-right-radius: var(--radius);
+}
+
+.file-row--menu-open {
+  position: relative;
+  z-index: 90;
+}
+
+.file-row--menu-open .file-row__actions {
+  opacity: 1;
+}
+
+.file-row--menu-open .pin-action-wrap {
+  z-index: 95;
 }
 
 /* ─── File Row ────────────────────────────────────────── */

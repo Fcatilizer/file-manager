@@ -119,6 +119,7 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
   const [activeCategory, setActiveCategory] = useState<FileCategory | 'pinned' | null>(null)
   const [pins, setPins] = useState<PublicPin[]>([])
   const [pinMenuKey, setPinMenuKey] = useState<string | null>(null)
+  const [pinMenuPlacement, setPinMenuPlacement] = useState<'down' | 'up'>('down')
   const [pinningKey, setPinningKey] = useState<string | null>(null)
   const [showNewFolder, setShowNewFolder] = useState(false)
   const [showNewFile, setShowNewFile] = useState(false)
@@ -1142,7 +1143,7 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
                       if (f.isFolder) { if (key === 'Enter') setPrefix(f.key) }
                       else openPreview(f)
                     })}
-                    className={`file-row${f.isFolder ? ' file-row--folder' : ' file-row--clickable'}`}
+                    className={`file-row${f.isFolder ? ' file-row--folder' : ' file-row--clickable'}${pinMenuKey === f.key ? ' file-row--menu-open' : ''}`}
                     onClick={() => (f.isFolder ? setPrefix(f.key) : openPreview(f))}
                   >
                     <span className="file-row__icon" style={{ color: iconColor }}>
@@ -1193,14 +1194,25 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
                             if (activeDetails?.isPrivate) {
                               void handleTogglePin(f.key, 'personal', !pinsByKey.get(f.key)?.personal)
                             } else {
-                              setPinMenuKey(pinMenuKey === f.key ? null : f.key)
+                              if (pinMenuKey === f.key) {
+                                setPinMenuKey(null)
+                              } else {
+                                const rect = e.currentTarget.getBoundingClientRect()
+                                const spaceBelow = window.innerHeight - rect.bottom
+                                setPinMenuPlacement(spaceBelow < 170 ? 'up' : 'down')
+                                setPinMenuKey(f.key)
+                              }
                             }
                           }}
                         >
                           {pinningKey === f.key ? <span className="spinner spinner--sm" /> : <Icon name="pin" size={14} />}
                         </button>
                         {!activeDetails?.isPrivate && pinMenuKey === f.key && (
-                          <div className="pin-popover" role="menu" aria-label="Pin options">
+                          <div
+                            className={`pin-popover${pinMenuPlacement === 'up' ? ' pin-popover--up' : ''}`}
+                            role="menu"
+                            aria-label="Pin options"
+                          >
                             <button
                               type="button"
                               role="menuitemcheckbox"
