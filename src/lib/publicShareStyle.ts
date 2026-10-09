@@ -92,12 +92,20 @@ export const publicShareStyle = `
   gap:10px}:where(.public-share) .avatar {
   width:34px;
   height:34px;
-  display:grid;
-  place-items:center;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  flex-shrink:0;
+  border-radius:50%;
+  overflow:hidden;
   background:color-mix(in srgb,var(--accent) 10%,white);
   color:var(--accent);
-  border-radius:50%;
-  font-weight:600}:where(.public-share) .value {
+  font-weight:600;
+  font-size:14px;
+  line-height:1}:where(.public-share) .avatar svg {
+  display:block;
+  width:100%;
+  height:100%}:where(.public-share) .value {
   font-weight:550;
   overflow-wrap:anywhere}:where(.public-share) .details small {
   display:block;

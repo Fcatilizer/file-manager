@@ -6,6 +6,7 @@ export interface PublicShareView {
   requested: string
   folder: boolean
   sharer: string
+  sharerAvatar?: string
   createdAt: string
   expiresAt: string | null
   entries: FileItem[]

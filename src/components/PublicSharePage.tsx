@@ -4,6 +4,7 @@ import PreviewModal from './PreviewModal'
 import ItemDetailsDialog from './ItemDetailsDialog'
 import VaultBrandButton from './VaultBrandButton'
 import { Icon } from './Icon'
+import Avatar from './Avatar'
 import { getFileTypeInfo } from '../lib/fileIcons'
 import { applyPreferences } from '../lib/appearance'
 import { DEFAULT_PREFERENCES } from '../lib/preferences'
@@ -144,7 +145,7 @@ export default function PublicSharePage() {
       {error ? <section className="public-error"><Icon name="lock" size={44} /><h1>{error}</h1><p>This link may have expired, been revoked, or the files removed. Ask the sender for a new link.</p><a className="public-button" href="/">Go to Vault</a></section> : !view ? <div className="empty" role="status">Loading shared files…</div> : <>
         <section className="intro"><div className="hero-icon"><Icon name={rootInfo ? rootInfo.iconName : 'folder'} size={30} /></div><div><h1>{title}</h1><p className="muted">Shared {view.folder ? 'folder' : 'file'} · View and download access</p></div></section>
         <section className="details" aria-label="Sharing details">
-          <div><span className="label">Shared by</span><div className="person"><span className="avatar">{Array.from(view.sharer)[0]?.toUpperCase()}</span><span className="value">{view.sharer}</span></div></div>
+          <div><span className="label">Shared by</span><div className="person"><Avatar avatar={view.sharerAvatar} name={view.sharer} className="avatar" /><span className="value">{view.sharer}</span></div></div>
           <div><span className="label">Sharing duration</span><span className="value">{view.expiresAt ? shareDuration(new Date(view.expiresAt).getTime() - new Date(view.createdAt).getTime()) : 'Permanent link'}</span><small>Shared {date(view.createdAt)}</small></div>
           <div><span className="label">{view.expiresAt ? 'Available until' : 'Availability'}</span><span className="value">{view.expiresAt ? date(view.expiresAt) : 'Until the owner revokes it'}</span><small>{view.expiresAt ? `${shareDuration(new Date(view.expiresAt).getTime() - now)} remaining · Local time` : 'No automatic expiry'}</small></div>
         </section>

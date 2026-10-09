@@ -21,7 +21,7 @@ const buckets = new MemoryBucketStore()
 const calls: {name:string; input: Record<string, unknown>}[] = []
 let contentType = 'image/jpeg'
 let storageFailure: Error | undefined
-const stub = mock.method(S3Client.prototype, 'send', async command => {
+const stub = mock.method(S3Client.prototype, 'send', async (command: any) => {
   calls.push({name:command.constructor.name,input:command.input})
   if(storageFailure) throw storageFailure
   if(command.constructor.name === 'HeadObjectCommand') return {ContentType:contentType,ContentLength:100}
@@ -102,6 +102,7 @@ test('public browser data includes sharer, expiry and file metadata without priv
  const s=await create({key:'<script>alert(1).txt'})
  const data=await (await request(s.path+'?view=1','GET',undefined,'')).json()
  assert.equal(data.sharer,'owner')
+ assert.equal(data.sharerAvatar,'initial')
  assert.equal(data.entries[0].name,'<script>alert(1).txt')
  assert.equal(data.entries[0].size,100)
  assert.equal(data.entries[0].isFolder,false)
@@ -110,6 +111,31 @@ test('public browser data includes sharer, expiry and file metadata without priv
  assert.equal(data.bucket,undefined);assert.equal(data.ownerId,undefined)
  const permanent=await create({duration:'permanent'})
  assert.equal((await (await request(permanent.path+'?view=1')).json()).expiresAt,null)
+})
+
+test('public browser data preserves sharer custom avatar when set',async()=>{
+ const customUserMap=new Map([['art-lover',{name:'Artisan',avatar:'cat'}]])
+ const customRoutes=createShareRouters(s3,new BucketProtection(buckets),store,async(id)=>(customUserMap.get(id) as any)||null)
+ const testApp=express();testApp.use(cookieParser())
+ testApp.use('/api/public',customRoutes.publicRouter)
+ testApp.use('/api/shares',(req:AuthedRequest,res,next)=>{
+  req.user={id:'art-lover',email:'art@example.com',role:'user'};next()
+ },customRoutes.management)
+ const testServer=testApp.listen(0,'127.0.0.1');await once(testServer,'listening')
+ const testAddr=testServer.address() as any
+ const testBase=`http://127.0.0.1:${testAddr.port}`
+ try{
+  const createRes=await fetch(`${testBase}/api/shares`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bucket:'shared',key:'photos/a.jpg',folder:false,duration:'1h'})})
+  assert.equal(createRes.status,201)
+  const created=await createRes.json()
+  const viewRes=await fetch(`${testBase}${created.path}?view=1`)
+  assert.equal(viewRes.status,200)
+  const viewData=await viewRes.json()
+  assert.equal(viewData.sharer,'Artisan')
+  assert.equal(viewData.sharerAvatar,'cat')
+ }finally{
+  await new Promise<void>(resolve=>testServer.close(()=>resolve()))
+ }
 })
 
 test('owners can retrieve exactly the same public URL; legacy hashes remain nonrecoverable',async()=>{

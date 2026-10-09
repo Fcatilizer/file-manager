@@ -354,5 +354,15 @@ export const ICON_PATHS: Record<string, string[]> = {
     'M23 9l-6 6',
     'M17 9l6 6',
   ],
+  fullscreen: [
+    'M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3',
+  ],
+  minimize: [
+    'M8 3v3a2 2 0 01-2 2H3m18 0h-3a2 2 0 01-2-2V3m0 18v-3a2 2 0 012-2h3M3 16h3a2 2 0 012 2v3',
+  ],
+  pip: [
+    'M2 6a2 2 0 012-2h16a2 2 0 012 2v12a2 2 0 01-2 2H4a2 2 0 01-2-2V6z',
+    'M13 11h6v6h-6z',
+  ],
 }
 

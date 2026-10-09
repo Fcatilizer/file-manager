@@ -330,6 +330,16 @@ var ICON_PATHS = {
     "M11 5L6 9H2v6h4l5 4V5z",
     "M23 9l-6 6",
     "M17 9l6 6"
+  ],
+  fullscreen: [
+    "M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"
+  ],
+  minimize: [
+    "M8 3v3a2 2 0 01-2 2H3m18 0h-3a2 2 0 01-2-2V3m0 18v-3a2 2 0 012-2h3M3 16h3a2 2 0 012 2v3"
+  ],
+  pip: [
+    "M2 6a2 2 0 012-2h16a2 2 0 012 2v12a2 2 0 01-2 2H4a2 2 0 01-2-2V6z",
+    "M13 11h6v6h-6z"
   ]
 };
 
@@ -783,12 +793,20 @@ var publicShareStyle = `
   gap:10px}:where(.public-share) .avatar {
   width:34px;
   height:34px;
-  display:grid;
-  place-items:center;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  flex-shrink:0;
+  border-radius:50%;
+  overflow:hidden;
   background:color-mix(in srgb,var(--accent) 10%,white);
   color:var(--accent);
-  border-radius:50%;
-  font-weight:600}:where(.public-share) .value {
+  font-weight:600;
+  font-size:14px;
+  line-height:1}:where(.public-share) .avatar svg {
+  display:block;
+  width:100%;
+  height:100%}:where(.public-share) .value {
   font-weight:550;
   overflow-wrap:anywhere}:where(.public-share) .details small {
   display:block;
@@ -1904,6 +1922,7 @@ function createShareRouters(s3, protection = new BucketProtection(), store = mon
     } else await s3.send(new HeadObjectCommand2({ Bucket: bucket, Key: key2 }));
     const profile = await getSharer(bucketUser(req).id);
     const sharerName = profile?.name?.trim() || bucketUser(req).email.split("@")[0];
+    const sharerAvatar = normalizeAvatar(profile?.avatar);
     const token = randomBytes2(32).toString("base64url");
     const record2 = {
       _id: randomUUID3(),
@@ -1911,6 +1930,7 @@ function createShareRouters(s3, protection = new BucketProtection(), store = mon
       encryptedToken: encryptShareToken(token),
       ownerId: bucketUser(req).id,
       sharerName,
+      sharerAvatar,
       bucket,
       key: key2,
       folder,
@@ -1972,6 +1992,7 @@ function createShareRouters(s3, protection = new BucketProtection(), store = mon
     if (share.folder && !requested.endsWith("/")) requested = requested.slice(0, requested.lastIndexOf("/") + 1);
     const profile = await getSharer(share.ownerId);
     const sharer = profile?.name?.trim() || share.sharerName || profile?.email.split("@")[0] || "Vault member";
+    const sharerAvatar = normalizeAvatar(profile?.avatar || share.sharerAvatar);
     let entries;
     let nextCursor;
     if (share.folder && requested.endsWith("/")) {
@@ -1995,6 +2016,7 @@ function createShareRouters(s3, protection = new BucketProtection(), store = mon
       requested,
       folder: share.folder,
       sharer,
+      sharerAvatar,
       createdAt: share.createdAt,
       expiresAt: share.expiresAt,
       nextCursor,

@@ -145,3 +145,19 @@ export function formatAudioTime(seconds: number, isNegative = false): string {
   const prefix = isNegative ? '-' : ''
   return `${prefix}${mins}:${secs < 10 ? '0' : ''}${secs}`
 }
+
+/**
+ * Formats time in seconds as H:MM:SS or M:SS (with optional negative sign).
+ */
+export function formatVideoTime(seconds: number, isNegative = false): string {
+  if (!Number.isFinite(seconds) || seconds < 0) return isNegative ? '-0:00' : '0:00'
+  const rounded = Math.floor(seconds)
+  const hrs = Math.floor(rounded / 3600)
+  const mins = Math.floor((rounded % 3600) / 60)
+  const secs = rounded % 60
+  const prefix = isNegative ? '-' : ''
+  if (hrs > 0) {
+    return `${prefix}${hrs}:${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`
+  }
+  return `${prefix}${mins}:${secs < 10 ? '0' : ''}${secs}`
+}

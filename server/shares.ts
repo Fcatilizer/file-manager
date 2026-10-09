@@ -8,6 +8,7 @@ import { getDatabase, getUserById } from './db.ts'
 import { renderPublicError, type SharedEntry } from './public-share-page.ts'
 import { BucketProtection, BucketAccessError, bucketUser } from './bucket-protection.ts'
 import { PRIVATE_BUCKET_PREFIX } from '../src/lib/bucketProtection.ts'
+import { normalizeAvatar } from '../src/lib/avatars.ts'
 
 export interface ShareRecord {
   _id: string
@@ -15,6 +16,7 @@ export interface ShareRecord {
   tokenHash: string
   ownerId: string
   sharerName?: string
+  sharerAvatar?: string
   bucket: string
   key: string
   folder: boolean
@@ -70,8 +72,9 @@ export function createShareRouters(s3: S3Client, protection = new BucketProtecti
     } else await s3.send(new HeadObjectCommand({ Bucket: bucket, Key: key }))
     const profile = await getSharer(bucketUser(req).id)
     const sharerName = profile?.name?.trim() || bucketUser(req).email.split('@')[0]
+    const sharerAvatar = normalizeAvatar(profile?.avatar)
     const token = randomBytes(32).toString('base64url')
-    const record: ShareRecord = { _id: randomUUID(), tokenHash: hash(token), encryptedToken: encryptShareToken(token), ownerId: bucketUser(req).id, sharerName, bucket, key, folder,
+    const record: ShareRecord = { _id: randomUUID(), tokenHash: hash(token), encryptedToken: encryptShareToken(token), ownerId: bucketUser(req).id, sharerName, sharerAvatar, bucket, key, folder,
       privateOwner: metadata?.ownerId, expiresAt: duration === 'permanent' ? null : new Date(Date.now() + hours * 3600000), createdAt: new Date(), revoked: false }
     await store.insert(record)
     res.status(201).json({ ...summary(record), path: `/api/public/${token}` })
@@ -131,6 +134,7 @@ export function createShareRouters(s3: S3Client, protection = new BucketProtecti
     if (share.folder && !requested.endsWith('/')) requested = requested.slice(0, requested.lastIndexOf('/') + 1)
     const profile = await getSharer(share.ownerId)
     const sharer = profile?.name?.trim() || share.sharerName || profile?.email.split('@')[0] || 'Vault member'
+    const sharerAvatar = normalizeAvatar(profile?.avatar || share.sharerAvatar)
     let entries: SharedEntry[]
     let nextCursor: string | undefined
     if (share.folder && requested.endsWith('/')) {
@@ -149,7 +153,7 @@ export function createShareRouters(s3: S3Client, protection = new BucketProtecti
       const object = await s3.send(new HeadObjectCommand({ Bucket: share.bucket, Key: requested }))
       entries = [{ key: requested, folder: false, size: object.ContentLength, modified: object.LastModified }]
     }
-    res.json({ root: share.key, requested, folder: share.folder, sharer,
+    res.json({ root: share.key, requested, folder: share.folder, sharer, sharerAvatar,
       createdAt: share.createdAt, expiresAt: share.expiresAt, nextCursor, preferences: profile?.preferences,
       entries: entries.map((entry) => ({ key: entry.key, name: entry.key.split('/').filter(Boolean).pop() || entry.key,
         isFolder: entry.folder, size: entry.size || 0, lastModified: entry.modified?.toISOString() || '' })) })
