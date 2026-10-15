@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import type { FileItem } from '../lib/api'
 import { formatSize } from '../lib/filetype'
-import { renderMarkdownToHtml } from '../lib/markdown'
+import MarkdownContent from './MarkdownContent'
 import { Icon } from './Icon'
 import '../styles/markdown-preview.css'
 
@@ -15,11 +15,6 @@ type Props = {
 export default function MarkdownPreview({ file, content, onEdit }: Props) {
   const [mode, setMode] = useState<'preview' | 'raw'>('preview')
   const [copied, setCopied] = useState(false)
-
-  // Parse and sanitize markdown to HTML
-  const html = useMemo(() => {
-    return renderMarkdownToHtml(content)
-  }, [content])
 
   // Content statistics
   const stats = useMemo(() => {
@@ -116,9 +111,9 @@ export default function MarkdownPreview({ file, content, onEdit }: Props) {
               </div>
             </div>
           ) : (
-            <div
+            <MarkdownContent
               className="preview__markdown-body"
-              dangerouslySetInnerHTML={{ __html: html }}
+              content={content}
             />
           )}
         </div>

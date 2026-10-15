@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { isMarkdownFile, formatSize } from '../src/lib/filetype.ts'
-import { renderMarkdownToHtml } from '../src/lib/markdown.ts'
+import { isMermaidCode, renderMarkdownToHtml } from '../src/lib/markdown.ts'
 
 test('isMarkdownFile accurately identifies markdown extensions', () => {
   assert.equal(isMarkdownFile('README.md'), true)
@@ -59,4 +59,22 @@ const x = 42;
 
 test('renderMarkdownToHtml handles empty or falsy markdown gracefully', () => {
   assert.equal(renderMarkdownToHtml(''), '')
+})
+
+test('Mermaid fences preserve escaped source for diagram rendering', () => {
+  const source = 'flowchart TD\n  A["Customer<br/>Contact"] --> B["Opportunity"]'
+  const html = renderMarkdownToHtml('```mermaid\n' + source + '\n```')
+  assert.ok(html.includes('class="language-mermaid"'))
+  assert.ok(html.includes('Customer&lt;br/&gt;Contact'))
+  assert.ok(!html.includes('<br/>'))
+  assert.equal(isMermaidCode('sequenceDiagram\nA->>B: Hello', 'MERMAID'), true)
+})
+
+test('only clear unlabelled flowcharts are inferred; ordinary code stays code', () => {
+  assert.equal(isMermaidCode('  flowchart TD\nA-->B'), true)
+  assert.equal(isMermaidCode('graph LR\nA-->B'), true)
+  assert.equal(isMermaidCode('flowchart TD\nA-->B', 'text'), false)
+  assert.equal(isMermaidCode('graph = 1'), false)
+  assert.equal(isMermaidCode('const flowchart = "TD"'), false)
+  assert.ok(!renderMarkdownToHtml('```text\nflowchart TD\nA-->B\n```').includes('language-mermaid'))
 })

@@ -29,6 +29,7 @@
     "jsonwebtoken": "^9.0.3",
     "mammoth": "^1.13.0",
     "marked": "^18.1.0",
+    "mermaid": "^12.2.0",
     "mongodb": "^7.7.0",
     "pdfjs-dist": "^6.4.299",
     "react": "^19.3.0",

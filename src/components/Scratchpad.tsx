@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { ApiError, fetchScratchpad, saveScratchpad, type ScratchpadNote } from '../lib/api'
 import Modal, { ModalCloseButton } from './Modal'
 import NotebookDiff from './NotebookDiff'
-import { renderMarkdownToHtml } from '../lib/markdown'
+import MarkdownContent from './MarkdownContent'
 import { Icon } from './Icon'
 import '../styles/scratchpad.css'
 
@@ -130,11 +130,6 @@ export default function Scratchpad({
       setTimeout(() => setCopied(false), 2000)
     })
   }
-
-  const renderedHtml = useMemo(() => {
-    if (!draft?.content) return ''
-    return renderMarkdownToHtml(draft.content)
-  }, [draft?.content])
 
   if (!bucket || locked) return null
 
@@ -288,10 +283,10 @@ export default function Scratchpad({
                   </div>
                 ) : (
                   <div className="scratchpad-preview-wrap">
-                    {renderedHtml ? (
-                      <div
+                    {draft?.content ? (
+                      <MarkdownContent
                         className="markdown-body scratchpad-preview-markdown"
-                        dangerouslySetInnerHTML={{ __html: renderedHtml }}
+                        content={draft.content}
                       />
                     ) : (
                       <div className="scratchpad-preview-empty">

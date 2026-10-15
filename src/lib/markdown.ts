@@ -4,15 +4,23 @@ import DOMPurify from 'dompurify'
 import hljs from 'highlight.js'
 import { escapeHtml } from './syntaxHighlight'
 
+export function isMermaidCode(text: string, lang?: string): boolean {
+  const language = lang?.trim().split(/\s+/)[0]?.toLowerCase()
+  if (language) return language === 'mermaid'
+  // Support pasted flowcharts without misclassifying ordinary named code fences.
+  return /^(?:flowchart|graph)\s+(?:TB|TD|BT|RL|LR)\b/.test(text.trimStart())
+}
+
 const markedInstance = new Marked({
   gfm: true,
   breaks: true,
   renderer: {
     link({ href, title, text }) {
-      const t = title ? ` title="${title}"` : ''
-      return `<a href="${href}"${t} target="_blank" rel="noopener noreferrer">${text}</a>`
+      const t = title ? ` title="${escapeHtml(title)}"` : ''
+      return `<a href="${escapeHtml(href)}"${t} target="_blank" rel="noopener noreferrer">${text}</a>`
     },
     code({ text, lang }) {
+      if (isMermaidCode(text, lang)) return `<pre><code class="language-mermaid">${escapeHtml(text)}</code></pre>\n`
       const language = lang && hljs.getLanguage(lang) ? lang : undefined
       const highlighted = language
         ? hljs.highlight(text, { language, ignoreIllegals: true }).value
