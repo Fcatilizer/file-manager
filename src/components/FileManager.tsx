@@ -2,6 +2,7 @@ import { previewRowKey } from '../lib/previewKeyboard'
 import Scratchpad from './Scratchpad'
 import { UploadProgressBar, UploadError, type UploadStatus } from './UploadStatus'
 import { UploadControl } from '../lib/uploadControl'
+import { selectDroppedFiles, selectUploadFiles, type UploadSelection } from '../lib/uploadSelection'
 import ItemDetailsDialog from './ItemDetailsDialog'
 import ShareDialog from './ShareDialog'
 import CreateBucketDialog from './buckets/CreateBucketDialog'
@@ -393,52 +394,58 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
   // ─── Upload ─────────────────────────────────────────────
 
   const handleUpload = useCallback(
-    async (fileList: FileList) => {
-      if (!fileList.length || !activeBucket || activeLocked || uploading) return
-      const selectedFiles = Array.from(fileList)
+    async (selection: UploadSelection) => {
+      if (!activeBucket || activeLocked || uploadController.current) return
       setUploadError('')
       const controller = new AbortController()
       uploadController.current = controller
       const control = new UploadControl()
       uploadControl.current = control
-      let remainingBytes = selectedFiles.reduce((sum, file) => sum + file.size, 0)
       setUploading(true)
+      setUploadProgress({ done: 0, total: 0, loaded: 0, bytes: 0, name: 'Reading files and folders…', phase: 'preparing', bytesPerSecond: 0, etaSeconds: null })
       let ok = 0
-      let failed = 0
+      let folders = 0
+      let currentPath = ''
       try {
-        for (let i = 0; i < selectedFiles.length && !controller.signal.aborted; i++) {
-          const file = selectedFiles[i]
-          setUploadProgress({ done: i, total: selectedFiles.length, loaded: 0, bytes: file.size, name: file.name, phase: control.paused ? 'paused' : 'uploading', bytesPerSecond: 0, etaSeconds: null })
-          try {
-            await uploadFile(activeBucket, prefix + file.name, file, {
-              signal: controller.signal,
-              control,
-              onProgress: ({ loaded, total, phase, bytesPerSecond }) => {
-                if (controller.signal.aborted) return
-                setUploadProgress({ done: i, total: selectedFiles.length, loaded, bytes: total, name: file.name, phase, bytesPerSecond,
-                  etaSeconds: bytesPerSecond > 0 ? Math.max(0, remainingBytes - loaded) / bytesPerSecond : null })
-              },
-            })
-            ok++
-            remainingBytes -= file.size
-          } catch (err) {
-            if (controller.signal.aborted) break
-            failed++
-            setUploadError(`${file.name}: ${err instanceof Error ? err.message : 'Upload failed'}`)
-            // Keep the useful failure visible and avoid repeating a broken storage request for every file.
-            break
+        const selected = await selection(controller.signal)
+        let remainingBytes = selected.reduce((sum, item) => sum + (item.file?.size || 0), 0)
+        for (let i = 0; i < selected.length; i++) {
+          const { file, path } = selected[i]
+          currentPath = path
+          await control.waitUntilResumed(controller.signal)
+          setUploadProgress({ done: i, total: selected.length, loaded: 0, bytes: file?.size || 0, name: path, phase: file ? 'uploading' : 'finishing', bytesPerSecond: 0, etaSeconds: null })
+          if (!file) {
+            // Wait for the small folder request to finish before cancelling the batch,
+            // so the listing also reflects any marker that was already created.
+            await createFolder(activeBucket, prefix + path)
+            folders++
+            continue
           }
+          await uploadFile(activeBucket, prefix + path, file, {
+            signal: controller.signal,
+            control,
+            onProgress: ({ loaded, total, phase, bytesPerSecond }) => {
+              if (controller.signal.aborted) return
+              setUploadProgress({ done: i, total: selected.length, loaded, bytes: total, name: path, phase, bytesPerSecond,
+                etaSeconds: bytesPerSecond > 0 ? Math.max(0, remainingBytes - loaded) / bytesPerSecond : null })
+            },
+          })
+          ok++
+          remainingBytes -= file.size
         }
+        controller.signal.throwIfAborted()
+        if (ok || folders) showToast(`Uploaded ${ok} file${ok === 1 ? '' : 's'}${folders ? ` and ${folders} empty folder${folders === 1 ? '' : 's'}` : ''}`, 'success')
+      } catch (err) {
         if (controller.signal.aborted) showToast('Upload cancelled')
-        else if (!failed && ok > 0) showToast(`Uploaded ${ok} file${ok > 1 ? 's' : ''}`, 'success')
-        if (ok > 0) loadFiles()
+        else setUploadError(`${currentPath ? currentPath + ': ' : ''}${err instanceof Error ? err.message : 'Upload failed'}`)
       } finally {
+        if (ok || folders) loadFiles()
         setUploading(false)
         uploadController.current = null
         uploadControl.current = null
       }
     },
-    [activeBucket, activeLocked, prefix, uploading, showToast, loadFiles],
+    [activeBucket, activeLocked, prefix, showToast, loadFiles],
   )
 
   // ─── Delete ─────────────────────────────────────────────
@@ -765,11 +772,14 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
   // ─── Drag & Drop ───────────────────────────────────────
 
   const onDragEnter = (e: DragEvent) => {
+    if (!e.dataTransfer.types.includes('Files')) return
     e.preventDefault()
-    if (activeBucket && !activeLocked && !uploading) setDragActive(true)
+    if (activeBucket && !activeLocked && !uploadController.current) setDragActive(true)
   }
 
-  const onDragOver = (e: DragEvent) => e.preventDefault()
+  const onDragOver = (e: DragEvent) => {
+    if (e.dataTransfer.types.includes('Files')) e.preventDefault()
+  }
 
   const onDragLeave = (e: DragEvent) => {
     e.preventDefault()
@@ -777,15 +787,18 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
   }
 
   const onDrop = (e: DragEvent) => {
+    if (!e.dataTransfer.types.includes('Files')) return
     e.preventDefault()
     setDragActive(false)
-    if (e.dataTransfer.files.length) handleUpload(e.dataTransfer.files)
+    if (!activeBucket || activeLocked || uploadController.current) return
+    try { void handleUpload(selectDroppedFiles(e.dataTransfer)) }
+    catch (err) { setUploadError(err instanceof Error ? err.message : 'Could not read dropped files') }
   }
 
   // ─── Render ─────────────────────────────────────────────
 
   return (
-    <div className="app" onDragEnter={onDragEnter}>
+    <div className="app" onDragEnter={onDragEnter} onDragOver={onDragOver} onDrop={onDrop}>
       {/* Header */}
       <header className="header">
         <h1 className="header__title">
@@ -926,7 +939,7 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
               multiple
               className="upload-input"
               onChange={(e) => {
-                if (e.target.files) handleUpload(e.target.files)
+                if (e.target.files) void handleUpload(selectUploadFiles(e.target.files))
                 e.target.value = ''
               }}
             />
@@ -1100,7 +1113,7 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
           <div className="empty">
             <div className="empty__icon"><Icon name="folder" size={36} /></div>
             <div className="empty__title">No files yet</div>
-            <div className="empty__subtitle">Drag & drop files here or click Upload</div>
+            <div className="empty__subtitle">Drag & drop files or folders here, or click Upload</div>
           </div>
         ) : (
           <>
@@ -1116,7 +1129,7 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
             {files.length === 0 && prefix ? (
               <div className="empty">
                 <div className="empty__title">Empty folder</div>
-                <div className="empty__subtitle">Drop files here or click Upload</div>
+                <div className="empty__subtitle">Drop files or folders here, or click Upload</div>
               </div>
             ) : filtered.length === 0 ? (
               <div className="empty">
@@ -1336,10 +1349,10 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
 
       {/* Drop Overlay */}
       {dragActive && (
-        <div className="drop-overlay" onDragLeave={onDragLeave} onDragOver={onDragOver} onDrop={onDrop}>
+        <div className="drop-overlay" onDragLeave={onDragLeave}>
           <div className="drop-overlay__content">
             <Icon name="upload" size={28} />
-            Drop files to upload
+            Drop files or folders to upload
           </div>
         </div>
       )}

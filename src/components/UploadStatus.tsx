@@ -6,7 +6,7 @@ export interface UploadStatus {
   loaded: number
   bytes: number
   name: string
-  phase: UploadProgress['phase'] | 'cancelling'
+  phase: UploadProgress['phase'] | 'cancelling' | 'preparing'
   bytesPerSecond: number
   etaSeconds: number | null
 }
@@ -23,18 +23,19 @@ function formatEta(seconds: number | null) {
 }
 export function UploadProgressBar({ progress, onCancel, onPause, onResume }: { progress: UploadStatus; onCancel: () => void; onPause: () => void; onResume: () => void }) {
   const percentage = progress.bytes ? Math.min(100, Math.round(progress.loaded / progress.bytes * 100)) : 0
+  const preparing = progress.phase === 'preparing'
   const paused = progress.phase === 'paused'
   const busy = progress.phase === 'finishing' || progress.phase === 'cancelling'
   return <section className="upload-bar" aria-label="Upload status">
     <div className={`spinner${paused ? ' upload-bar__spinner--paused' : ''}`} aria-hidden="true" />
     <div className="upload-bar__details">
       <span className="upload-bar__name" title={progress.name}>{progress.name}</span>
-      <span>{progress.phase === 'cancelling' ? 'Cancelling upload…' : progress.phase === 'finishing' ? 'Finishing upload…' : `${paused ? 'Paused' : 'Uploading'} ${progress.done + 1}/${progress.total} · ${percentage}%`}</span>
-      <progress aria-label="File upload progress" max={progress.bytes || 1} value={progress.loaded} />
-      <span className="upload-bar__metrics">{paused ? 'Paused · Keep this tab open' : busy ? 'Please wait…' : `${formatSpeed(progress.bytesPerSecond)} · ETA: ${formatEta(progress.etaSeconds)}`}</span>
+      <span>{preparing ? 'Preparing upload…' : progress.phase === 'cancelling' ? 'Cancelling upload…' : progress.phase === 'finishing' ? 'Finishing upload…' : `${paused ? 'Paused' : 'Uploading'} ${progress.done + 1}/${progress.total} · ${percentage}%`}</span>
+      <progress aria-label="File upload progress" max={progress.bytes || 1} value={preparing ? undefined : progress.loaded} />
+      <span className="upload-bar__metrics">{paused ? 'Paused · Keep this tab open' : busy || preparing ? 'Please wait…' : `${formatSpeed(progress.bytesPerSecond)} · ETA: ${formatEta(progress.etaSeconds)}`}</span>
     </div>
     <div className="upload-bar__actions">
-      <button className="btn btn--ghost" disabled={busy} onClick={paused ? onResume : onPause}>{paused ? 'Resume' : 'Pause'}</button>
+      <button className="btn btn--ghost" disabled={busy || preparing} onClick={paused ? onResume : onPause}>{paused ? 'Resume' : 'Pause'}</button>
       <button className="btn btn--ghost" disabled={busy} title={progress.phase === 'finishing' ? 'This file is being finalized' : 'Cancel this upload and remaining files'} onClick={onCancel}>Cancel</button>
     </div>
   </section>
