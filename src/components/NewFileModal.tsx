@@ -3,11 +3,13 @@ import { useState, useRef, useEffect, useMemo, type KeyboardEvent } from 'react'
 import Modal, { ModalCloseButton } from './Modal'
 import { Icon } from './Icon'
 import { getFileTypeInfo } from '../lib/fileIcons'
+import { languageName } from '../lib/syntaxHighlight'
 import {
   SUPPORTED_EXTENSIONS,
   computeFullName,
   parseFileNameAndExt,
   getMimeForExtension,
+  checkCustomExtension,
   type SupportedExtension,
   type ExtensionOption,
 } from '../lib/notebookExtensions'
@@ -42,6 +44,8 @@ export default function NewFileModal({
   const [fileName, setFileName] = useState(() => parsed.baseName)
   const [extension, setExtension] = useState<SupportedExtension | string>(() => parsed.ext)
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const [customOpen, setCustomOpen] = useState(false)
+  const [customInput, setCustomInput] = useState('')
   const [content, setContent] = useState(() => initialContent)
   const [showDiff, setShowDiff] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -56,12 +60,13 @@ export default function NewFileModal({
     const exists = SUPPORTED_EXTENSIONS.some((item) => item.ext === extension)
     if (!exists && extension) {
       const itemInfo = getFileTypeInfo(`file.${extension}`, false)
+      const language = languageName(`file.${extension}`)
       const customOption: ExtensionOption = {
         ext: extension,
         label: itemInfo.label || extension.toUpperCase(),
         extLabel: `.${extension}`,
         mime: getMimeForExtension(extension),
-        desc: `${extension.toUpperCase()} file`,
+        desc: language ? `${language} · highlighted in preview` : `${extension.toUpperCase()} file`,
       }
       return [customOption, ...SUPPORTED_EXTENSIONS]
     }
@@ -109,6 +114,16 @@ export default function NewFileModal({
     }
     setExtension(newExt)
     setIsDropdownOpen(false)
+  }
+
+  const customCheck = checkCustomExtension(customInput)
+  const applyCustomExtension = () => {
+    if (customCheck.ok) handleSelectExtension(customCheck.ext)
+  }
+  const toggleDropdown = () => {
+    // Each opening starts on the list, not a half-typed extension.
+    if (!isDropdownOpen) { setCustomOpen(false); setCustomInput('') }
+    setIsDropdownOpen(!isDropdownOpen)
   }
 
   // Sync scroll between textarea and line number gutter
@@ -244,7 +259,7 @@ export default function NewFileModal({
               <button
                 type="button"
                 className="notebook-ext-dropdown__trigger"
-                onClick={() => setIsDropdownOpen((v) => !v)}
+                onClick={toggleDropdown}
                 aria-expanded={isDropdownOpen}
                 aria-haspopup="listbox"
                 title="Select file extension"
@@ -295,6 +310,55 @@ export default function NewFileModal({
                       </button>
                     )
                   })}
+                  <div className="notebook-ext-dropdown__divider" role="separator" />
+                  {customOpen ? (
+                    <form
+                      className="notebook-ext-custom"
+                      onSubmit={(e) => { e.preventDefault(); applyCustomExtension() }}
+                    >
+                      <label htmlFor="notebook-custom-ext">Other file type</label>
+                      <div className="notebook-ext-custom__row">
+                        <span className="notebook-ext-custom__dot" aria-hidden="true">.</span>
+                        <input
+                          id="notebook-custom-ext"
+                          autoFocus
+                          value={customInput}
+                          onChange={(e) => setCustomInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            // Escape closes this menu only, not the whole editor.
+                            if (e.key === 'Escape') { e.preventDefault(); setIsDropdownOpen(false) }
+                          }}
+                          placeholder="py"
+                          maxLength={21}
+                          spellCheck={false}
+                          autoComplete="off"
+                          autoCapitalize="off"
+                          aria-describedby="notebook-custom-ext-hint"
+                          aria-invalid={!!customInput.trim() && !customCheck.ok}
+                        />
+                        <button type="submit" className="btn btn--primary btn--sm" disabled={!customCheck.ok}>Use</button>
+                      </div>
+                      <small
+                        id="notebook-custom-ext-hint"
+                        className={`notebook-ext-custom__hint ${customInput.trim() && !customCheck.ok ? 'notebook-ext-custom__hint--error' : ''}`}
+                        aria-live="polite"
+                      >
+                        {!customInput.trim() ? 'Any text format, e.g. py, java, go, rs, kt' : customCheck.ok ? customCheck.note : customCheck.error}
+                      </small>
+                    </form>
+                  ) : (
+                    <button
+                      type="button"
+                      className="notebook-ext-dropdown__item"
+                      onClick={() => setCustomOpen(true)}
+                    >
+                      <span className="notebook-ext-dropdown__item-icon"><Icon name="code" size={15} /></span>
+                      <div className="notebook-ext-dropdown__item-text">
+                        <strong><span>Other file type…</span></strong>
+                        <small>Type any extension, like .py or .java</small>
+                      </div>
+                    </button>
+                  )}
                 </div>
               )}
             </div>

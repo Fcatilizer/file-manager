@@ -11,6 +11,13 @@ const TEXT_EXT = [
   'zsh', 'bat', 'cmd', 'py', 'rb', 'go', 'rs', 'java', 'c', 'h', 'cpp', 'hpp', 'cs', 'php', 'sql',
   'toml', 'ini', 'env', 'conf', 'cfg', 'gitignore', 'editorconfig', 'lock', 'map',
   'vue', 'svelte', 'graphql', 'prisma', 'properties', 'gradle', 'tf', 'proto',
+  // Source and config formats that open as text (most get syntax highlighting).
+  'mjs', 'cjs', 'mts', 'cts', 'jsonc', 'json5', 'xsl', 'plist', 'cc', 'cxx', 'hh', 'hxx',
+  'kt', 'kts', 'swift', 'lua', 'r', 'dart', 'scala', 'sc', 'sbt', 'groovy', 'pl', 'pm',
+  'ex', 'exs', 'erl', 'hrl', 'hs', 'clj', 'cljs', 'fs', 'fsx', 'vb', 'vbs', 'ps1', 'psm1',
+  'mm', 'nim', 'zig', 'sol', 'asm', 's', 'mk', 'cmake', 'nix', 'tex', 'rst', 'adoc', 'elm',
+  'ml', 'mli', 'coffee', 'cr', 'd', 'pas', 'f90', 'vhdl', 'v', 'sv', 'tcl', 'awk', 'ahk',
+  'ino', 'fish', 'hx', 'jl', 'rkt', 'scm', 'lisp', 'hcl', 'gql', 'diff', 'patch',
 ]
 
 export function extOf(name: string): string {

@@ -58,6 +58,23 @@ const EXT_TO_LANG: Record<string, string> = {
   swift: 'swift',
   kt: 'kotlin',
   r: 'r',
+  // Extensions highlight.js has no alias for.
+  cljs: 'clojure',
+  fsx: 'fsharp',
+  psm1: 'powershell',
+  hrl: 'erlang',
+  mli: 'ocaml',
+  jl: 'julia',
+  rkt: 'scheme',
+  sc: 'scala',
+  sbt: 'scala',
+  asm: 'x86asm',
+  vue: 'xml',
+  svelte: 'xml',
+  xaml: 'xml',
+  cxx: 'cpp',
+  hh: 'cpp',
+  hxx: 'cpp',
 }
 
 export function escapeHtml(str: string): string {
@@ -82,6 +99,8 @@ export function detectLanguage(filename: string, content = ''): string | null {
     const candidate = EXT_TO_LANG[ext]
     if (hljs.getLanguage(candidate)) return candidate
   }
+  // highlight.js registers most file extensions as aliases (dart, ex, hs, pl…).
+  if (ext && hljs.getLanguage(ext)) return ext
 
   // Check shebang in first line
   if (content) {
@@ -96,6 +115,12 @@ export function detectLanguage(filename: string, content = ''): string | null {
   }
 
   return null
+}
+
+/** Display name of the language used to highlight a file, e.g. "Python". */
+export function languageName(filename: string): string | null {
+  const language = detectLanguage(filename)
+  return language ? hljs.getLanguage(language)?.name || null : null
 }
 
 /**

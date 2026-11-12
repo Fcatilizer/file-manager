@@ -1,3 +1,6 @@
+import { fileKind } from './filetype'
+import { languageName } from './syntaxHighlight'
+
 export type SupportedExtension = 'txt' | 'md' | 'env' | 'html' | 'xml' | 'json' | 'sh' | 'bat' | 'cmd'
 
 export interface ExtensionOption {
@@ -106,3 +109,21 @@ export function computeFullName(nameInput: string, ext: SupportedExtension | str
   return `${base}.${ext}`
 }
 
+export type CustomExtensionCheck =
+  | { ok: true; ext: string; language: string | null; note: string }
+  | { ok: false; ext: string; error: string }
+
+const NON_TEXT_KIND: Record<string, string> = { image: 'an image', video: 'a video', audio: 'audio', pdf: 'a PDF', word: 'a Word document', excel: 'a spreadsheet' }
+
+/** Validates a typed extension (".py" or "py") and explains how Vault will open it. */
+export function checkCustomExtension(input: string): CustomExtensionCheck {
+  const ext = input.trim().replace(/^\.+/, '').toLowerCase()
+  if (!ext) return { ok: false, ext, error: 'Type an extension, for example py' }
+  if (!/^[a-z0-9][a-z0-9_+-]{0,19}$/.test(ext)) return { ok: false, ext, error: 'Use letters, numbers, -, _ or + (up to 20 characters)' }
+  const kind = fileKind(ext === 'env' ? '.env' : `file.${ext}`)
+  if (NON_TEXT_KIND[kind]) return { ok: false, ext, error: `Vault opens .${ext} files as ${NON_TEXT_KIND[kind]}, not text` }
+  // Highlighting only happens in the preview, so unpreviewable types never get it.
+  if (kind !== 'text' && kind !== 'env') return { ok: true, ext, language: null, note: `Vault can't preview .${ext} files yet. They can still be downloaded.` }
+  const language = languageName(ext === 'env' ? '.env' : `file.${ext}`)
+  return { ok: true, ext, language, note: language ? `${language} · highlighted in preview` : 'Opens as plain text (no highlighting)' }
+}
