@@ -1911,6 +1911,20 @@ var mongoShareStore = {
   }
 };
 var MAX_FOLDER_DOWNLOAD_ENTRIES = 5e3;
+async function addFolderDates(s3, bucket, entries) {
+  const folders = entries.filter((entry) => entry.folder);
+  let next = 0;
+  const worker = async () => {
+    for (let entry = folders[next++]; entry; entry = folders[next++]) {
+      try {
+        const page = await s3.send(new ListObjectsV2Command({ Bucket: bucket, Prefix: entry.key, MaxKeys: 1e3 }));
+        for (const object of page.Contents || []) if (object.LastModified && (!entry.modified || object.LastModified > entry.modified)) entry.modified = object.LastModified;
+      } catch {
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(8, folders.length) }, worker));
+}
 var hash = (token) => createHash4("sha256").update(token).digest("hex");
 var asyncRoute = (fn) => (req, res, next) => {
   void fn(req, res).catch(next);
@@ -2046,6 +2060,7 @@ function createShareRouters(s3, protection = new BucketProtection(), store = mon
         ...(result.Contents || []).filter((o) => o.Key && o.Key !== requested && o.Key.startsWith(requested)).map((o) => ({ key: o.Key, folder: false, size: o.Size, modified: o.LastModified }))
       ];
       nextCursor = result.IsTruncated ? result.NextContinuationToken : void 0;
+      await addFolderDates(s3, share.bucket, entries);
     } else {
       const object = await s3.send(new HeadObjectCommand2({ Bucket: share.bucket, Key: requested }));
       entries = [{ key: requested, folder: false, size: object.ContentLength, modified: object.LastModified }];

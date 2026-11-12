@@ -49,6 +49,24 @@ export const mongoShareStore: ShareStore = {
   async revoke(_id, ownerId) { await (await indexedCollection()).updateOne({ _id, ownerId }, { $set: { revoked: true } }) },
 }
 export const MAX_FOLDER_DOWNLOAD_ENTRIES = 5000
+/**
+ * Storage returns subfolders as bare prefixes, so date each from its newest
+ * object, like the signed-in file list. One page per folder and a small
+ * concurrency cap bound the storage calls an anonymous request can trigger.
+ */
+async function addFolderDates(s3: S3Client, bucket: string, entries: SharedEntry[]) {
+  const folders = entries.filter((entry) => entry.folder)
+  let next = 0
+  const worker = async () => {
+    for (let entry = folders[next++]; entry; entry = folders[next++]) {
+      try {
+        const page = await s3.send(new ListObjectsV2Command({ Bucket: bucket, Prefix: entry.key, MaxKeys: 1000 }))
+        for (const object of page.Contents || []) if (object.LastModified && (!entry.modified || object.LastModified > entry.modified)) entry.modified = object.LastModified
+      } catch { /* A missing date must not fail the listing. */ }
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(8, folders.length) }, worker))
+}
 const hash = (token: string) => createHash('sha256').update(token).digest('hex')
 const asyncRoute = (fn: (req: Request, res: Response) => Promise<void>) => (req: Request, res: Response, next: NextFunction) => { void fn(req, res).catch(next) }
 const safeKey = (key: string) => !key.split('/').some((part) => part === '.' || part === '..') && ![...key].some((char) => char.charCodeAt(0) < 32 || char === '\\')
@@ -174,6 +192,7 @@ export function createShareRouters(s3: S3Client, protection = new BucketProtecti
         ...(result.Contents || []).filter((o) => o.Key && o.Key !== requested && o.Key.startsWith(requested)).map((o) => ({ key: o.Key!, folder: false, size: o.Size, modified: o.LastModified })),
       ]
       nextCursor = result.IsTruncated ? result.NextContinuationToken : undefined
+      await addFolderDates(s3, share.bucket, entries)
     } else {
       const object = await s3.send(new HeadObjectCommand({ Bucket: share.bucket, Key: requested }))
       entries = [{ key: requested, folder: false, size: object.ContentLength, modified: object.LastModified }]

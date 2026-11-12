@@ -86,7 +86,7 @@ test('folder boundaries reject traversal and adjacent prefixes; browsing is pagi
  assert.equal((await request(s.path+'?view=1&key=photos/nested/')).status,200)
  assert.equal((await request(s.path+'?key=photos/a.jpg&download=1')).status,303)
  await request(s.path+'?view=1&cursor=next-page')
- assert.equal(calls.at(-1)!.input.ContinuationToken,'next-page')
+ assert.equal(calls.findLast(c=>c.input.Delimiter==='/')!.input.ContinuationToken,'next-page')
 })
 test('private shares require owner unlock; deleted private buckets invalidate links',async()=>{
  buckets.buckets.set('vault-private-a',{_id:'vault-private-a',ownerId:'owner',label:'private',version:1,passwordHash:'unused',state:'active'})
