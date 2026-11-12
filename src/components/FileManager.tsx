@@ -1,3 +1,4 @@
+import { useFolderNavigation } from '../lib/useFolderNavigation'
 import { previewRowKey } from '../lib/previewKeyboard'
 import Scratchpad from './Scratchpad'
 import { UploadProgressBar, UploadError, type UploadStatus } from './UploadStatus'
@@ -91,7 +92,7 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
   const [buckets, setBuckets] = useState<string[]>([])
   const [bucketDetails, setBucketDetails] = useState<Record<string, BucketDetails>>({})
   const [passwordDialog, setPasswordDialog] = useState<{ name: string; mode: 'unlock' | 'change' } | null>(null)
-  const [activeBucket, setActiveBucket] = useState('')
+  const { bucket: activeBucket, prefix, setBucket: setActiveBucket, setPrefix } = useFolderNavigation()
   const [bucketsLoading, setBucketsLoading] = useState(true)
   const [bucketError, setBucketError] = useState('')
   const [showNewBucket, setShowNewBucket] = useState(false)
@@ -99,7 +100,6 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
   const preferredBuckets = useRef({ privateBucket: '', defaultBucket: '' })
   const fileRequest = useRef<symbol | null>(null)
   const bucketRequest = useRef<symbol | null>(null)
-  const [prefix, setPrefix] = useState('')
   const [files, setFiles] = useState<FileItem[]>([])
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
@@ -195,7 +195,7 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
     setShareItem(null)
     setDetailsItem(null)
     setPendingDelete(null)
-  }, [activeBucket, prefix])
+  }, [activeBucket, prefix, setActiveBucket, setPrefix])
 
   const refreshBuckets = useCallback(async () => {
     const requestId = Symbol()
@@ -219,7 +219,7 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
         setBucketsLoading(false)
       }
     }
-  }, [showToast])
+  }, [showToast, setActiveBucket])
 
   useEffect(() => {
     void refreshBuckets()
@@ -314,11 +314,6 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
     void loadFiles()
     return () => { fileRequest.current = null }
   }, [loadFiles])
-
-  // A refresh may select a fallback after a bucket was removed elsewhere.
-  useEffect(() => {
-    setPrefix('')
-  }, [activeBucket])
 
   // ─── Pinned Files ───────────────────────────────────────
   const loadPins = useCallback(async () => {
@@ -727,7 +722,7 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
         setPrefix(parentFolder)
       }
     }
-  }, [files, openPreview])
+  }, [files, openPreview, setPrefix])
 
   const handleQuickUnpinCard = useCallback(async (e: React.MouseEvent, card: {
     key: string
