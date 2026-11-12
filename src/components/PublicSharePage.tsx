@@ -2,6 +2,7 @@ import { previewRowKey } from '../lib/previewKeyboard'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import PreviewModal from './PreviewModal'
 import ItemDetailsDialog from './ItemDetailsDialog'
+import FolderDownloadDialog from './FolderDownloadDialog'
 import VaultBrandButton from './VaultBrandButton'
 import { Icon } from './Icon'
 import Avatar from './Avatar'
@@ -31,6 +32,7 @@ export default function PublicSharePage() {
   const [now, setNow] = useState(() => Date.now())
   const [preview, setPreview] = useState<FileItem | null>(null)
   const [detailsItem, setDetailsItem] = useState<FileItem | null>(null)
+  const [folderDownload, setFolderDownload] = useState<{ key: string; name: string } | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
   const opener = useRef<HTMLElement | null>(null)
   const initialPreview = useRef(initial.get('preview') === '1' || location.pathname === '/shared-preview')
@@ -152,6 +154,7 @@ export default function PublicSharePage() {
         <nav aria-label={view.folder ? 'Shared folder navigation' : 'Shared file navigation'}>
           <Icon name={view.folder ? 'folder' : (rootInfo?.iconName || 'fileDoc')} size={15} color={view.folder ? undefined : rootInfo?.colorLight} />
           {crumbs.map((crumb, i) => <span key={crumb.key}>{i > 0 && ' / '}<button className="public-text-button" onClick={() => navigate(crumb.key)} disabled={loading}>{crumb.label}</button></span>)}
+          {view.folder && <button type="button" className="folder-download-button" disabled={loading} onClick={() => setFolderDownload({ key: view.requested, name: crumbs.at(-1)?.label || title })}><Icon name="download" size={14} />Download folder</button>}
         </nav>
         <section className="list" aria-label="Shared files" aria-busy={loading}>
           <div className="row heading"><span>Name</span><span className="size">Size</span><span className="modified">Modified</span><span /></div>
@@ -165,6 +168,7 @@ export default function PublicSharePage() {
                 {item.isFolder ? (
                   <>
                     <button className="icon-button" title="Details" aria-label={`Details for ${item.name}`} onClick={() => openDetails(item)}><Icon name="info" size={16} /></button>
+                    <button className="icon-button" title="Download folder" aria-label={`Download folder ${item.name}`} onClick={() => setFolderDownload({ key: item.key, name: item.name })}><Icon name="download" size={16} /></button>
                     <button className="icon-button" title="Browse folder" aria-label={`Browse ${item.name}`} onClick={() => navigate(item.key)}><Icon name="chevronRight" size={16} /></button>
                   </>
                 ) : (
@@ -180,11 +184,12 @@ export default function PublicSharePage() {
           {!loading && view.entries.length === 0 && <div className="empty">This folder is empty.</div>}
         </section>
         <div className="footer"><span>{view.entries.length} item{view.entries.length === 1 ? '' : 's'}{view.nextCursor ? ' on this page' : ''} · Read-only</span>{view.nextCursor && <button className="public-text-button" disabled={loading} onClick={() => navigate(view.requested, view.nextCursor)}>Next page →</button>}</div>
-        <p className="notice">Select a file to preview, or use its download icon. {view.folder && 'This link includes future additions to this folder. '}No Vault account required.</p>
+        <p className="notice">Select a file to preview, or use its download icon.{view.folder && ' Download a whole folder as a ZIP or as separate files. This link includes future additions to this folder.'} No Vault account required.</p>
       </>}
     </main>
   </div>
     {preview && !error && <div className="public-share-preview"><PreviewModal key={preview.key} file={preview} bucket="" source={source} theme="light" hasPrev={index > 0} hasNext={index >= 0 && index < files.length - 1} onPrev={() => setPreview(files[index - 1])} onNext={() => setPreview(files[index + 1])} onClose={closePreview} onDownload={download} /></div>}
+    {folderDownload && !error && <div className="public-share-download"><FolderDownloadDialog key={folderDownload.key} base={base} folderKey={folderDownload.key} name={folderDownload.name} fileUrl={downloadUrl} formatSize={size} onClose={() => setFolderDownload(null)} /></div>}
     {detailsItem && !error && <div className="public-share-details"><ItemDetailsDialog key={detailsItem.key} item={detailsItem} onClose={closeDetails} /></div>}
   </>
 }

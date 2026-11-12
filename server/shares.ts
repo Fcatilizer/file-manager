@@ -2,7 +2,7 @@ import { publicPreviewData } from './public-preview-data.ts'
 import { encryptShareToken, recoverShareToken } from './share-token.ts'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import express, { type Request, type Response, type NextFunction } from 'express'
-import { S3Client, HeadObjectCommand, ListObjectsV2Command, GetObjectCommand } from '@aws-sdk/client-s3'
+import { S3Client, HeadObjectCommand, ListObjectsV2Command, GetObjectCommand, type ListObjectsV2CommandOutput } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { getDatabase, getUserById } from './db.ts'
 import { renderPublicError, type SharedEntry } from './public-share-page.ts'
@@ -48,6 +48,7 @@ export const mongoShareStore: ShareStore = {
   async list(ownerId, bucket, key) { return (await indexedCollection()).find({ ownerId, bucket, key, revoked: false }).sort({ createdAt: -1 }).toArray() },
   async revoke(_id, ownerId) { await (await indexedCollection()).updateOne({ _id, ownerId }, { $set: { revoked: true } }) },
 }
+export const MAX_FOLDER_DOWNLOAD_ENTRIES = 5000
 const hash = (token: string) => createHash('sha256').update(token).digest('hex')
 const asyncRoute = (fn: (req: Request, res: Response) => Promise<void>) => (req: Request, res: Response, next: NextFunction) => { void fn(req, res).catch(next) }
 const safeKey = (key: string) => !key.split('/').some((part) => part === '.' || part === '..') && ![...key].some((char) => char.charCodeAt(0) < 32 || char === '\\')
@@ -115,6 +116,30 @@ export function createShareRouters(s3: S3Client, protection = new BucketProtecti
       const filename = encodeURIComponent(requested.split('/').pop() || 'download')
       const url = await getSignedUrl(s3, new GetObjectCommand({ Bucket: share.bucket, Key: requested, ResponseContentDisposition: `attachment; filename="${filename}"; filename*=UTF-8''${filename}`, ResponseContentType: 'application/octet-stream' }), { expiresIn: ttl })
       res.redirect(303, url)
+      return
+    }
+    if (req.query.manifest === '1') {
+      // Lists names only; the browser fetches bytes through ?download=1 so no
+      // file data passes through this (possibly serverless) process.
+      if (!share.folder || !requested.endsWith('/')) throw new BucketAccessError(400, 'Choose a folder to download')
+      const files: { path: string; key: string; size: number; modified: string }[] = []
+      const folders: string[] = []
+      let cursor: string | undefined
+      do {
+        const page: ListObjectsV2CommandOutput = await s3.send(new ListObjectsV2Command({ Bucket: share.bucket, Prefix: requested, MaxKeys: 1000, ContinuationToken: cursor }))
+        for (const object of page.Contents || []) {
+          const key = object.Key
+          if (!key || key === requested || !key.startsWith(requested) || !safeKey(key)) continue
+          const path = key.slice(requested.length).split('/').filter(Boolean).join('/')
+          if (!path) continue
+          if (key.endsWith('/')) folders.push(path + '/')
+          else files.push({ path, key, size: object.Size || 0, modified: object.LastModified?.toISOString() || '' })
+        }
+        if (files.length + folders.length > MAX_FOLDER_DOWNLOAD_ENTRIES) throw new BucketAccessError(413, `Folders with more than ${MAX_FOLDER_DOWNLOAD_ENTRIES.toLocaleString('en-US')} items cannot be downloaded at once`)
+        cursor = page.IsTruncated ? page.NextContinuationToken : undefined
+      } while (cursor)
+      if (!files.length && !folders.length) await s3.send(new HeadObjectCommand({ Bucket: share.bucket, Key: requested }))
+      res.json({ name: requested.split('/').filter(Boolean).pop() || 'Shared folder', files, folders, totalBytes: files.reduce((sum, file) => sum + file.size, 0) })
       return
     }
     if (req.query.preview === '1') {

@@ -1,7 +1,8 @@
 /** Shared browser and server error-page styles, scoped away from preview modals. */
 export const publicShareStyle = `
 .public-share-preview .modal-overlay,
-.public-share-details .modal-overlay {
+.public-share-details .modal-overlay,
+.public-share-download .modal-overlay {
   --drop-bg: rgba(15, 23, 42, 0.28);
   backdrop-filter: blur(2px);
   -webkit-backdrop-filter: blur(2px);
@@ -192,5 +193,20 @@ export const publicShareStyle = `
   font-size:11px}:where(.public-share) .notice {
   margin-top:20px}
 }:where(.public-share) .row:hover {background:color-mix(in srgb,var(--accent) 4%,white)}:where(.public-share) .action {display:flex;justify-content:flex-end;gap:6px}:where(.public-share) .icon-button {display:inline-flex;align-items:center;justify-content:center;width:30px;height:32px;border-radius:6px;color:var(--accent)}:where(.public-share) .icon-button:hover {background:color-mix(in srgb,var(--accent) 10%,white)}:where(.public-share) a:focus-visible {outline:2px solid var(--accent);outline-offset:2px}:where(.public-share) .public-error {max-width:520px;margin:90px auto;background:white;border:1px solid #e0e4eb;border-radius:16px;text-align:center;padding:44px 28px}:where(.public-share) .public-error>svg {color:var(--accent);margin-bottom:24px}:where(.public-share) .public-error p {color:#768197;line-height:1.7;margin:18px 0 28px}:where(.public-share) .public-button {display:inline-flex;padding:11px 18px;background:var(--accent);color:white;border-radius:8px;margin-top:12px}:where(.public-share) .empty p {line-height:1.6;margin-top:12px}@media(max-width:640px) {:where(.public-share) .public-error {margin:40px auto;padding:32px 20px}:where(.public-share) .row {gap:6px}}:where(.public-share) .public-text-button {border:0;background:none;padding:0;color:inherit;font:inherit;cursor:pointer;text-align:left}:where(.public-share) .icon-button {border:0;background:none;cursor:pointer}:where(.public-share) nav .public-text-button,:where(.public-share) .footer .public-text-button {color:var(--accent)}:where(.public-share) .public-text-button:focus-visible,:where(.public-share) .icon-button:focus-visible {outline:2px solid var(--accent);outline-offset:2px}
+:where(.public-share) nav .folder-download-button {margin-left:auto;display:inline-flex;align-items:center;gap:7px;border:1px solid #e0e4eb;background:#fff;border-radius:8px;padding:7px 12px;color:var(--accent);font:inherit;font-size:12px;font-weight:550;cursor:pointer}:where(.public-share) nav .folder-download-button:hover:not(:disabled) {background:color-mix(in srgb,var(--accent) 6%,white)}:where(.public-share) nav .folder-download-button:disabled {opacity:.55;cursor:default}:where(.public-share) nav .folder-download-button:focus-visible {outline:2px solid var(--accent);outline-offset:2px}
+.folder-download .dialog__title {overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.folder-download .dialog__message svg {color:var(--success);vertical-align:-2px}
+.folder-download__options {display:grid;gap:10px;margin-top:10px}
+.folder-download__option {display:flex;gap:12px;align-items:flex-start;text-align:left;width:100%;padding:13px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-1);color:var(--text-1);font:inherit;cursor:pointer}
+.folder-download__option svg {color:var(--accent);margin-top:1px}
+.folder-download__option span {display:grid;gap:4px;min-width:0}
+.folder-download__option strong {font-size:13px;font-weight:600}
+.folder-download__option small {font-size:12px;line-height:1.5;color:var(--text-2)}
+.folder-download__option:hover:not(:disabled) {border-color:var(--accent);background:color-mix(in srgb,var(--accent) 5%,var(--bg-1))}
+.folder-download__option:focus-visible {outline:2px solid var(--accent);outline-offset:2px}
+.folder-download__option:disabled {opacity:.55;cursor:not-allowed}
+.folder-download__progress {display:grid;gap:6px;margin-top:8px;font-size:12px;color:var(--text-2)}
+.folder-download__progress progress {width:100%;height:6px;accent-color:var(--accent)}
+.folder-download__progress small {color:var(--text-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 `
