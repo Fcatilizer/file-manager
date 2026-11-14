@@ -1,4 +1,5 @@
 export const ICON_PATHS: Record<string, string[]> = {
+  dashboard: ['M3 3h7v7H3z', 'M14 3h7v11h-7z', 'M3 14h7v7H3z', 'M14 18h7v3h-7z'],
   pin: [
     'M12 17v5',
     'M9 10.76a2 2 0 01-1.11 1.79l-1.78.9A2 2 0 005 15.24V16a1 1 0 001 1h12a1 1 0 001-1v-.76a2 2 0 00-1.11-1.79l-1.78-.9A2 2 0 0115 10.76V5h1a1 1 0 000-2H8a1 1 0 000 2h1v5.76z',

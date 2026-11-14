@@ -1,5 +1,6 @@
 // src/lib/iconPaths.ts
 var ICON_PATHS = {
+  dashboard: ["M3 3h7v7H3z", "M14 3h7v11h-7z", "M3 14h7v7H3z", "M14 18h7v3h-7z"],
   pin: [
     "M12 17v5",
     "M9 10.76a2 2 0 01-1.11 1.79l-1.78.9A2 2 0 005 15.24V16a1 1 0 001 1h12a1 1 0 001-1v-.76a2 2 0 00-1.11-1.79l-1.78-.9A2 2 0 0115 10.76V5h1a1 1 0 000-2H8a1 1 0 000 2h1v5.76z"
@@ -1821,15 +1822,15 @@ var BucketProtection = class {
     if (!await this.grantExpiry(req, bucket)) throw new BucketAccessError(423, "Unlock this bucket to continue", "BUCKET_LOCKED", name);
     return bucket;
   }
-  async describe(req, names) {
+  async describe(req, names2) {
     const owned = await this.store.listOwned(bucketUser(req).id);
-    const shared = names.filter((name) => !name.startsWith(PRIVATE_BUCKET_PREFIX));
+    const shared = names2.filter((name) => !name.startsWith(PRIVATE_BUCKET_PREFIX));
     const visible = [];
     for (const name of shared) {
       if (!await this.store.find(name)) visible.push({ name, label: name, isPrivate: false, locked: false });
     }
     for (const bucket of owned) {
-      if (!names.includes(bucket._id)) continue;
+      if (!names2.includes(bucket._id)) continue;
       const expiry = await this.grantExpiry(req, bucket);
       visible.push({ name: bucket._id, label: bucket.label, isPrivate: true, locked: !expiry, unlockedUntil: expiry?.toISOString() });
     }
@@ -2859,6 +2860,428 @@ function createS3Router(protection = new BucketProtection(), authenticate = (_re
   return router;
 }
 
+// server/system/router.ts
+import { Router } from "express";
+
+// server/system/metrics.ts
+import os from "node:os";
+import { join as join3 } from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
+
+// server/system/linux.ts
+import { readFile, readdir } from "node:fs/promises";
+import { join } from "node:path";
+async function readText(path) {
+  try {
+    return (await readFile(path, "utf8")).trim();
+  } catch {
+    return null;
+  }
+}
+async function names(path) {
+  try {
+    return (await readdir(path)).sort().slice(0, 256);
+  } catch {
+    return [];
+  }
+}
+function numeric(value) {
+  if (value === null || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+async function readNumber(path) {
+  return numeric(await readText(path));
+}
+var percent = (value) => Math.min(100, Math.max(0, value));
+function memoryMetric(total, available) {
+  if (total === null || available === null || total < 0) return null;
+  const free = Math.min(total, Math.max(0, available));
+  return { total, available: free, used: total - free };
+}
+function parseMemory(text) {
+  const values = new Map(Array.from(text.matchAll(/^(\w+):\s+(\d+) kB$/gm), (m) => [m[1], Number(m[2]) * 1024]));
+  const get = (key2) => values.get(key2) ?? null;
+  return { memory: memoryMetric(get("MemTotal"), get("MemAvailable")), swap: memoryMetric(get("SwapTotal"), get("SwapFree")) };
+}
+function parseCpu(text) {
+  return text.split("\n").filter((line) => /^cpu(?:\d+)?\s/.test(line)).flatMap((line) => {
+    const [id, ...parts] = line.trim().split(/\s+/);
+    const fields = parts.slice(0, 8).map(Number);
+    if (fields.length < 4 || fields.some((v) => !Number.isFinite(v) || v < 0)) return [];
+    return [{ id, total: fields.reduce((a, b) => a + b, 0), idle: fields[3] + (fields[4] || 0) }];
+  });
+}
+function cpuUsage(before, after) {
+  const previous = new Map(before.map((cpu) => [cpu.id, cpu]));
+  return after.map((cpu) => {
+    const old = previous.get(cpu.id);
+    const elapsed = old ? cpu.total - old.total : 0;
+    const idle = old ? cpu.idle - old.idle : 0;
+    return { id: cpu.id, usage: elapsed > 0 && idle >= 0 ? percent(100 * (1 - idle / elapsed)) : null };
+  });
+}
+async function temperatures(sysRoot) {
+  const result = [];
+  const root = join(sysRoot, "class/hwmon");
+  for (const chip of await names(root)) {
+    const base = join(root, chip);
+    const chipName = await readText(join(base, "name")) || chip;
+    for (const input of (await names(base)).filter((name) => /^temp\d+_input$/.test(name))) {
+      const value = await readNumber(join(base, input));
+      if (value === null || value < -5e4 || value > 2e5) continue;
+      const label = await readText(join(base, input.replace("_input", "_label"))) || input.replace("_input", "");
+      result.push({ id: `${chip}/${input}`, label: `${chipName} \xB7 ${label}`, celsius: value / 1e3 });
+    }
+  }
+  if (result.length) return result;
+  const thermal = join(sysRoot, "class/thermal");
+  for (const zone of (await names(thermal)).filter((name) => /^thermal_zone\d+$/.test(name))) {
+    const value = await readNumber(join(thermal, zone, "temp"));
+    if (value !== null && value >= -5e4 && value <= 2e5) result.push({ id: zone, label: await readText(join(thermal, zone, "type")) || zone, celsius: value / 1e3 });
+  }
+  return result;
+}
+async function batteries(sysRoot) {
+  const root = join(sysRoot, "class/power_supply");
+  const result = [];
+  for (const id of await names(root)) {
+    const base = join(root, id);
+    if (await readText(join(base, "type")) !== "Battery" || await readText(join(base, "present")) === "0") continue;
+    const [capacity, status, model, power, current, voltage, energyFull, energyDesign, chargeFull, chargeDesign] = await Promise.all([
+      readNumber(join(base, "capacity")),
+      readText(join(base, "status")),
+      readText(join(base, "model_name")),
+      readNumber(join(base, "power_now")),
+      readNumber(join(base, "current_now")),
+      readNumber(join(base, "voltage_now")),
+      readNumber(join(base, "energy_full")),
+      readNumber(join(base, "energy_full_design")),
+      readNumber(join(base, "charge_full")),
+      readNumber(join(base, "charge_full_design"))
+    ]);
+    const full = energyFull ?? chargeFull, design = energyFull !== null ? energyDesign : chargeDesign;
+    result.push({
+      id,
+      name: model || id,
+      percent: capacity === null ? null : percent(capacity),
+      status: status || "Unknown",
+      watts: power !== null ? Math.abs(power) / 1e6 : current !== null && voltage !== null ? Math.abs(current * voltage) / 1e12 : null,
+      healthPercent: full !== null && design !== null && design > 0 ? percent(full / design * 100) : null
+    });
+  }
+  return result;
+}
+
+// server/system/gpu.ts
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+import { join as join2 } from "node:path";
+var exec = promisify(execFile);
+var pciId = (value) => value.toLowerCase().replace(/^00000000:/, "0000:");
+function gpuLabels(value) {
+  try {
+    const parsed = JSON.parse(value || "{}");
+    return Object.fromEntries(Object.entries(parsed).flatMap(([key2, label]) => {
+      if (!label || typeof label !== "object") return [];
+      const data = label;
+      return [[pciId(key2), {
+        name: typeof data.name === "string" ? data.name.slice(0, 120) : void 0,
+        kind: ["integrated", "discrete", "unknown"].includes(data.kind || "") ? data.kind : void 0
+      }]];
+    }));
+  } catch {
+    return {};
+  }
+}
+function parseNvidia(output) {
+  return output.trim().split("\n").flatMap((line) => {
+    const [bus, name, load, total, used, temperature] = line.split(",").map((s) => s.trim());
+    if (!bus || !name || !/^[0-9a-f]+:[0-9a-f]+:[0-9a-f]+\.[0-9]+$/i.test(bus)) return [];
+    const capacity = numeric(total), occupied = numeric(used), utilization = numeric(load);
+    return [{
+      id: pciId(bus),
+      name,
+      kind: /tegra|orin|jetson/i.test(name) ? "integrated" : "discrete",
+      driver: "nvidia",
+      utilization: utilization === null ? null : percent(utilization),
+      temperature: numeric(temperature),
+      memory: capacity !== null && occupied !== null ? memoryMetric(capacity * 1024 ** 2, (capacity - occupied) * 1024 ** 2) : null
+    }];
+  });
+}
+async function nvidiaMetrics() {
+  try {
+    const { stdout } = await exec("nvidia-smi", ["--query-gpu=pci.bus_id,name,utilization.gpu,memory.total,memory.used,temperature.gpu", "--format=csv,noheader,nounits"], { timeout: 1200, maxBuffer: 32 * 1024 });
+    return parseNvidia(stdout);
+  } catch {
+    return [];
+  }
+}
+async function graphics(sysRoot, labels, nvidia = nvidiaMetrics) {
+  const root = join2(sysRoot, "class/drm");
+  const result = [];
+  for (const card of (await names(root)).filter((name) => /^card\d+$/.test(name))) {
+    const base = join2(root, card, "device");
+    const uevent = await readText(join2(base, "uevent")) || "";
+    const id = pciId(/^PCI_SLOT_NAME=(.+)$/m.exec(uevent)?.[1] || card);
+    const driver = /^DRIVER=(.+)$/m.exec(uevent)?.[1] || null;
+    const [vendor, device, load, total, used] = await Promise.all([
+      readText(join2(base, "vendor")),
+      readText(join2(base, "device")),
+      readNumber(join2(base, "gpu_busy_percent")),
+      readNumber(join2(base, "mem_info_vram_total")),
+      readNumber(join2(base, "mem_info_vram_used"))
+    ]);
+    const brand = vendor === "0x8086" ? "Intel" : vendor === "0x1002" ? "AMD" : vendor === "0x10de" ? "NVIDIA" : "Graphics adapter";
+    const integrated = vendor === "0x8086" && ["0x0102", "0x0112", "0x0122", "0x0106", "0x0116", "0x0126", "0x0152", "0x0162", "0x0156", "0x0166"].includes(device || "");
+    let temperature = null;
+    for (const hwmon of await names(join2(base, "hwmon"))) {
+      const value = await readNumber(join2(base, "hwmon", hwmon, "temp1_input"));
+      if (value !== null && value >= -5e4 && value <= 2e5) {
+        temperature = value / 1e3;
+        break;
+      }
+    }
+    result.push({
+      id,
+      name: `${brand}${device ? ` ${device}` : ""}`,
+      kind: integrated ? "integrated" : "unknown",
+      driver,
+      utilization: load === null ? null : percent(load),
+      memory: total !== null && used !== null ? memoryMetric(total, total - used) : null,
+      temperature
+    });
+  }
+  for (const gpu of await nvidia()) {
+    const index = result.findIndex((item) => item.id === gpu.id);
+    if (index >= 0) result[index] = gpu;
+    else result.push(gpu);
+  }
+  return result.map((gpu) => ({ ...gpu, name: labels[gpu.id]?.name || gpu.name, kind: labels[gpu.id]?.kind || gpu.kind }));
+}
+
+// server/system/macos.ts
+import { execFile as execFile2 } from "node:child_process";
+import { promisify as promisify2 } from "node:util";
+var exec2 = promisify2(execFile2);
+async function command(file, args) {
+  try {
+    return (await exec2(file, args, { timeout: 1800, maxBuffer: 1024 * 1024, env: { ...process.env, LC_ALL: "C", LANG: "C" } })).stdout;
+  } catch {
+    return "";
+  }
+}
+function parseMacMemory(text, total) {
+  const pageSize = Number(/page size of (\d+) bytes/.exec(text)?.[1]);
+  const counts = new Map(Array.from(text.matchAll(/^([^:\n]+):\s+(\d+)\./gm), (m) => [m[1].trim(), Number(m[2])]));
+  const free = counts.get("Pages free"), cached = counts.get("File-backed pages"), purgeable = counts.get("Pages purgeable");
+  if (!pageSize || free === void 0 || cached === void 0 || purgeable === void 0) return null;
+  return memoryMetric(total, (free + cached + purgeable) * pageSize);
+}
+function parseMacSwap(text) {
+  const amount = (key2) => {
+    const match = new RegExp(`${key2}\\s*=\\s*([\\d.]+)([KMGT]?)`, "i").exec(text);
+    if (!match) return null;
+    const value = Number(match[1]) * 1024 ** ({ "": 0, K: 1, M: 2, G: 3, T: 4 }[match[2].toUpperCase()] ?? 0);
+    return Number.isFinite(value) ? value : null;
+  };
+  const total = amount("total"), used = amount("used");
+  return total !== null && used !== null ? memoryMetric(total, total - used) : null;
+}
+function parseMacBattery(text) {
+  return text.split("\n").flatMap((line) => {
+    const match = /-([^\t]+?)\s+\(id=[^)]+\)\s+(\d+)%;\s*([^;]+)/.exec(line);
+    if (!match || /present:\s*false/i.test(line)) return [];
+    return [{ id: match[1], name: match[1].replace(/-\d+$/, ""), percent: percent(Number(match[2])), status: match[3].trim(), watts: null, healthPercent: null }];
+  });
+}
+function parseAppleGpu(text) {
+  return text.split(/(?=\+-o )/).flatMap((block) => {
+    const model = /"model"\s*=\s*"([^"]+)"/.exec(block)?.[1];
+    if (!model || !/^Apple\s/.test(model)) return [];
+    const load = /"Device Utilization %"\s*=\s*(\d+(?:\.\d+)?)/.exec(block);
+    const id = /\+-o\s+(\S+)/.exec(block)?.[1] || model;
+    return [{ id, name: model, kind: "integrated", driver: "Apple AGX", utilization: load ? percent(Number(load[1])) : null, memory: null, temperature: null }];
+  });
+}
+async function macMetrics(totalMemory) {
+  const [vm, swap, battery, gpu] = await Promise.all([
+    command("/usr/bin/vm_stat", []),
+    command("/usr/sbin/sysctl", ["vm.swapusage"]),
+    command("/usr/bin/pmset", ["-g", "batt"]),
+    command("/usr/sbin/ioreg", ["-r", "-c", "AGXAccelerator", "-d", "1", "-l"])
+  ]);
+  return { memory: parseMacMemory(vm, totalMemory), swap: parseMacSwap(swap), batteries: parseMacBattery(battery), gpus: parseAppleGpu(gpu) };
+}
+
+// server/system/storage.ts
+import { statfs } from "node:fs/promises";
+import { isAbsolute } from "node:path";
+function storagePaths(config) {
+  if (!config?.trim()) return [{ path: "/", label: "System filesystem" }];
+  try {
+    const parsed = JSON.parse(config);
+    if (!Array.isArray(parsed) || !parsed.length || parsed.length > 12) return [];
+    if (!parsed.every((item) => item && typeof item.path === "string" && isAbsolute(item.path) && !item.path.includes("\0") && typeof item.label === "string" && item.label.trim())) return [];
+    return parsed.map((item) => ({ path: item.path, label: item.label.slice(0, 120) }));
+  } catch {
+    return [];
+  }
+}
+function storageNumbers(s) {
+  const total = s.blocks * s.bsize;
+  if (![total, s.bfree, s.bavail, s.bsize].every(Number.isFinite) || total <= 0 || s.bsize <= 0) return null;
+  const free = Math.min(total, Math.max(0, s.bfree * s.bsize));
+  const available = Math.min(free, Math.max(0, s.bavail * s.bsize));
+  return { total, used: total - free, available, reserved: free - available };
+}
+function createStorageCollector(paths) {
+  let cache = null;
+  let sampled = 0;
+  let pending = null;
+  return async () => {
+    if (cache && performance.now() - sampled < 3e4) return cache;
+    if (pending) return pending;
+    pending = Promise.all(paths.map(async ({ path, label }) => {
+      try {
+        const usage = storageNumbers(await statfs(path));
+        return { path, label, usage, sampledAt: (/* @__PURE__ */ new Date()).toISOString(), error: usage ? null : "Filesystem capacity is unavailable." };
+      } catch {
+        return { path, label, usage: null, sampledAt: (/* @__PURE__ */ new Date()).toISOString(), error: "Filesystem is not mounted or cannot be read." };
+      }
+    })).then((value) => {
+      cache = value;
+      sampled = performance.now();
+      return value;
+    }).finally(() => {
+      pending = null;
+    });
+    return pending;
+  };
+}
+
+// server/system/metrics.ts
+function createSystemCollector(options = {}) {
+  const procRoot = options.procRoot || process.env.VAULT_PROC_ROOT || "/proc";
+  const sysRoot = options.sysRoot || process.env.VAULT_SYS_ROOT || "/sys";
+  const platform = options.platform || os.platform();
+  const serverless = options.serverless ?? !!process.env.VERCEL;
+  const labels = gpuLabels(options.labels ?? process.env.VAULT_GPU_LABELS);
+  const paths = storagePaths(options.storage ?? process.env.VAULT_STORAGE_PATHS);
+  const collectStorage = createStorageCollector(paths);
+  let previous = [];
+  let lastCpuSample = 0;
+  let cached = null;
+  let cachedAt = 0;
+  let pending = null;
+  async function cpuCounters() {
+    if (platform === "linux") return parseCpu(await readText(join3(procRoot, "stat")) || "");
+    const cores = os.cpus().map((cpu, i) => ({ id: `cpu${i}`, total: Object.values(cpu.times).reduce((a, b) => a + b, 0), idle: cpu.times.idle }));
+    return [{ id: "cpu", total: cores.reduce((sum, cpu) => sum + cpu.total, 0), idle: cores.reduce((sum, cpu) => sum + cpu.idle, 0) }, ...cores];
+  }
+  async function collect() {
+    const result = {
+      sampledAt: (/* @__PURE__ */ new Date()).toISOString(),
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      platform,
+      machine: serverless ? "Serverless runtime" : process.env.VAULT_MACHINE_LABEL || os.hostname(),
+      environment: serverless ? "serverless" : "host",
+      uptimeSeconds: null,
+      cpu: { model: "", usage: null, cores: [] },
+      memory: null,
+      swap: null,
+      containerMemory: null,
+      temperatures: [],
+      gpus: [],
+      batteries: [],
+      storage: [],
+      notes: []
+    };
+    if (serverless) {
+      result.notes.push("This deployment runs on Vercel. Home-server hardware metrics are not available from a serverless function.");
+      return result;
+    }
+    if (platform === "linux") {
+      const container = await readText("/.dockerenv") !== null || /docker|containerd|kubepods|libpod/.test(await readText(join3(procRoot, "1/cgroup")) || "");
+      result.environment = container ? "container" : "host";
+      const [mem, uptime, cpuinfo, sensors, gpus, battery, limit, used] = await Promise.all([
+        readText(join3(procRoot, "meminfo")),
+        readText(join3(procRoot, "uptime")),
+        readText(join3(procRoot, "cpuinfo")),
+        temperatures(sysRoot),
+        graphics(sysRoot, labels),
+        batteries(sysRoot),
+        readNumber("/sys/fs/cgroup/memory.max"),
+        readNumber("/sys/fs/cgroup/memory.current")
+      ]);
+      Object.assign(result, parseMemory(mem || ""));
+      result.uptimeSeconds = uptime ? Number(uptime.split(" ")[0]) : null;
+      result.cpu.model = /^model name\s*:\s*(.+)$/m.exec(cpuinfo || "")?.[1] || os.cpus()[0]?.model || "CPU";
+      result.temperatures = sensors;
+      result.gpus = gpus;
+      result.batteries = battery;
+      if (container && limit !== null && used !== null) result.containerMemory = memoryMetric(limit, limit - used);
+      if (container) result.notes.push("CPU, RAM and swap are kernel counters visible to Vault, normally host-wide in Docker. They are not this app\u2019s usage. Sensors depend on host driver and container access.");
+      if (!result.memory) result.notes.push("Memory counters are unavailable. Check access to the configured proc filesystem.");
+    } else if (platform === "darwin") {
+      Object.assign(result, await macMetrics(os.totalmem()));
+      result.uptimeSeconds = os.uptime();
+      result.cpu.model = os.cpus()[0]?.model || "CPU";
+      result.notes.push("Monitoring this Mac running the Vault backend, not your remote Fedora server or RustFS endpoint. Open Vault on your home-server domain to see that server.");
+      result.notes.push("Mac RAM availability includes reclaimable file cache (an estimate, not a memory-pressure reading). CPU temperatures are not exposed by this unprivileged collector. Apple GPU load is shown when the driver reports it.");
+    } else {
+      result.memory = memoryMetric(os.totalmem(), os.freemem());
+      result.uptimeSeconds = os.uptime();
+      result.cpu.model = os.cpus()[0]?.model || "CPU";
+      result.notes.push("Basic OS CPU and memory counters are shown. Swap and hardware sensors are supported on Linux hosts; memory on this platform includes cached pages.");
+    }
+    result.storage = await collectStorage();
+    if (!paths.length) result.notes.push("Storage configuration is invalid. VAULT_STORAGE_PATHS must contain 1\u201312 labelled absolute paths.");
+    if (!previous.length || performance.now() - lastCpuSample > 15e3) {
+      previous = await cpuCounters();
+      await delay(options.sampleDelay ?? 250);
+    }
+    const next = await cpuCounters();
+    const usage = cpuUsage(previous, next);
+    previous = next;
+    lastCpuSample = performance.now();
+    result.cpu.usage = usage.find((cpu) => cpu.id === "cpu")?.usage ?? null;
+    result.cpu.cores = usage.filter((cpu) => cpu.id !== "cpu");
+    result.sampledAt = (/* @__PURE__ */ new Date()).toISOString();
+    return result;
+  }
+  return async () => {
+    if (cached && performance.now() - cachedAt < 2500) return cached;
+    if (pending) return pending;
+    pending = collect().then((value) => {
+      cached = value;
+      cachedAt = performance.now();
+      return value;
+    }).finally(() => {
+      pending = null;
+    });
+    return pending;
+  };
+}
+
+// server/system/router.ts
+function createSystemRouter(collect = createSystemCollector(), authenticate = requireAuth) {
+  const router = Router();
+  router.use((_req, res, next) => {
+    res.set("Cache-Control", "no-store");
+    next();
+  });
+  router.get("/metrics", authenticate, requireAdmin, async (_req, res) => {
+    try {
+      res.json(await collect());
+    } catch {
+      res.status(503).json({ error: "Server metrics are temporarily unavailable." });
+    }
+  });
+  return router;
+}
+
 // server/app.ts
 var app = express6();
 app.disable("x-powered-by");
@@ -2903,6 +3326,7 @@ app.use("/api", async (_req, _res, next) => {
 });
 app.use("/api/auth", express6.json(), authRouter);
 app.use("/api/users", requireAuth, requireAdmin, express6.json(), usersRouter);
+app.use("/api/system", createSystemRouter());
 var shares = createShareRouters(createStorageClient());
 app.use("/api/public", shares.publicRouter);
 app.use("/api/shares", requireAuth, shares.management);

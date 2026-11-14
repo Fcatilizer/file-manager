@@ -1,6 +1,7 @@
 import { useFolderNavigation } from '../lib/useFolderNavigation'
 import { previewRowKey } from '../lib/previewKeyboard'
 import Scratchpad from './Scratchpad'
+import SystemDashboard from './SystemDashboard'
 import { UploadProgressBar, UploadError, type UploadStatus } from './UploadStatus'
 import { UploadControl } from '../lib/uploadControl'
 import { selectDroppedFiles, selectUploadFiles, type UploadSelection } from '../lib/uploadSelection'
@@ -115,6 +116,7 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
   const [shareItem, setShareItem] = useState<FileItem | null>(null)
   const [scratchpadDirty, setScratchpadDirty] = useState(false)
   const [showUsers, setShowUsers] = useState(false)
+  const [showDashboard, setShowDashboard] = useState(false)
   const [showAccount, setShowAccount] = useState(false)
   const [query, setQuery] = useState('')
   const [activeCategory, setActiveCategory] = useState<FileCategory | 'pinned' | null>(null)
@@ -821,6 +823,7 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
             }}
             onRefresh={() => void refreshBuckets()}
           />
+          {user.role === 'admin' && <button type="button" className="theme-toggle" onClick={() => setShowDashboard(true)} title="Server dashboard" aria-label="Server dashboard"><Icon name="dashboard" size={16} /></button>}
           <AppearanceControls theme={theme} onToggleTheme={onToggleTheme} />
           {user.role === 'admin' && (
             <button
@@ -1329,6 +1332,7 @@ export default function FileManager({ user, theme, onToggleTheme, preferences, o
         )}
       </div>
 
+      {showDashboard && user.role === 'admin' && <SystemDashboard onClose={() => setShowDashboard(false)} />}
       <Scratchpad key={user.id} bucket={activeBucket} locked={activeLocked} onSaved={loadFiles} onPendingChange={setScratchpadDirty} />
       {detailsItem && <ItemDetailsDialog key={detailsItem.key} bucket={activeBucket} bucketLabel={activeDetails?.label || activeBucket} item={detailsItem} onClose={() => setDetailsItem(null)} />}
       {shareItem && <ShareDialog bucket={activeBucket} item={shareItem} isPrivate={!!activeDetails?.isPrivate} onClose={() => setShareItem(null)} />}

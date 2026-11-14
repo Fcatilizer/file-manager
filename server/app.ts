@@ -8,6 +8,7 @@ import { authRouter, requireAuth, requireAdmin } from './auth.ts'
 import { usersRouter } from './users.ts'
 import { createShareRouters } from './shares.ts'
 import { createS3Router, createStorageClient } from './s3.ts'
+import { createSystemRouter } from './system/router.ts'
 
 const app = express()
 app.disable('x-powered-by')
@@ -65,6 +66,7 @@ app.use('/api/auth', express.json(), authRouter)
 
 // ─── User management (admin only) ────────────────────────────
 app.use('/api/users', requireAuth, requireAdmin, express.json(), usersRouter)
+app.use('/api/system', createSystemRouter())
 
 const shares = createShareRouters(createStorageClient())
 app.use('/api/public', shares.publicRouter)

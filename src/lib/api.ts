@@ -2,6 +2,11 @@ import { uploadDirect, type UploadOptions } from './upload'
 import type { BucketDetails } from './bucketProtection'
 export type { BucketDetails } from './bucketProtection'
 import type { Preferences } from './preferences'
+import type { SystemMetrics } from './systemMetrics'
+
+export function fetchSystemMetrics(signal?: AbortSignal): Promise<SystemMetrics> {
+  return request('/api/system/metrics', { signal })
+}
 export interface FileItem {
   key: string
   name: string
