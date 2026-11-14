@@ -3,6 +3,7 @@ import { ApiError, fetchSystemMetrics } from '../lib/api'
 import type { MemoryMetric, SystemMetrics } from '../lib/systemMetrics'
 import Modal, { ModalHeader } from './Modal'
 import { Icon } from './Icon'
+import SystemInformation from './SystemInformation'
 import '../styles/system-dashboard.css'
 
 const ratio = (metric: MemoryMetric) => metric.total > 0 ? metric.used / metric.total * 100 : 0
@@ -128,6 +129,7 @@ export default function SystemDashboard({ onClose }: { onClose: () => void }) {
             {battery.healthPercent !== null && <p>Battery health {percentage(battery.healthPercent)} of design capacity</p>}
           </MetricCard>) : <MetricCard title="Battery"><p>No battery detected or accessible.</p></MetricCard>}
         </div>
+        <SystemInformation data={data} />
       </>}
     </div>
   </Modal>

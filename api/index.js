@@ -2864,8 +2864,8 @@ function createS3Router(protection = new BucketProtection(), authenticate = (_re
 import { Router } from "express";
 
 // server/system/metrics.ts
-import os from "node:os";
-import { join as join3 } from "node:path";
+import os2 from "node:os";
+import { join as join4 } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 
 // server/system/linux.ts
@@ -3161,11 +3161,139 @@ function createStorageCollector(paths) {
   };
 }
 
+// server/system/information.ts
+import os from "node:os";
+import { join as join3 } from "node:path";
+import { execFile as execFile3 } from "node:child_process";
+import { promisify as promisify3 } from "node:util";
+var exec3 = promisify3(execFile3);
+var run = async (file, args) => {
+  try {
+    return (await exec3(file, args, { timeout: 2e3, maxBuffer: 1024 * 1024, env: { ...process.env, LC_ALL: "C" } })).stdout.trim();
+  } catch {
+    return null;
+  }
+};
+function parseOsRelease(text) {
+  if (!text) return null;
+  const fields = {};
+  for (const line of text.split("\n")) {
+    const match = /^(ID|PRETTY_NAME|NAME|VERSION_ID)=(.*)$/.exec(line.trim());
+    if (!match) continue;
+    let value = match[2];
+    if (value.startsWith('"') && value.endsWith('"') || value.startsWith("'") && value.endsWith("'")) {
+      const quoted = value[0] === '"';
+      value = value.slice(1, -1);
+      if (quoted) value = value.replace(/\\(["\\$`])/g, "$1");
+    }
+    fields[match[1]] = value.slice(0, 256);
+  }
+  if (!fields.ID && !fields.NAME && !fields.PRETTY_NAME) return null;
+  return { id: /^[a-z0-9._-]+$/.test(fields.ID || "") ? fields.ID : "linux", name: fields.PRETTY_NAME || [fields.NAME, fields.VERSION_ID].filter(Boolean).join(" ") || "Linux" };
+}
+async function packageCount(id, command2) {
+  if (["fedora", "rhel", "centos", "rocky", "almalinux", "opensuse", "opensuse-leap", "opensuse-tumbleweed"].includes(id)) {
+    const output = await command2("rpm", ["-qa", "--qf", "%{NAME}\n"]);
+    return output === null ? null : { count: output.split("\n").filter(Boolean).length, manager: "rpm" };
+  }
+  if (["debian", "ubuntu", "linuxmint", "pop", "raspbian"].includes(id)) {
+    const output = await command2("dpkg-query", ["-W", "-f=${db:Status-Status}\n"]);
+    return output === null ? null : { count: output.split("\n").filter((line) => line === "installed").length, manager: "dpkg" };
+  }
+  if (id === "alpine") {
+    const output = await command2("apk", ["info"]);
+    return output === null ? null : { count: output.split("\n").filter(Boolean).length, manager: "apk" };
+  }
+  if (["arch", "manjaro", "endeavouros"].includes(id)) {
+    const output = await command2("pacman", ["-Qq"]);
+    return output === null ? null : { count: output.split("\n").filter(Boolean).length, manager: "pacman" };
+  }
+  return null;
+}
+function meaningful(value) {
+  return value && !/^(unknown|none|not specified|to be filled by o\.e\.m\.|default string)$/i.test(value) ? value : null;
+}
+function createInformationCollector(options) {
+  let cached = null;
+  let cachedAt = 0;
+  let pending = null;
+  const command2 = options.command || run;
+  async function release(paths) {
+    for (const path of paths) {
+      const value = parseOsRelease(await readText(path));
+      if (value) return value;
+    }
+    return null;
+  }
+  async function collect() {
+    const result = {
+      os: { id: options.platform, name: os.type() },
+      osScope: options.container ? "container" : "host",
+      containerOs: null,
+      hostOsAvailable: !options.container,
+      kernel: `${os.type()} ${os.release()}`,
+      architecture: os.machine(),
+      hardware: null,
+      hostname: os.hostname(),
+      firmware: null,
+      locale: process.env.LC_ALL || process.env.LANG || Intl.DateTimeFormat().resolvedOptions().locale,
+      shell: process.env.SHELL || null,
+      runtime: `Node.js ${process.versions.node}`,
+      packages: null,
+      networks: Object.entries(os.networkInterfaces()).flatMap(([name, addresses]) => (addresses || []).filter((address) => !address.internal).map((address) => ({ name, address: address.cidr || address.address, family: address.family }))).slice(0, 32),
+      displays: []
+    };
+    if (options.platform === "linux") {
+      const runtimeOs = await release(options.osReleasePaths || ["/etc/os-release", "/usr/lib/os-release"]) || { id: "linux", name: "Linux" };
+      const hostOs = options.container ? await release(options.hostOsReleasePaths || (process.env.VAULT_HOST_OS_RELEASE ? [process.env.VAULT_HOST_OS_RELEASE] : ["/run/host/os-release", "/host/os-release"])) : null;
+      result.os = hostOs || runtimeOs;
+      result.osScope = hostOs || !options.container ? "host" : "container";
+      result.containerOs = options.container ? runtimeOs : null;
+      result.hostOsAvailable = !options.container || !!hostOs;
+      const dmi = join3(options.sysRoot, "class/dmi/id");
+      const [vendor, product, version, biosVendor, biosVersion, model] = await Promise.all([
+        readText(join3(dmi, "sys_vendor")),
+        readText(join3(dmi, "product_name")),
+        readText(join3(dmi, "product_version")),
+        readText(join3(dmi, "bios_vendor")),
+        readText(join3(dmi, "bios_version")),
+        readText(join3(options.sysRoot, "firmware/devicetree/base/model"))
+      ]);
+      result.hardware = [...new Set([vendor, product, version].map(meaningful).filter(Boolean))].join(" \xB7 ") || model?.replace(/\0/g, "") || null;
+      result.firmware = [biosVendor, biosVersion].map(meaningful).filter(Boolean).join(" \xB7 ") || null;
+      result.packages = await packageCount(runtimeOs.id, command2);
+      const drm = join3(options.sysRoot, "class/drm");
+      for (const connector of (await names(drm)).filter((name) => /^card\d+-/.test(name))) {
+        if (await readText(join3(drm, connector, "status")) !== "connected") continue;
+        const modes = await readText(join3(drm, connector, "modes"));
+        result.displays.push({ name: connector, mode: modes?.split("\n")[0] || null });
+      }
+    } else if (options.platform === "darwin") {
+      const [version, model] = await Promise.all([command2("/usr/bin/sw_vers", ["-productVersion"]), command2("/usr/sbin/sysctl", ["-n", "hw.model"])]);
+      result.os = { id: "macos", name: `macOS${version ? ` ${version}` : ""}` };
+      result.hardware = model;
+    }
+    return result;
+  }
+  return async () => {
+    if (cached && performance.now() - cachedAt < 3e5) return cached;
+    if (pending) return pending;
+    pending = collect().then((value) => {
+      cached = value;
+      cachedAt = performance.now();
+      return value;
+    }).finally(() => {
+      pending = null;
+    });
+    return pending;
+  };
+}
+
 // server/system/metrics.ts
 function createSystemCollector(options = {}) {
   const procRoot = options.procRoot || process.env.VAULT_PROC_ROOT || "/proc";
   const sysRoot = options.sysRoot || process.env.VAULT_SYS_ROOT || "/sys";
-  const platform = options.platform || os.platform();
+  const platform = options.platform || os2.platform();
   const serverless = options.serverless ?? !!process.env.VERCEL;
   const labels = gpuLabels(options.labels ?? process.env.VAULT_GPU_LABELS);
   const paths = storagePaths(options.storage ?? process.env.VAULT_STORAGE_PATHS);
@@ -3175,9 +3303,10 @@ function createSystemCollector(options = {}) {
   let cached = null;
   let cachedAt = 0;
   let pending = null;
+  let collectInformation = null;
   async function cpuCounters() {
-    if (platform === "linux") return parseCpu(await readText(join3(procRoot, "stat")) || "");
-    const cores = os.cpus().map((cpu, i) => ({ id: `cpu${i}`, total: Object.values(cpu.times).reduce((a, b) => a + b, 0), idle: cpu.times.idle }));
+    if (platform === "linux") return parseCpu(await readText(join4(procRoot, "stat")) || "");
+    const cores = os2.cpus().map((cpu, i) => ({ id: `cpu${i}`, total: Object.values(cpu.times).reduce((a, b) => a + b, 0), idle: cpu.times.idle }));
     return [{ id: "cpu", total: cores.reduce((sum, cpu) => sum + cpu.total, 0), idle: cores.reduce((sum, cpu) => sum + cpu.idle, 0) }, ...cores];
   }
   async function collect() {
@@ -3185,7 +3314,7 @@ function createSystemCollector(options = {}) {
       sampledAt: (/* @__PURE__ */ new Date()).toISOString(),
       timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       platform,
-      machine: serverless ? "Serverless runtime" : process.env.VAULT_MACHINE_LABEL || os.hostname(),
+      machine: serverless ? "Serverless runtime" : process.env.VAULT_MACHINE_LABEL || os2.hostname(),
       environment: serverless ? "serverless" : "host",
       uptimeSeconds: null,
       cpu: { model: "", usage: null, cores: [] },
@@ -3196,6 +3325,7 @@ function createSystemCollector(options = {}) {
       gpus: [],
       batteries: [],
       storage: [],
+      information: null,
       notes: []
     };
     if (serverless) {
@@ -3203,12 +3333,12 @@ function createSystemCollector(options = {}) {
       return result;
     }
     if (platform === "linux") {
-      const container = await readText("/.dockerenv") !== null || /docker|containerd|kubepods|libpod/.test(await readText(join3(procRoot, "1/cgroup")) || "");
+      const container = await readText("/.dockerenv") !== null || /docker|containerd|kubepods|libpod/.test(await readText(join4(procRoot, "1/cgroup")) || "");
       result.environment = container ? "container" : "host";
       const [mem, uptime, cpuinfo, sensors, gpus, battery, limit, used] = await Promise.all([
-        readText(join3(procRoot, "meminfo")),
-        readText(join3(procRoot, "uptime")),
-        readText(join3(procRoot, "cpuinfo")),
+        readText(join4(procRoot, "meminfo")),
+        readText(join4(procRoot, "uptime")),
+        readText(join4(procRoot, "cpuinfo")),
         temperatures(sysRoot),
         graphics(sysRoot, labels),
         batteries(sysRoot),
@@ -3217,7 +3347,7 @@ function createSystemCollector(options = {}) {
       ]);
       Object.assign(result, parseMemory(mem || ""));
       result.uptimeSeconds = uptime ? Number(uptime.split(" ")[0]) : null;
-      result.cpu.model = /^model name\s*:\s*(.+)$/m.exec(cpuinfo || "")?.[1] || os.cpus()[0]?.model || "CPU";
+      result.cpu.model = /^model name\s*:\s*(.+)$/m.exec(cpuinfo || "")?.[1] || os2.cpus()[0]?.model || "CPU";
       result.temperatures = sensors;
       result.gpus = gpus;
       result.batteries = battery;
@@ -3225,18 +3355,19 @@ function createSystemCollector(options = {}) {
       if (container) result.notes.push("CPU, RAM and swap are kernel counters visible to Vault, normally host-wide in Docker. They are not this app\u2019s usage. Sensors depend on host driver and container access.");
       if (!result.memory) result.notes.push("Memory counters are unavailable. Check access to the configured proc filesystem.");
     } else if (platform === "darwin") {
-      Object.assign(result, await macMetrics(os.totalmem()));
-      result.uptimeSeconds = os.uptime();
-      result.cpu.model = os.cpus()[0]?.model || "CPU";
+      Object.assign(result, await macMetrics(os2.totalmem()));
+      result.uptimeSeconds = os2.uptime();
+      result.cpu.model = os2.cpus()[0]?.model || "CPU";
       result.notes.push("Monitoring this Mac running the Vault backend, not your remote Fedora server or RustFS endpoint. Open Vault on your home-server domain to see that server.");
       result.notes.push("Mac RAM availability includes reclaimable file cache (an estimate, not a memory-pressure reading). CPU temperatures are not exposed by this unprivileged collector. Apple GPU load is shown when the driver reports it.");
     } else {
-      result.memory = memoryMetric(os.totalmem(), os.freemem());
-      result.uptimeSeconds = os.uptime();
-      result.cpu.model = os.cpus()[0]?.model || "CPU";
+      result.memory = memoryMetric(os2.totalmem(), os2.freemem());
+      result.uptimeSeconds = os2.uptime();
+      result.cpu.model = os2.cpus()[0]?.model || "CPU";
       result.notes.push("Basic OS CPU and memory counters are shown. Swap and hardware sensors are supported on Linux hosts; memory on this platform includes cached pages.");
     }
-    result.storage = await collectStorage();
+    collectInformation ??= createInformationCollector({ platform, sysRoot, container: result.environment === "container" });
+    [result.storage, result.information] = await Promise.all([collectStorage(), collectInformation()]);
     if (!paths.length) result.notes.push("Storage configuration is invalid. VAULT_STORAGE_PATHS must contain 1\u201312 labelled absolute paths.");
     if (!previous.length || performance.now() - lastCpuSample > 15e3) {
       previous = await cpuCounters();

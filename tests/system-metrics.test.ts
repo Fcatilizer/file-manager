@@ -158,3 +158,45 @@ test('storage collector returns real capacity, caches filesystem calls and repor
   assert.equal(a[0].usage!.total, a[0].usage!.used + a[0].usage!.available + a[0].usage!.reserved)
   assert.equal(a[1].usage, null); assert.match(a[1].error!, /not mounted/)
 }))
+
+// Identity must never mistake the container distribution for the host.
+import { createInformationCollector, packageCount, parseOsRelease } from '../server/system/information.ts'
+
+test('os-release is parsed as data, with safe IDs and no shell evaluation', () => {
+  assert.deepEqual(parseOsRelease('ID=fedora\nPRETTY_NAME="Fedora Linux 44 (Server Edition)"'), { id: 'fedora', name: 'Fedora Linux 44 (Server Edition)' })
+  assert.deepEqual(parseOsRelease('ID="$(bad)"\nNAME="$(do-not-run)"\nVERSION_ID=44'), { id: 'linux', name: '$(do-not-run) 44' })
+  assert.equal(parseOsRelease('# missing'), null)
+})
+
+test('host identity and container packages remain separate, cached and coalesced', async () => fixture(async (root, put) => {
+  await put('container-release', 'ID=alpine\nPRETTY_NAME="Alpine Linux"')
+  await put('host-release', 'ID=fedora\nPRETTY_NAME="Fedora Linux 44 (Server Edition)"')
+  await put('class/dmi/id/sys_vendor', 'HP')
+  await put('class/dmi/id/product_name', 'ProBook 4441s')
+  await put('class/dmi/id/product_version', 'To be filled by O.E.M.')
+  await put('class/drm/card0-eDP-1/status', 'connected')
+  await put('class/drm/card0-eDP-1/modes', '1366x768\n1024x768')
+  let calls = 0
+  const collect = createInformationCollector({ platform: 'linux', sysRoot: root, container: true,
+    osReleasePaths: [join(root, 'container-release')], hostOsReleasePaths: [join(root, 'host-release')],
+    command: async (file) => { calls++; assert.equal(file, 'apk'); return 'busybox\nnodejs' },
+  })
+  const [one, two] = await Promise.all([collect(), collect()])
+  assert.strictEqual(one, two); assert.strictEqual(await collect(), one); assert.equal(calls, 1)
+  assert.equal(one.os.id, 'fedora'); assert.equal(one.osScope, 'host'); assert.equal(one.hostOsAvailable, true)
+  assert.equal(one.containerOs?.id, 'alpine'); assert.deepEqual(one.packages, { count: 2, manager: 'apk' })
+  assert.equal(one.hardware, 'HP · ProBook 4441s')
+  assert.deepEqual(one.displays, [{ name: 'card0-eDP-1', mode: '1366x768' }])
+}))
+
+test('missing host release stays explicitly unknown; native Fedora uses rpm', async () => fixture(async (root, put) => {
+  await put('release', 'ID=fedora\nNAME=Fedora\nVERSION_ID=44')
+  const options = { platform: 'linux', sysRoot: root, osReleasePaths: [join(root, 'release')], hostOsReleasePaths: [], command: async () => null }
+  const container = await createInformationCollector({ ...options, container: true })()
+  assert.equal(container.hostOsAvailable, false); assert.equal(container.osScope, 'container')
+  assert.equal(container.hardware, null); assert.equal(container.packages, null)
+  const host = await createInformationCollector({ ...options, container: false, command: async (file) => { assert.equal(file, 'rpm'); return 'one\ntwo\n' } })()
+  assert.equal(host.osScope, 'host'); assert.equal(host.containerOs, null)
+  assert.deepEqual(host.packages, { count: 2, manager: 'rpm' })
+  assert.deepEqual(await packageCount('debian', async () => 'installed\nconfig-files\ninstalled'), { count: 2, manager: 'dpkg' })
+}))

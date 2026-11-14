@@ -68,3 +68,17 @@ VAULT_STORAGE_PATHS=[{"path":"/host-storage","label":"System and Dokploy"},{"pat
 ```
 
 Use one entry per filesystem/storage pool to avoid displaying the same capacity twice. Up to 12 explicit paths are supported. Invalid configuration or unavailable mounts produces an unavailable reading rather than a misleading fallback. Redeploy to apply these settings. If RustFS lives on another physical server, that server needs its own metrics endpoint/collector to report its physical capacity.
+
+## More information and distribution logo
+
+The expandable **More information** section shows the detected OS and bundled distro logo, architecture, kernel, hardware model, firmware, CPU/GPU names, package count, service hostname/runtime/shell/locale/timezone, network interfaces and connected display modes when readable. Identity information is cached for five minutes, with bounded package queries; fastfetch is not required. Display modes are advertised connector modes, not a measurement of current resolution or refresh rate. No hardware serial numbers are collected.
+
+In Docker, `/etc/os-release` identifies the **container** (for example Alpine), not Fedora on the host. To display the host distribution and its logo, add this read-only bind mount to the Vault service:
+
+- Source: the host OS release file (`/etc/os-release`; on Fedora its resolved target is usually `/usr/lib/os-release`). Use `readlink -f /etc/os-release` on the host to confirm the source.
+- Destination: `/run/host/os-release`
+- Read only: enabled
+
+Redeploy Vault to apply the mount. The default collector detects that path automatically. `VAULT_HOST_OS_RELEASE` can specify another mounted path if needed. Do not add SELinux relabel flags to a system OS file. If the file is unavailable, the UI explicitly labels the detected distribution as the container OS instead of guessing from the kernel version.
+
+The host logo does not change the scope of other information: package counts, hostname, local network addresses and service environment still describe the container. Host package counts and an SSH session's terminal/shell version are not inferred. Hardware and kernel information come from the exposed host kernel/sysfs. Logos are bundled locally, so the browser makes no external image requests; see `distro-logo-credits.md` for attribution.
