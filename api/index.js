@@ -2977,6 +2977,18 @@ async function batteries(sysRoot) {
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { join as join2 } from "node:path";
+
+// server/system/gpuModels.ts
+var models = {
+  "8086:0166": { name: "Intel HD Graphics 4000", kind: "integrated" },
+  "1002:6841": { name: "AMD Radeon HD 7550M/7570M/7650M", kind: "discrete" }
+};
+function gpuModel(vendor, device) {
+  const normalize = (id) => (id || "").trim().toLowerCase().replace(/^0x/, "");
+  return models[`${normalize(vendor)}:${normalize(device)}`] || null;
+}
+
+// server/system/gpu.ts
 var exec = promisify(execFile);
 var pciId = (value) => value.toLowerCase().replace(/^00000000:/, "0000:");
 function gpuLabels(value) {
@@ -3034,6 +3046,7 @@ async function graphics(sysRoot, labels, nvidia = nvidiaMetrics) {
       readNumber(join2(base, "mem_info_vram_used"))
     ]);
     const brand = vendor === "0x8086" ? "Intel" : vendor === "0x1002" ? "AMD" : vendor === "0x10de" ? "NVIDIA" : "Graphics adapter";
+    const model = gpuModel(vendor, device);
     const integrated = vendor === "0x8086" && ["0x0102", "0x0112", "0x0122", "0x0106", "0x0116", "0x0126", "0x0152", "0x0162", "0x0156", "0x0166"].includes(device || "");
     let temperature = null;
     for (const hwmon of await names(join2(base, "hwmon"))) {
@@ -3045,8 +3058,8 @@ async function graphics(sysRoot, labels, nvidia = nvidiaMetrics) {
     }
     result.push({
       id,
-      name: `${brand}${device ? ` ${device}` : ""}`,
-      kind: integrated ? "integrated" : "unknown",
+      name: model?.name || `${brand}${device ? ` ${device}` : ""}`,
+      kind: model?.kind || (integrated ? "integrated" : "unknown"),
       driver,
       utilization: load === null ? null : percent(load),
       memory: total !== null && used !== null ? memoryMetric(total, total - used) : null,

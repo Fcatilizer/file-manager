@@ -200,3 +200,28 @@ test('missing host release stays explicitly unknown; native Fedora uses rpm', as
   assert.deepEqual(host.packages, { count: 2, manager: 'rpm' })
   assert.deepEqual(await packageCount('debian', async () => 'installed\nconfig-files\ninstalled'), { count: 2, manager: 'dpkg' })
 }))
+
+import { gpuModel } from '../server/system/gpuModels.ts'
+import { gpuUsageExplanation } from '../src/lib/gpuInformation.ts'
+
+test('ProBook GPU identities use exact PCI pairs and preserve unavailable usage and label overrides', async () => fixture(async (root, put) => {
+  for (const [card, vendor, device, driver, bus] of [
+    ['card0', '0x1002', '0x6841', 'radeon', '0000:01:00.0'],
+    ['card1', '0x8086', '0x0166', 'i915', '0000:00:02.0'],
+  ]) {
+    await put(`class/drm/${card}/device/vendor`, vendor)
+    await put(`class/drm/${card}/device/device`, device)
+    await put(`class/drm/${card}/device/uevent`, `DRIVER=${driver}\nPCI_SLOT_NAME=${bus}`)
+  }
+  const result = await graphics(root, {}, async () => [])
+  assert.equal(result[0].name, 'AMD Radeon HD 7550M/7570M/7650M'); assert.equal(result[0].kind, 'discrete')
+  assert.equal(result[1].name, 'Intel HD Graphics 4000'); assert.equal(result[1].kind, 'integrated')
+  assert.equal(result[0].utilization, null); assert.equal(result[1].utilization, null)
+  assert.match(gpuUsageExplanation(result[0]), /legacy Radeon/)
+  assert.match(gpuUsageExplanation(result[1]), /host performance counters/)
+  const overridden = await graphics(root, { '0000:01:00.0': { name: 'Custom Radeon', kind: 'unknown' } }, async () => [])
+  assert.equal(overridden[0].name, 'Custom Radeon'); assert.equal(overridden[0].kind, 'unknown')
+  assert.equal(gpuModel('0x10de', '0x0166'), null)
+  assert.equal(gpuModel('0x1002', '0xffff'), null)
+  assert.equal(gpuModel('8086', '0166')?.kind, 'integrated')
+}))

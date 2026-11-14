@@ -41,6 +41,10 @@ VAULT_GPU_LABELS={"0000:00:02.0":{"name":"Intel HD Graphics 4000","kind":"integr
 
 Use addresses and types matching your hardware. Labels do not change whether utilization is available.
 
+The exact PCI pairs `8086:0166` and `1002:6841` are recognized automatically as Intel HD Graphics 4000 (integrated) and AMD Radeon HD 7550M/7570M/7650M (discrete). The AMD ID covers multiple retail models, so the family name is retained. Other unrecognized adapters keep their vendor/device ID; configured labels still take precedence.
+
+On the ProBook's `i915` and legacy `radeon` drivers, an unavailable percentage means the collector has no accessible load counter, not that the adapter is absent or at 0%. Intel engine utilization needs host performance-counter tooling; legacy Radeon can be monitored using [radeontop](https://github.com/clbr/radeontop), which requires device access. A read-only sysfs mount alone does not supply those counters. Such monitoring is not enabled automatically by Vault.
+
 ## Disk storage and monitored machine
 
 The dashboard reports the machine **running the Vault backend**. `localhost:3000` on a Mac monitors that Mac. Deploy/open the updated app on your Fedora server to see Fedora. A remote RustFS S3 endpoint does not provide host disk free-space metrics through normal bucket APIs.

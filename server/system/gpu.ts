@@ -3,6 +3,7 @@ import { promisify } from 'node:util'
 import { join } from 'node:path'
 import type { GpuMetric } from '../../src/lib/systemMetrics.ts'
 import { memoryMetric, names, numeric, percent, readNumber, readText } from './linux.ts'
+import { gpuModel } from './gpuModels.ts'
 const exec = promisify(execFile)
 const pciId = (value: string) => value.toLowerCase().replace(/^00000000:/, '0000:')
 type GpuLabel = { name?: string; kind?: GpuMetric['kind'] }
@@ -47,6 +48,7 @@ export async function graphics(sysRoot: string, labels: Record<string, GpuLabel>
       readNumber(join(base, 'mem_info_vram_total')), readNumber(join(base, 'mem_info_vram_used')),
     ])
     const brand = vendor === '0x8086' ? 'Intel' : vendor === '0x1002' ? 'AMD' : vendor === '0x10de' ? 'NVIDIA' : 'Graphics adapter'
+    const model = gpuModel(vendor, device)
     // Legacy Intel HD IDs are unambiguously integrated. Other adapters stay unknown
     // unless reported by tooling or configured explicitly; boot_vga does NOT imply iGPU.
     const integrated = vendor === '0x8086' && ['0x0102', '0x0112', '0x0122', '0x0106', '0x0116', '0x0126', '0x0152', '0x0162', '0x0156', '0x0166'].includes(device || '')
@@ -55,7 +57,7 @@ export async function graphics(sysRoot: string, labels: Record<string, GpuLabel>
       const value = await readNumber(join(base, 'hwmon', hwmon, 'temp1_input'))
       if (value !== null && value >= -50000 && value <= 200000) { temperature = value / 1000; break }
     }
-    result.push({ id, name: `${brand}${device ? ` ${device}` : ''}`, kind: integrated ? 'integrated' : 'unknown', driver,
+    result.push({ id, name: model?.name || `${brand}${device ? ` ${device}` : ''}`, kind: model?.kind || (integrated ? 'integrated' : 'unknown'), driver,
       utilization: load === null ? null : percent(load), memory: total !== null && used !== null ? memoryMetric(total, total - used) : null, temperature })
   }
   for (const gpu of await nvidia()) {

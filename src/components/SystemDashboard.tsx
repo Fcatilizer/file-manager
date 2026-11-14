@@ -4,6 +4,7 @@ import type { MemoryMetric, SystemMetrics } from '../lib/systemMetrics'
 import Modal, { ModalHeader } from './Modal'
 import { Icon } from './Icon'
 import SystemInformation from './SystemInformation'
+import { gpuUsageExplanation } from '../lib/gpuInformation'
 import '../styles/system-dashboard.css'
 
 const ratio = (metric: MemoryMetric) => metric.total > 0 ? metric.used / metric.total * 100 : 0
@@ -119,7 +120,7 @@ export default function SystemDashboard({ onClose }: { onClose: () => void }) {
           {data.gpus.length ? data.gpus.map(gpu => <MetricCard key={gpu.id} title={`${gpu.kind === 'integrated' ? 'iGPU' : gpu.kind === 'discrete' ? 'dGPU' : 'GPU'} · ${gpu.name}`}>
             <p>{gpu.id}{gpu.driver ? ` · ${gpu.driver}` : ''}{gpu.kind === 'unknown' ? ' · Type unreported' : ''}</p>
             <Meter label="GPU utilization" value={gpu.utilization} />
-            {gpu.utilization === null && <p>The driver does not expose a readable utilization counter.</p>}
+            {gpu.utilization === null && <p>{gpuUsageExplanation(gpu)}</p>}
             {gpu.memory && <><Meter label="GPU memory used" value={ratio(gpu.memory)} /><p>{bytes(gpu.memory.used)} / {bytes(gpu.memory.total)}</p></>}
             {gpu.temperature !== null && <p>Temperature <strong>{gpu.temperature.toFixed(1)} °C</strong></p>}
           </MetricCard>) : <MetricCard title="Graphics"><p>No GPU metrics are exposed to Vault.</p></MetricCard>}
